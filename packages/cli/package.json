@@ -1,0 +1,28 @@
+{
+  "name": "brandrail",
+  "version": "0.1.0",
+  "description": "Brandrail CLI — compile a BrandSpec from a URL, render brand-locked assets from a brief. AI can think. It still can't design.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "brandrail": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"const fs=require('fs');const f='dist/index.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'));fs.chmodSync(f,0o755)\"",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@brandrail/sdk": "workspace:*",
+    "@brandrail/spec": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* the signature: ALL-CAPS letter-spaced mono eyebrow */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-muted;
+  }
+  /* the rail motif: a horizontal 2px guide line */
+  .rail {
+    @apply h-[2px] bg-signal;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 bg-signal text-ink font-body font-semibold
+      px-5 py-3 rounded text-sm transition-colors duration-mech ease-mech
+      hover:bg-bone disabled:opacity-40 disabled:pointer-events-none select-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 border border-hairline text-bone font-body
+      px-5 py-3 rounded text-sm transition-colors duration-mech ease-mech hover:border-bone
+      disabled:opacity-40 disabled:pointer-events-none select-none;
+  }
+  .field {
+    @apply w-full bg-panel border border-hairline rounded px-4 py-3 text-bone font-body text-sm
+      placeholder:text-muted focus:outline-none focus:border-signal transition-colors duration-mech ease-mech;
+  }
+  .panel {
+    @apply bg-panel border border-hairline rounded;
+  }
+}
+
+/* marketing landing: the slop marquee + terminal cursor */
+@keyframes btick {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes bblink {
+  50% { opacity: 0; }
+}

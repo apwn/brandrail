@@ -1,0 +1,761 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { BrandSpec } from "@brandrail/spec";
+import { ARCHETYPE_INFO } from "@brandrail/spec";
+import { MarketingLanding } from "./marketing";
+
+type Step = "landing" | "compiling" | "sheet" | "rendering" | "result";
+
+interface CompileResponse {
+  spec: BrandSpec;
+  confidence: Record<string, number>;
+  warnings: string[];
+  error?: string;
+}
+interface AssetRef {
+  filename: string;
+  format: string;
+  slide: number;
+  width: number;
+  height: number;
+  url: string;
+}
+interface SlideCopy {
+  kicker?: string;
+  hook: string;
+  body?: string;
+  cta?: string;
+  badge?: string;
+  rating?: string;
+}
+interface RenderResponse {
+  id: string;
+  specVersion: number;
+  assets: AssetRef[];
+  manifest: { warnings: string[] };
+  plan?: Record<string, string>;
+  copy?: Record<string, SlideCopy[]>;
+  error?: string;
+  violations?: Array<{ code: string; message: string }>;
+}
+
+const SUGGESTED_BRIEFS = ["Summer promotion", "We're hiring", "Announce our new product"];
+
+// the studio's template list is the spec's shared catalog — one source of truth
+const ARCHETYPES = Object.keys(ARCHETYPE_INFO);
+
+export default function Playground() {
+  const [step, setStep] = useState<Step>("landing");
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [compiled, setCompiled] = useState<CompileResponse | null>(null);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [brief, setBrief] = useState("");
+  const [render, setRender] = useState<RenderResponse | null>(null);
+  const [email, setEmail] = useState("");
+  const [gateOpen, setGateOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [zipping, setZipping] = useState(false);
+
+  const spec = compiled?.spec ?? null;
+  const lowConfidence = useMemo(
+    () =>
+      new Set(
+        Object.entries(compiled?.confidence ?? {})
+          .filter(([, v]) => v < 0.5)
+          .map(([k]) => k),
+      ),
+    [compiled],
+  );
+
+  async function doCompile() {
+    if (!url.trim()) return;
+    setError(null);
+    setStep("compiling");
+    try {
+      const res = await fetch("/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const body = (await res.json()) as CompileResponse;
+      if (!res.ok) throw new Error(body.error ?? "compile failed");
+      setCompiled(body);
+      setEdits({});
+      setStep("sheet");
+    } catch (e) {
+      setError((e as Error).message);
+      setStep("landing");
+    }
+  }
+
+  async function applyEditsIfAny(): Promise<string> {
+    if (!spec) throw new Error("no spec");
+    if (Object.keys(edits).length === 0) return spec.meta.name;
+    const patch: Record<string, unknown> = {};
+    const colorEdits: Record<string, string> = {};
+    for (const [key, value] of Object.entries(edits)) {
+      if (key.startsWith("color:")) colorEdits[key.slice(6)] = value.toUpperCase();
+      if (key === "tone") {
+        (patch.voice as Record<string, unknown>) ??= {};
+        (patch.voice as Record<string, unknown>).tone = value.split(",").map((t) => t.trim()).filter(Boolean);
+      }
+      if (key === "banned") {
+        (patch.voice as Record<string, unknown>) ??= {};
+        (patch.voice as Record<string, unknown>).banned = value.split(",").map((t) => t.trim()).filter(Boolean);
+      }
+      if (key === "removedPhotos" && value) {
+        const removed = new Set(value.split(",").map(Number));
+        patch.imagery = {
+          photos: spec.imagery.photos.filter((_, i) => !removed.has(i)),
+        };
+      }
+    }
+    if (Object.keys(colorEdits).length > 0) {
+      patch.identity = { colors: { roles: colorEdits } };
+    }
+    const res = await fetch("/api/spec", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ brand: spec.meta.name, patch }),
+    });
+    const body = (await res.json()) as { spec?: BrandSpec; error?: string; issues?: Array<{ path: string; message: string }> };
+    if (!res.ok) {
+      throw new Error(body.issues?.[0] ? `${body.issues[0].path}: ${body.issues[0].message}` : (body.error ?? "edit rejected"));
+    }
+    setCompiled((c) => (c ? { ...c, spec: body.spec! } : c));
+    setEdits({});
+    return body.spec!.meta.name;
+  }
+
+  async function doRender(chosenBrief: string) {
+    if (!spec) return;
+    setBrief(chosenBrief);
+    setError(null);
+    setStep("rendering");
+    try {
+      const brand = await applyEditsIfAny();
+      const res = await fetch("/api/render", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ brand, brief: chosenBrief }),
+      });
+      const body = (await res.json()) as RenderResponse;
+      if (!res.ok) {
+        throw new Error(
+          body.violations?.length
+            ? `spec violations: ${body.violations.map((v) => v.message).join("; ")}`
+            : (body.error ?? "render failed"),
+        );
+      }
+      setRender(body);
+      setStep("result");
+    } catch (e) {
+      setError((e as Error).message);
+      setStep("sheet");
+    }
+  }
+
+  const [restyling, setRestyling] = useState<string | null>(null);
+
+  /** studio: re-render one format with a chosen template and/or edited copy. */
+  async function restyleFormat(format: string, archetype: string, copyOverride?: SlideCopy[]) {
+    if (!render || !spec) return;
+    setError(null);
+    setRestyling(format);
+    try {
+      const res = await fetch("/api/render", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          brand: spec.meta.name,
+          brief,
+          formats: [format],
+          archetype,
+          ...(copyOverride ? { copy: { [format]: copyOverride } } : {}),
+        }),
+      });
+      const body = (await res.json()) as RenderResponse;
+      if (!res.ok) {
+        throw new Error(
+          body.violations?.length
+            ? `spec violations: ${body.violations.map((v) => v.message).join("; ")}`
+            : (body.error ?? "re-render failed"),
+        );
+      }
+      // splice the new asset(s) for this format into the grid, keeping order
+      setRender((prev) => {
+        if (!prev) return prev;
+        const others = prev.assets.filter((a) => a.format !== format);
+        const order = [...new Set(prev.assets.map((a) => a.format))];
+        const merged = [...others, ...body.assets].sort(
+          (a, b) => order.indexOf(a.format) - order.indexOf(b.format) || a.slide - b.slide,
+        );
+        return {
+          ...prev,
+          assets: merged,
+          plan: { ...(prev.plan ?? {}), [format]: archetype },
+          copy: { ...(prev.copy ?? {}), [format]: body.copy?.[format] ?? prev.copy?.[format] ?? [] },
+        };
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRestyling(null);
+    }
+  }
+
+  async function submitEmail() {
+    const res = await fetch("/api/waitlist", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, brand: spec?.meta.name ?? null }),
+    });
+    if (res.ok) {
+      setUnlocked(true);
+      setGateOpen(false);
+      void downloadZip();
+    } else {
+      setError(((await res.json()) as { error?: string }).error ?? "try again");
+    }
+  }
+
+  async function downloadZip() {
+    if (!render) return;
+    setZipping(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      for (const asset of render.assets) {
+        const blob = await fetch(assetUrl(render.id, asset.filename)).then((r) => r.blob());
+        zip.file(asset.filename, blob);
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${spec?.meta.name ?? "brandrail"}-assets.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setZipping(false);
+    }
+  }
+
+  // the marketing front door is full-bleed; the tool view is the narrow column
+  if (step === "landing") {
+    return <MarketingLanding url={url} setUrl={setUrl} onSubmit={doCompile} error={error} />;
+  }
+
+  return (
+    <main className="mx-auto max-w-5xl px-6 py-10">
+      <Header />
+      {error && (
+        <div className="panel border-signal mb-8 px-4 py-3 text-sm" role="alert">
+          <span className="font-mono text-signal">ERR</span> {error}
+        </div>
+      )}
+
+      {step === "compiling" && (
+        <Working
+          label="COMPILING"
+          steps={[
+            `fetching ${url.trim()}`,
+            "reading computed styles",
+            "clustering the palette",
+            "identifying typography",
+            "hunting the logo",
+            "judging taste (vision model)",
+            "assembling the BrandSpec",
+          ]}
+        />
+      )}
+      {(step === "sheet" || step === "rendering") && spec && (
+        <>
+          <BrandSheet spec={spec} lowConfidence={lowConfidence} edits={edits} setEdits={setEdits} warnings={compiled?.warnings ?? []} />
+          {step === "sheet" ? (
+            <BriefBar onRender={doRender} />
+          ) : (
+            <Working
+              label="RENDERING"
+              steps={[
+                `writing copy for "${brief}"`,
+                "validating against your voice rules",
+                "laying out 5 formats on the grid",
+                "running the violation gates",
+                "rasterizing · 0 hallucinated pixels",
+              ]}
+            />
+          )}
+        </>
+      )}
+      {step === "result" && render && spec && (
+        <ResultGrid
+          render={render}
+          brand={spec.meta.name}
+          brief={brief}
+          unlocked={unlocked}
+          zipping={zipping}
+          restyling={restyling}
+          onRestyle={restyleFormat}
+          onDownload={() => (unlocked ? void downloadZip() : setGateOpen(true))}
+          onAgain={() => setStep("sheet")}
+        />
+      )}
+
+      {gateOpen && (
+        <EmailGate
+          email={email}
+          setEmail={setEmail}
+          onSubmit={submitEmail}
+          onClose={() => setGateOpen(false)}
+        />
+      )}
+      <Footer />
+    </main>
+  );
+}
+
+function assetUrl(renderId: string, filename: string): string {
+  return `/api/asset/${encodeURIComponent(renderId)}/${encodeURIComponent(filename)}`;
+}
+
+/** Pinned brand assets are stored as content-addressed `blob://<hash>` refs;
+ * route them through the blob proxy so the browser can display them. http/data
+ * refs (un-pinned) pass through unchanged. */
+function photoSrc(ref: string): string {
+  const hash = /^blob:\/\/([a-f0-9]{64})$/.exec(ref)?.[1];
+  return hash ? `/api/blob/${hash}` : ref;
+}
+
+function removedPhotoSet(edits: Record<string, string>): number[] {
+  return (edits.removedPhotos ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map(Number);
+}
+function isPhotoRemoved(edits: Record<string, string>, index: number): boolean {
+  return removedPhotoSet(edits).includes(index);
+}
+function removedPhotoCount(edits: Record<string, string>): number {
+  return removedPhotoSet(edits).length;
+}
+
+function Header() {
+  return (
+    <header className="mb-14 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="rail w-10" aria-hidden />
+        <span className="font-display font-bold text-lg tracking-tight">brandrail</span>
+        <span className="eyebrow mt-[2px]">PLAYGROUND · V0</span>
+      </div>
+      <div className="flex gap-5">
+        <a href="/dashboard" className="eyebrow hover:text-bone">WORKSPACE</a>
+        <a href="/review" className="eyebrow hover:text-bone">BATCH REVIEW →</a>
+      </div>
+    </header>
+  );
+}
+
+function Working({ label, steps }: { label: string; steps: string[] }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  // narration paces itself: ~4s per step, parking on the last one
+  const stepIndex = Math.min(Math.floor(tick / 4), steps.length - 1);
+  return (
+    <section className="py-20" aria-live="polite">
+      <div className="flex items-center gap-4">
+        <div className="rail w-16 animate-pulse" />
+        <span className="eyebrow text-signal">{label}</span>
+        <span className="font-mono text-[11px] text-muted">{tick}s</span>
+      </div>
+      <div className="mt-5">
+        {steps.map((s, i) => (
+          <p
+            key={s}
+            className={`font-mono text-xs leading-6 transition-colors duration-mech ${
+              i < stepIndex ? "text-muted" : i === stepIndex ? "text-bone" : "text-hairline"
+            }`}
+          >
+            {i < stepIndex ? "▪" : i === stepIndex ? "▸" : "·"} {s}
+          </p>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Chip({ hex, label, flagged, value, onChange }: { hex: string; label: string; flagged: boolean; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded border border-hairline shrink-0" style={{ backgroundColor: value || hex }} />
+      <div className="min-w-0">
+        <p className="eyebrow">
+          {label}
+          {flagged && <span className="text-signal ml-2">REVIEW</span>}
+        </p>
+        <input
+          className="bg-transparent font-mono text-sm text-bone w-24 focus:outline-none focus:text-signal"
+          value={value || hex}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} color`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BrandSheet({
+  spec,
+  lowConfidence,
+  edits,
+  setEdits,
+  warnings,
+}: {
+  spec: BrandSpec;
+  lowConfidence: Set<string>;
+  edits: Record<string, string>;
+  setEdits: (e: Record<string, string>) => void;
+  warnings: string[];
+}) {
+  const roles = spec.identity.colors.roles;
+  const set = (key: string, value: string) => setEdits({ ...edits, [key]: value });
+  return (
+    <section className="mb-10">
+      <p className="eyebrow mb-4">02 / YOUR BRANDSPEC — {spec.meta.name} v{spec.meta.version}</p>
+      <div className="panel p-6 grid gap-8 md:grid-cols-2">
+        <div>
+          <p className="eyebrow mb-4 text-bone">COLOR ROLES</p>
+          <div className="grid grid-cols-2 gap-5">
+            {(["ink", "paper", "signal", "muted"] as const).map((role) =>
+              roles[role] ? (
+                <Chip
+                  key={role}
+                  label={role}
+                  hex={roles[role]!}
+                  value={edits[`color:${role}`] ?? ""}
+                  flagged={lowConfidence.has(`identity.colors.roles.${role}`)}
+                  onChange={(v) => set(`color:${role}`, v)}
+                />
+              ) : null,
+            )}
+          </div>
+          <p className="eyebrow mt-8 mb-3 text-bone">TYPE</p>
+          <p className="font-display font-bold text-2xl leading-tight">{spec.identity.typography.display.family}</p>
+          <p className="text-muted text-sm mt-1">
+            body · {spec.identity.typography.body.family}
+            {lowConfidence.has("identity.typography.display") && <span className="font-mono text-signal text-[11px] ml-2">REVIEW</span>}
+          </p>
+          <p className="eyebrow mt-8 mb-3 text-bone">LOGO</p>
+          {spec.identity.logo.assets.primary ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoSrc(spec.identity.logo.assets.primary)} alt="detected logo" className="h-10 w-10 rounded border border-hairline object-contain bg-white" />
+          ) : (
+            <p className="text-muted text-sm">none found — the wordmark is typeset from &ldquo;{spec.meta.name}&rdquo;</p>
+          )}
+          <p className="eyebrow mt-8 mb-3 text-bone">PHOTOS ({spec.imagery.photos.length - removedPhotoCount(edits)})</p>
+          {spec.imagery.photos.length === 0 ? (
+            <p className="text-muted text-sm">none found — layouts render typographic. Photo-rich pages compile better.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {spec.imagery.photos.map((photo, i) =>
+                isPhotoRemoved(edits, i) ? null : (
+                  <div key={photo.slice(0, 80) + i} className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoSrc(photo)} alt={`brand photo ${i + 1}`} loading="lazy" className="h-14 w-14 rounded border border-hairline object-cover" />
+                    <button
+                      aria-label={`remove photo ${i + 1}`}
+                      className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded bg-ink border border-hairline text-muted hover:text-signal hover:border-signal font-mono text-[9px] leading-none transition-colors duration-mech"
+                      onClick={() => set("removedPhotos", [...removedPhotoSet(edits), i].join(","))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+        <div>
+          <p className="eyebrow mb-4 text-bone">
+            VOICE {lowConfidence.has("voice") && <span className="text-signal">DRAFT — REVIEW</span>}
+          </p>
+          <label className="eyebrow block mb-1">tone (comma-separated)</label>
+          <input className="field mb-4" value={edits.tone ?? spec.voice.tone.join(", ")} onChange={(e) => set("tone", e.target.value)} />
+          <label className="eyebrow block mb-1">banned words</label>
+          <input
+            className="field mb-4"
+            placeholder="synergy, game-changing, unleash"
+            value={edits.banned ?? spec.voice.banned.join(", ")}
+            onChange={(e) => set("banned", e.target.value)}
+          />
+          <p className="text-muted text-xs leading-relaxed">
+            CTA style <span className="font-mono text-bone">{spec.voice.ctaStyle}</span> · max {spec.voice.emojiMax} emoji ·
+            max {spec.voice.hashtagMax} hashtags. Edits create a new spec version — every change is a diff.
+          </p>
+          {warnings.length > 0 && (
+            <div className="mt-6 border-t border-hairline pt-4">
+              {warnings.map((w) => (
+                <p key={w} className="font-mono text-[11px] text-muted leading-relaxed">⚠ {w}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BriefBar({ onRender }: { onRender: (brief: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <section>
+      <p className="eyebrow mb-4">03 / WHAT SHOULD IT SAY?</p>
+      <form
+        className="flex max-w-xl gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value.trim()) onRender(value.trim());
+        }}
+      >
+        <input className="field" placeholder='e.g. "Summer promotion"' value={value} onChange={(e) => setValue(e.target.value)} aria-label="Brief" />
+        <button className="btn whitespace-nowrap" type="submit" disabled={!value.trim()}>
+          Render 5 posts →
+        </button>
+      </form>
+      <div className="mt-3 flex gap-2 flex-wrap">
+        {SUGGESTED_BRIEFS.map((s) => (
+          <button key={s} className="btn-ghost !px-3 !py-1.5 text-xs" onClick={() => onRender(s)}>
+            {s}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ResultGrid({
+  render,
+  brand,
+  brief,
+  unlocked,
+  zipping,
+  restyling,
+  onRestyle,
+  onDownload,
+  onAgain,
+}: {
+  render: RenderResponse;
+  brand: string;
+  brief: string;
+  unlocked: boolean;
+  zipping: boolean;
+  restyling: string | null;
+  onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
+  onDownload: () => void;
+  onAgain: () => void;
+}) {
+  const formats = [...new Set(render.assets.map((a) => a.format))];
+  return (
+    <section>
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+          <p className="eyebrow mb-2">04 / YOUR NEXT 5 POSTS · STUDIO</p>
+          <h2 className="font-display font-bold text-2xl tracking-tight">&ldquo;{brief}&rdquo; — {brand}</h2>
+          <p className="text-muted text-sm mt-1">Swap the template or edit the words on any post — it re-renders on brand.</p>
+        </div>
+        <div className="flex gap-3">
+          <button className="btn-ghost" onClick={onAgain}>← another brief</button>
+          <button className="btn" onClick={onDownload} disabled={zipping}>
+            {zipping ? "zipping…" : unlocked ? "Download all (.zip)" : "Download all →"}
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {formats.map((format) => (
+          <StudioCard
+            key={format}
+            format={format}
+            render={render}
+            archetype={render.plan?.[format] ?? ""}
+            copy={render.copy?.[format] ?? []}
+            busy={restyling === format}
+            onRestyle={onRestyle}
+          />
+        ))}
+      </div>
+      {render.manifest.warnings.length > 0 && (
+        <div className="mt-4">
+          {render.manifest.warnings.map((w) => (
+            <p key={w} className="font-mono text-[11px] text-muted">⚠ {w}</p>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const SLOTS: Array<keyof SlideCopy> = ["kicker", "hook", "body", "cta", "badge", "rating"];
+
+function StudioCard({
+  format,
+  render,
+  archetype,
+  copy,
+  busy,
+  onRestyle,
+}: {
+  format: string;
+  render: RenderResponse;
+  archetype: string;
+  copy: SlideCopy[];
+  busy: boolean;
+  onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
+}) {
+  const assets = render.assets.filter((a) => a.format === format).sort((a, b) => a.slide - b.slide);
+  const [open, setOpen] = useState(false);
+  const [arch, setArch] = useState(archetype);
+  const [draft, setDraft] = useState<SlideCopy[]>(copy);
+  const isCarousel = assets.length > 1;
+
+  // keep local state in sync when a re-render replaces this format
+  const sig = archetype + "|" + JSON.stringify(copy);
+  const [lastSig, setLastSig] = useState(sig);
+  if (sig !== lastSig) {
+    setArch(archetype);
+    setDraft(copy);
+    setLastSig(sig);
+  }
+
+  const dirty = arch !== archetype || JSON.stringify(draft) !== JSON.stringify(copy);
+
+  return (
+    <div className="panel overflow-hidden flex flex-col">
+      <div className={`grid ${isCarousel ? "grid-cols-2" : "grid-cols-1"} gap-px bg-hairline`}>
+        {assets.map((asset) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={asset.filename}
+            src={assetUrl(render.id, asset.filename)}
+            alt={`${format}${asset.slide > 0 ? ` ${asset.slide + 1}` : ""}`}
+            width={asset.width}
+            height={asset.height}
+            loading="lazy"
+            className={`w-full h-auto bg-panel ${busy ? "opacity-40" : ""}`}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-between px-3 py-2 border-t border-hairline">
+        <span className="font-mono text-[11px] text-muted">{format} · {archetype}</span>
+        <button
+          className="font-mono text-[11px] text-muted hover:text-signal transition-colors duration-mech"
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "close ✕" : "edit ▸"}
+        </button>
+      </div>
+      {open && (
+        <div className="px-3 pb-3 pt-1 border-t border-hairline flex flex-col gap-3">
+          <label className="eyebrow block">template</label>
+          <select
+            className="field !py-2"
+            value={arch}
+            onChange={(e) => setArch(e.target.value)}
+          >
+            {ARCHETYPES.map((a) => {
+              const info = ARCHETYPE_INFO[a as keyof typeof ARCHETYPE_INFO];
+              const hint = info?.needsPhotos ? " · photo" : info?.optIn ? " · needs real content" : "";
+              return (
+                <option key={a} value={a} className="bg-panel">
+                  {a}
+                  {hint}
+                </option>
+              );
+            })}
+          </select>
+          {!isCarousel && draft[0] && (
+            <div className="flex flex-col gap-2">
+              <label className="eyebrow block">copy</label>
+              {SLOTS.filter((s) => draft[0]![s] !== undefined || s === "hook").map((slot) => (
+                <input
+                  key={slot}
+                  className="field !py-2 text-xs"
+                  placeholder={slot}
+                  value={draft[0]![slot] ?? ""}
+                  onChange={(e) =>
+                    setDraft((d) => [{ ...d[0]!, [slot]: e.target.value }, ...d.slice(1)])
+                  }
+                />
+              ))}
+            </div>
+          )}
+          {isCarousel && (
+            <p className="font-mono text-[11px] text-muted">carousel copy edits regenerate on the new template</p>
+          )}
+          <button
+            className="btn !py-2"
+            disabled={busy || !dirty}
+            onClick={() =>
+              onRestyle(format, arch, !isCarousel && dirty ? draft : undefined)
+            }
+          >
+            {busy ? "re-rendering…" : "Re-render this →"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailGate({
+  email,
+  setEmail,
+  onSubmit,
+  onClose,
+}: {
+  email: string;
+  setEmail: (v: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-ink/90 flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
+      <div className="panel max-w-md w-full p-8">
+        <div className="rail w-10 mb-6" />
+        <h3 className="font-display font-bold text-2xl tracking-tight">Take them with you.</h3>
+        <p className="text-muted text-sm mt-3 leading-relaxed">
+          The zip is free. Leave an email and we&rsquo;ll also tell you when the API, CLI and MCP server
+          open up — Brandrail is open source and built in public.
+        </p>
+        <form
+          className="mt-6 flex gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+          }}
+        >
+          <input className="field" type="email" placeholder="you@studio.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+          <button className="btn whitespace-nowrap" type="submit">Unlock zip</button>
+        </form>
+        <button className="font-mono text-[11px] text-muted mt-4 hover:text-bone transition-colors duration-mech" onClick={onClose}>
+          no thanks, back to the grid
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-24 border-t border-hairline pt-6 pb-10 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <span className="eyebrow">DEATH TO SLOP</span>
+      <a className="font-mono text-[11px] text-muted hover:text-bone transition-colors duration-mech" href="https://github.com/brandrail/brandrail">
+        github.com/brandrail
+      </a>
+      <span className="font-mono text-[11px] text-muted">agents: `npx @brandrail/mcp` · humans: `npm i -g brandrail`</span>
+    </footer>
+  );
+}
