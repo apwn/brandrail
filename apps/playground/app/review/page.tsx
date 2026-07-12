@@ -43,6 +43,7 @@ export default function ReviewPage() {
   const [briefs, setBriefs] = useState("");
   const [title, setTitle] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [batch, setBatch] = useState<Batch | null>(null);
@@ -94,6 +95,31 @@ export default function ReviewPage() {
     },
     [items],
   );
+
+  // the planner: propose on-brand briefs for the first selected client
+  const suggest = useCallback(async () => {
+    const brand = [...brands][0];
+    if (!brand) {
+      setError("pick a client first");
+      return;
+    }
+    setSuggesting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ brand, count: 6 }),
+      });
+      const data = (await res.json()) as { items?: Array<{ brief: string }>; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "planning failed");
+      setBriefs((data.items ?? []).map((i) => i.brief).join("\n"));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  }, [brands]);
 
   const generate = useCallback(async () => {
     const briefList = briefs.split("\n").map((b) => b.trim()).filter(Boolean);
@@ -318,10 +344,15 @@ export default function ReviewPage() {
           </div>
         )}
 
-        <p className="eyebrow mt-8 mb-3 text-bone">BRIEFS · one per line</p>
+        <div className="flex items-center justify-between mt-8 mb-3">
+          <p className="eyebrow text-bone">BRIEFS · one per line</p>
+          <button className="eyebrow text-signal hover:text-bone disabled:opacity-40" onClick={suggest} disabled={suggesting || brands.size === 0}>
+            {suggesting ? "PLANNING…" : "✨ SUGGEST POSTS"}
+          </button>
+        </div>
         <textarea
           className="field h-40 font-mono"
-          placeholder={"Summer sale — 20% off\nWe just shipped realtime\nHiring a brand designer"}
+          placeholder={"Summer sale — 20% off\nWe just shipped realtime\nHiring a brand designer\n\n(or ✨ Suggest posts to plan on-brand ideas for you)"}
           value={briefs}
           onChange={(e) => setBriefs(e.target.value)}
         />
