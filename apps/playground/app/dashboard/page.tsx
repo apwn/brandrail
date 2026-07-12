@@ -2,6 +2,7 @@ import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
 import { AccountBar } from "./account-bar";
 import { BillingControls } from "./billing-controls";
+import { ChannelsCard } from "./channels-card";
 
 type Usage = {
   user: { id: string; email: string | null; plan: "free" | "studio" | "agency" };
@@ -72,6 +73,8 @@ export default async function Dashboard() {
           <BillingControls plan={usage.user.plan} />
         </div>
       </section>
+
+      <ChannelsCard />
 
       {/* brands */}
       <section className="mt-10">

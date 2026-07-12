@@ -173,7 +173,7 @@ function Hero({
           <span className="text-signal">+ more</span>
         </div>
         <p className="font-mono text-[11px] text-[#5B5851] mt-2.5">
-          Renders every format for each. Publish through the scheduler you already use — native rails on the roadmap.
+          Renders every format for each. <span className="text-signal">Bluesky publishing is live</span>; the rest publish through your scheduler while native rails roll out.
         </p>
       </div>
     </header>

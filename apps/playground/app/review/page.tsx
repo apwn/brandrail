@@ -208,6 +208,40 @@ export default function ReviewPage() {
     }
   }, [batch]);
 
+  /** publish the approved set to the user's connected channels — the hook copy
+   * + the og-image render of each piece. The last mile of the rails. */
+  const publishApproved = useCallback(async () => {
+    if (!batch) return;
+    const approved = batch.items.filter((i) => (i.status === "approved" || i.status === "edited") && i.renderId);
+    if (approved.length === 0) return;
+    const chans = (await fetch("/api/channels").then((r) => r.json()).catch(() => ({ channels: [] }))) as { channels: Array<{ id: string }> };
+    if (!chans.channels?.length) {
+      setError("Connect a channel first — Workspace → Channels.");
+      return;
+    }
+    const channelIds = chans.channels.map((c) => c.id);
+    setBusy(true);
+    setError(null);
+    let ok = 0;
+    let failed = 0;
+    try {
+      for (const it of approved) {
+        const slide = Object.values(it.copy?.formats ?? {})[0]?.[0];
+        const text = [slide?.hook, slide?.body].filter(Boolean).join(" — ") || it.brief;
+        const og = it.assets.find((a) => a.format === "og-image") ?? it.assets[0];
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text, channelIds, renderId: it.renderId, imageFiles: og ? [og.filename] : [] }),
+        });
+        res.ok ? ok++ : failed++;
+      }
+      setError(`Published ${ok}/${approved.length}${failed ? ` · ${failed} failed (check channel creds)` : " ✓"}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [batch]);
+
   /* keyboard triage */
   useEffect(() => {
     if (!batch) return;
@@ -319,8 +353,11 @@ export default function ReviewPage() {
           <button className="btn-ghost !py-1.5 !px-3 text-xs" onClick={approveAllPending} disabled={busy}>
             ⇧A approve all passing
           </button>
-          <button className="btn !py-1.5 !px-3 text-xs" onClick={exportApproved} disabled={busy}>
-            Export approved ↓
+          <button className="btn-ghost !py-1.5 !px-3 text-xs" onClick={exportApproved} disabled={busy}>
+            Export ↓
+          </button>
+          <button className="btn !py-1.5 !px-3 text-xs" onClick={publishApproved} disabled={busy}>
+            Publish approved →
           </button>
         </div>
       </header>
