@@ -92,7 +92,10 @@ export default async function Dashboard() {
                   <p className="font-mono text-sm text-bone">{s.name}</p>
                   <p className="font-mono text-[11px] text-muted">v{s.version}</p>
                 </div>
-                <a href="/review" className="eyebrow hover:text-bone">USE →</a>
+                <div className="flex gap-3">
+                  <a href={`/api/report/${encodeURIComponent(s.name)}`} target="_blank" rel="noreferrer" className="eyebrow hover:text-bone">REPORT</a>
+                  <a href="/review" className="eyebrow hover:text-bone">USE →</a>
+                </div>
               </div>
             ))}
           </div>

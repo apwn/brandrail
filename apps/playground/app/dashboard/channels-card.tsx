@@ -10,8 +10,10 @@ export function ChannelsCard() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [platforms, setPlatforms] = useState<Record<string, boolean>>({});
   const [trust, setTrust] = useState<"review" | "auto">("review");
+  const [platform, setPlatform] = useState<"bluesky" | "mastodon">("bluesky");
   const [handle, setHandle] = useState("");
   const [secret, setSecret] = useState("");
+  const [service, setService] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,19 +31,21 @@ export function ChannelsCard() {
   }, []);
 
   async function connect() {
-    if (!handle.includes(".")) return setError("enter your full Bluesky handle, e.g. acme.bsky.social");
+    if (platform === "bluesky" && !handle.includes(".")) return setError("enter your full Bluesky handle, e.g. acme.bsky.social");
+    if (platform === "mastodon" && !service.startsWith("http")) return setError("enter your Mastodon instance URL, e.g. https://mastodon.social");
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/channels", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ platform: "bluesky", handle, secret }),
+        body: JSON.stringify({ platform, handle, secret, ...(platform === "mastodon" ? { service } : {}) }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "connect failed");
       setHandle("");
       setSecret("");
+      setService("");
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -89,17 +93,29 @@ export function ChannelsCard() {
         </div>
       )}
 
-      {/* connect Bluesky (the one that works with no OAuth app) */}
+      {/* connect a live channel (Bluesky + Mastodon work with no OAuth app) */}
       <div className="panel p-4">
+        <div className="inline-flex border border-hairline mb-3 text-[11px] font-mono">
+          {(["bluesky", "mastodon"] as const).map((p) => (
+            <button key={p} onClick={() => setPlatform(p)} className={`px-3 py-1.5 uppercase tracking-wide transition-colors duration-mech ${platform === p ? "bg-signal text-ink" : "text-muted hover:text-bone"}`}>
+              {p}
+            </button>
+          ))}
+        </div>
         <p className="font-mono text-xs text-muted mb-2">
-          Connect <b className="text-bone">Bluesky</b> — handle + an app password (Bluesky → Settings → App passwords).
-          {Object.entries(platforms).filter(([, live]) => !live).length > 0 && (
-            <> Others (LinkedIn, X, Meta, TikTok) need a registered app — coming.</>
+          {platform === "bluesky" ? (
+            <>Handle + an app password (Bluesky → Settings → App passwords).</>
+          ) : (
+            <>Instance URL + an access token (your instance → Settings → Development → new application).</>
           )}
+          <> LinkedIn, X, Meta &amp; TikTok need a registered app — coming.</>
         </p>
         <div className="flex flex-wrap gap-2">
-          <input className="field !py-2 flex-1 min-w-[180px]" placeholder="acme.bsky.social" value={handle} onChange={(e) => setHandle(e.target.value)} />
-          <input className="field !py-2 flex-1 min-w-[180px]" type="password" placeholder="app password" value={secret} onChange={(e) => setSecret(e.target.value)} />
+          {platform === "mastodon" && (
+            <input className="field !py-2 flex-1 min-w-[180px]" placeholder="https://mastodon.social" value={service} onChange={(e) => setService(e.target.value)} />
+          )}
+          <input className="field !py-2 flex-1 min-w-[160px]" placeholder={platform === "bluesky" ? "acme.bsky.social" : "@acme"} value={handle} onChange={(e) => setHandle(e.target.value)} />
+          <input className="field !py-2 flex-1 min-w-[160px]" type="password" placeholder={platform === "bluesky" ? "app password" : "access token"} value={secret} onChange={(e) => setSecret(e.target.value)} />
           <button className="btn !py-2" onClick={connect} disabled={busy}>{busy ? "Connecting…" : "Connect"}</button>
         </div>
         {error && <p className="text-signal font-mono text-xs mt-2">{error}</p>}

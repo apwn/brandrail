@@ -173,7 +173,7 @@ function Hero({
           <span className="text-signal">+ more</span>
         </div>
         <p className="font-mono text-[11px] text-[#5B5851] mt-2.5">
-          Renders every format for each. <span className="text-signal">Bluesky publishing is live</span>; the rest publish through your scheduler while native rails roll out.
+          Renders every format for each. <span className="text-signal">Bluesky &amp; Mastodon publishing are live</span>; the rest publish through your scheduler while native rails roll out.
         </p>
       </div>
     </header>
@@ -416,7 +416,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
                 ? [
                     ["The BrandSpec is the primitive.", " Portable, versionable, diffable, forkable. MIT-licensed. A brand refresh is a PR."],
                     ["It captures taste, not just tokens.", " Composition rules, density limits, photography style, negative examples — the parts humans disagree about, schematized."],
-                    ["Deterministic rendering.", " Same brief in, same quality out. Generative AI only inside fenced zones."],
+                    ["Deterministic rendering.", " Same brief in, same quality out — text, type, color and logos never hallucinate. Generative fills only masked zones, pinned so re-renders stay identical (bring your own image model)."],
                     ["Auto-adapt.", " One piece → every aspect ratio and platform spec, one call."],
                     ["One spec, every asset.", " Social today. Ads, decks, thumbnails, email headers, OG images next — same engine."],
                   ]
@@ -448,9 +448,9 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
           {[
             { h: "10,000 renders every month", p: "Finished, on-brand assets — carousels, statics, stories. Enough for 25 active clients posting daily.", val: "$15,000/mo at freelance rates" },
             { h: "25 brand specs, compiled for you", p: "Website in — enforced brand system out. Figma/Canva import coming; we compile your first 5 with you, live.", val: "$500/brand at studio rates" },
-            { h: "AI planner trained on each client's numbers", p: "Reads 90 days of performance, proposes the calendar, attaches the rationale you forward to the client.", val: "your strategist's Tuesday, back", roadmap: true },
+            { h: "AI planner for each client", p: "Proposes an on-brand content calendar with a rationale you can forward, weighted by what recently performed.", val: "your strategist's Tuesday, back" },
             { h: "Client workspaces + approval rails", p: "The keyboard review queue is live today. Per-client workspaces and autopilot are next.", val: "included", roadmap: true },
-            { h: "White-label monthly reports", p: "The performance report you already send every month — generated, branded as your agency, done.", val: "8 hrs/mo, back", roadmap: true },
+            { h: "White-label client reports", p: "A branded report per client, styled in their own colors — generate and send as your agency.", val: "8 hrs/mo, back" },
             { h: "Founding-cohort onboarding", p: "Direct line to the founders. Your feature requests jump the queue while the cohort is open.", val: "priceless, briefly" },
           ].map(({ h, p, val, roadmap }) => (
             <div key={h} className="grid grid-cols-[1fr_auto] gap-5 px-6 py-5 border-b border-hairline-soft items-center">
@@ -543,10 +543,10 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
                     ["Built in public.", " Open metrics, public roadmap, changelog that never sleeps."],
                   ]
                 : [
-                    ["The code is public.", " 2,800+ developers star, audit, and improve it. Your clients' data isn't a black box."],
+                    ["The code is public.", " Star, audit, and fork it. Your clients' data isn't a black box."],
                     ["No lock-in.", " Your templates and brand specs export in an open format. Leave anytime, take everything."],
                     ["Your keys, your accounts.", " Client credentials stay under your control — never resold, never pooled."],
-                    ["Built in public.", " Revenue, roadmap, and changelog are open. You can see we'll be here next year."],
+                    ["Built in public.", " Open roadmap and changelog as we grow — no black box, no lock-in."],
                   ]
               ).map(([b, rest]) => (
                 <li key={b} className="py-3.5 border-b border-hairline-soft text-[15px] text-muted before:content-['—'] before:text-signal before:mr-3 before:font-mono">
@@ -559,10 +559,10 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
           {dev ? (
             <Terminal
               lines={[
-                ["$", "npm i -g @brandrail/cli"],
+                ["$", "git clone github.com/brandrail/brandrail && pnpm i"],
                 ["$", "brandrail compile acme.com && brandrail render 'summer sale' --brand acme"],
                 ["✓ rendered", "5 formats · 0 violations · ./assets"],
-                ["$", "npx @brandrail/mcp   # MCP server — point your agent here"],
+                ["$", "brandrail mcp   # MCP server — point your agent here"],
               ]}
             />
           ) : (
@@ -585,7 +585,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
         <SecHead eyebrow="Pricing" title="Priced on output. Not seats, not posts, not tricks." />
         <div className="grid md:grid-cols-4 gap-px bg-hairline border border-hairline">
           <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Community templates", "Your own keys"]} cta="git clone →" />
-          <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo", "3 brands · 10 channels", "Full AI planning loop", "MCP + CLI + API"]} cta="Start free →" />
+          <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo", "3 brands · connect channels", "AI planner + batch review", "MCP + CLI + API"]} cta="Start free →" />
           <Plan hot name="Agency" price="$199" unit="/mo" items={["10,000 renders/mo", "25 brands · client workspaces", "Approval rails · white-label reports", "30-day slop-free guarantee"]} cta="Start free →" />
           <Plan name="Rail" price="$0.02" unit="/render" items={["Pure API / MCP access", "Usage-based, volume discounts", "For agent builders & platforms", "99.9% SLA available"]} cta="Read the docs →" />
         </div>
@@ -857,14 +857,14 @@ const AGENCY_FAQ: Array<[string, string]> = [
   ["How long does it take to onboard a client?", "About <b class='text-bone'>15 minutes</b>: paste their website (or connect their Canva/Figma), review the compiled brand spec, connect their channels. The first calendar proposal lands the same day."],
   ["What if the AI writes something a client wouldn't say?", "Two safety nets. The voice model is trained on <b class='text-bone'>each client's own content</b> — banned words, emoji limits, and tone rules live in the brand spec and are enforced like design rules. And nothing publishes without passing your <b class='text-bone'>approval queue</b>."],
   ["What exactly is a BrandSpec?", "A versioned, machine-readable definition of how your brand thinks visually — not just colors and fonts, but <b class='text-bone'>composition rules, photo style, voice, and negative examples</b>. It's diffable and forkable like code: keep a master spec, fork a child per client, a brand refresh is a reviewed diff. The format is open (MIT)."],
-  ["How is this different from Figma or Canva?", "Figma and Canva are where humans <b class='text-bone'>design</b>. Brandrail is where brands <b class='text-bone'>produce</b>: agents render finished assets through an enforced BrandSpec, at volume, reviewed in one queue. We're upstream-friendly — compile your BrandSpec <b class='text-bone'>from</b> your existing design system rather than replacing it."],
-  ["How is this different from Postiz or Buffer?", "Schedulers move content; they don't make it good. Brandrail is <b class='text-bone'>rails + brain + renderer</b>: the brand spec, the deterministic design engine, and the performance-fed planner are the parts no scheduler ships."],
+  ["How is this different from Figma or Canva?", "Figma and Canva are where humans <b class='text-bone'>design</b>. Brandrail is where brands <b class='text-bone'>produce</b>: agents render finished assets through an enforced BrandSpec, at volume, reviewed in one queue. Today you compile the BrandSpec from a URL; <b class='text-bone'>Figma/Canva import is on the way</b> — so we sit upstream of your design system, not in place of it."],
+  ["How is this different from Postiz or Buffer?", "Schedulers move content; they don't make it good. Brandrail is <b class='text-bone'>rails + brain + renderer</b>: the brand spec, the deterministic design engine, and the performance-weighted planner are the parts no scheduler ships."],
 ];
 const DEV_FAQ: Array<[string, string]> = [
   ["What exactly is a BrandSpec?", "A versioned, machine-readable definition of how a brand thinks visually — identity, composition, imagery, voice, and judgment (positive + negative examples). <b class='text-bone'>Portable, diffable, forkable, MIT-licensed.</b> A brand refresh is a PR; violations are build errors."],
-  ["How is this different from AI image generators?", "Diffusion models <b class='text-bone'>approximate</b> a brand; a design system <b class='text-bone'>enforces</b> it. Generative AI is allowed only inside fenced zones — backgrounds, photography. Layout, typography, color, and logos render deterministically."],
+  ["How is this different from AI image generators?", "Diffusion models <b class='text-bone'>approximate</b> a brand; a design system <b class='text-bone'>enforces</b> it. Layout, typography, color, and logos always render deterministically; generative AI is fenced to masked background zones only (bring your own image model), pinned so re-renders stay identical — never touching your type or logo."],
   ["How do I add it to my agent?", "MCP server + a token-cheap CLI. Point your agent at the MCP endpoint, or call <b class='text-bone'>brandrail compile</b> / <b class='text-bone'>render</b> from any pipeline. 60 seconds to first render."],
   ["Is the self-hosted version crippled?", "No. Rails, scheduler, agent framework, MCP, and CLI are all AGPL and fully functional. The <b class='text-bone'>cloud rendering engine</b> is metered (50 free renders/mo self-hosted) because that's where the heavy compute lives."],
-  ["What about X's API pricing?", "X charges per post (plus a link surcharge) as of 2026, so Brandrail uses <b class='text-bone'>bring-your-own-key for X</b>: you pay X directly, and the exact cost is shown before anything ships. Every other channel runs on managed apps."],
+  ["What about X's API pricing?", "X charges per post (plus a link surcharge) as of 2026, so when X publishing lands it'll be <b class='text-bone'>bring-your-own-key</b> — you pay X directly, with the cost shown before anything ships. <b class='text-bone'>Bluesky publishing is live today</b>; the managed platforms are rolling out."],
   ["What exactly is a “render”?", "One finished asset: a carousel counts one render per slide, a static post is one, a short video is per-10-seconds. Estimates are shown before you spend anything."],
 ];
