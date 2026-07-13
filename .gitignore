@@ -5,6 +5,15 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+.env.*.local
 coverage/
 out/
 .DS_Store
+
+# runtime data & caches — never commit captured user data
+.data/
+data/
+*-cache/
+.font-cache/
+.photo-cache/
+public/proof/*.local.png
