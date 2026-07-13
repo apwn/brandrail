@@ -1,15 +1,9 @@
-import { engine } from "@/lib/engine";
-import { ensureUserId } from "@/lib/session";
-
-/** Claim the current (anonymous) workspace with an email. The session id is
- * kept, so the brands and renders compiled while anonymous carry over. */
-export async function POST(req: Request) {
-  const { email } = (await req.json().catch(() => ({}))) as { email?: string };
-  if (!email || typeof email !== "string" || !email.includes("@")) {
-    return Response.json({ error: "a valid email is required" }, { status: 400 });
-  }
-  const uid = await ensureUserId();
-  const res = await engine("/v0/users", { method: "POST", body: JSON.stringify({ id: uid, email }) }, uid);
-  const data = await res.json();
-  return Response.json(data, { status: res.status });
+/** RETIRED: the unverified email-claim flow. It let anyone attach any email to
+ * a workspace with zero proof of ownership — a backdoor around verification.
+ * Sign-in is /api/auth/magic-link → /api/auth/verify now. */
+export async function POST() {
+  return Response.json(
+    { error: "this sign-in flow was replaced by magic links — POST /api/auth/magic-link with {email}" },
+    { status: 410 },
+  );
 }

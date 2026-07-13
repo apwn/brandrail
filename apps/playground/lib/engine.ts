@@ -23,24 +23,38 @@ export async function engine(path: string, init: RequestInit = {}, userId?: stri
 }
 
 /**
- * 3 compiles per IP per day. In-memory is fine for V0 (single instance);
- * // V1: move to the shared store when the playground scales out.
+ * Daily compile cap per IP: 3 anonymous, more with a verified account (the
+ * account should always GIVE something). In-memory is fine for V0 (single
+ * instance); // V1: move to the shared store when the playground scales out.
  */
 const compileHits = new Map<string, { day: string; count: number }>();
 
-export function rateLimitCompile(ip: string): { ok: boolean; remaining: number } {
+export function rateLimitCompile(ip: string, max = 3): { ok: boolean; remaining: number } {
   const day = new Date().toISOString().slice(0, 10);
   const entry = compileHits.get(ip);
   if (!entry || entry.day !== day) {
     compileHits.set(ip, { day, count: 1 });
-    return { ok: true, remaining: 2 };
+    return { ok: true, remaining: max - 1 };
   }
-  if (entry.count >= 3) return { ok: false, remaining: 0 };
+  if (entry.count >= max) return { ok: false, remaining: 0 };
   entry.count += 1;
-  return { ok: true, remaining: 3 - entry.count };
+  return { ok: true, remaining: max - entry.count };
 }
 
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
   return fwd?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? "local";
+}
+
+/** Is this session's user email-verified? Gates the "take" actions (publish,
+ * export) server-side — the engine stays agent-friendly, the funnel stays real. */
+export async function isVerifiedUser(uid: string): Promise<boolean> {
+  try {
+    const res = await engine(`/v0/users/${encodeURIComponent(uid)}`, {}, uid);
+    if (!res.ok) return false;
+    const { user } = (await res.json()) as { user?: { email?: string | null; emailVerified?: boolean } };
+    return Boolean(user?.email && user.emailVerified);
+  } catch {
+    return false;
+  }
 }
