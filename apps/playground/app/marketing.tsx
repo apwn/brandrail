@@ -1,890 +1,540 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-/**
- * The Brandrail front door — one page, two funnels (agencies / agent builders)
- * behind a hero toggle. The hero URL input runs the *real* compiler: paste a
- * site, see your actual next 5 posts. The site is the product demo — one accent,
- * a rail motif, and zero gradients (except the quarantined "slop" exhibit).
- */
-export function MarketingLanding({
-  url,
-  setUrl,
-  onSubmit,
-  error,
-}: {
+type LandingProps = {
   url: string;
-  setUrl: (v: string) => void;
+  setUrl: (value: string) => void;
   onSubmit: () => void;
   error: string | null;
-}) {
-  const [mode, setMode] = useState<"agency" | "dev">("agency");
-  const dev = mode === "dev";
+};
 
-  const sections = dev
-    ? ["who", "how", "engine", "agents", "oss", "pricing", "proof", "faq"]
-    : ["math", "how", "engine", "stack", "guarantee", "pricing", "cohort", "proof", "agents", "oss", "faq"];
-
+export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps) {
   return (
-    <div className="min-h-screen">
-      <Announce />
+    <div className="min-h-screen overflow-x-hidden">
+      <Announcement />
       <Nav />
-      <Hero mode={mode} setMode={setMode} url={url} setUrl={setUrl} onSubmit={onSubmit} error={error} />
-      <Ticker />
-      <main className="flex flex-col">
-        {sections.map((s) => (
-          <Section key={s} id={s} mode={mode} />
-        ))}
+      <Hero url={url} setUrl={setUrl} onSubmit={onSubmit} error={error} />
+      <AudiencePaths />
+      <main>
+        <OutputSection />
+        <WorkflowSection />
+        <MechanismSection />
+        <UseCasesSection />
+        <ComparisonSection />
+        <PricingSection />
+        <FaqSection />
       </main>
-      <FinalCta dev={dev} url={url} setUrl={setUrl} onSubmit={onSubmit} />
-      <FooterLarge />
+      <FinalCta url={url} setUrl={setUrl} onSubmit={onSubmit} />
+      <Footer />
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ chrome */
-function Announce() {
+function Announcement() {
   return (
-    <div className="bg-panel border-b border-hairline text-center py-2.5 px-4 font-mono text-[12.5px] text-muted">
-      Now live — URL → BrandSpec → 5 on-brand posts, deterministic. Batch review shipped.{" "}
-      <a href="#top" className="text-signal font-medium">try it →</a>
+    <div className="border-b border-hairline bg-panel px-4 py-2.5 text-center font-mono text-xs text-muted">
+      <span className="text-bone">Your website already contains a brand system.</span> Turn it into five ready-to-review posts free.{" "}
+      <a className="text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone" href="#top">
+        Try your URL →
+      </a>
     </div>
   );
 }
 
 function Nav() {
   return (
-    <nav className="sticky top-0 z-50 bg-ink/90 backdrop-blur border-b-2 border-hairline">
-      <div className="mx-auto max-w-[1160px] px-6 h-16 flex items-center justify-between">
-        <a href="/" className="font-display font-bold text-xl tracking-tight">
+    <nav className="sticky top-0 z-50 border-b border-hairline bg-ink/95 backdrop-blur" aria-label="Main navigation">
+      <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-4 px-5 sm:px-6">
+        <a href="/" className="font-display text-xl font-bold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal">
           brand<span className="border-b-[3px] border-signal pb-px">rail</span>
         </a>
-        <div className="hidden md:flex gap-7 text-sm text-muted">
-          <a href="#engine" className="hover:text-bone">Product</a>
-          <a href="/agents" className="hover:text-bone">Agents</a>
-          <a href="/docs" className="hover:text-bone">Docs</a>
+        <div className="hidden items-center gap-7 text-sm text-muted lg:flex">
+          <a href="#examples" className="hover:text-bone">Examples</a>
+          <a href="#workflow" className="hover:text-bone">How it works</a>
+          <a href="#use-cases" className="hover:text-bone">Use cases</a>
           <a href="#pricing" className="hover:text-bone">Pricing</a>
-          <a href="/review" className="hover:text-bone">Review</a>
-          <a href="/dashboard" className="hover:text-bone">Workspace</a>
+          <a href="#faq" className="hover:text-bone">FAQ</a>
         </div>
-        <div className="flex items-center gap-3">
-          <a href="https://github.com/apwn/brandrail" className="font-mono text-[13px] border border-hairline px-3.5 py-2 text-muted hover:text-bone hover:border-bone">GitHub ★</a>
-          <a href="#top" className="btn !py-2 !px-4 !text-[13px]">Get started — free</a>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a href="/agents" className="hidden text-sm text-muted hover:text-bone md:inline">For agent builders</a>
+          <a href="/dashboard" className="hidden text-sm text-muted hover:text-bone sm:inline">Log in</a>
+          <a href="#top" className="btn !px-3.5 !py-2 !text-xs sm:!px-4 sm:!text-[13px]">Try your brand free</a>
         </div>
       </div>
     </nav>
   );
 }
 
-/* -------------------------------------------------------------------- hero */
-function Hero({
-  mode,
-  setMode,
-  url,
-  setUrl,
-  onSubmit,
-  error,
-}: {
-  mode: "agency" | "dev";
-  setMode: (m: "agency" | "dev") => void;
-  url: string;
-  setUrl: (v: string) => void;
-  onSubmit: () => void;
-  error: string | null;
-}) {
-  const dev = mode === "dev";
+function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
   return (
-    <header id="top" className="relative border-b border-hairline-soft py-10 md:py-12 overflow-hidden">
-      <div
-        className="absolute inset-0 opacity-[0.35] pointer-events-none"
-        style={{ backgroundImage: "repeating-linear-gradient(90deg,#1E1E21 0 1px,transparent 1px 96px)" }}
-        aria-hidden
-      />
-      <div className="relative mx-auto max-w-[1160px] px-6 grid lg:grid-cols-[1.05fr_.95fr] gap-x-16 gap-y-8 items-center">
+    <header id="top" className="relative overflow-hidden border-b border-hairline-soft py-14 md:py-20">
+      <div className="surface-grid absolute inset-0 opacity-50" aria-hidden />
+      <div className="relative mx-auto grid max-w-[1180px] items-center gap-12 px-5 sm:px-6 xl:grid-cols-[1.02fr_.98fr] xl:gap-16">
         <div>
-          <div className="flex w-max border border-hairline mb-5">
-            {(["agency", "dev"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`font-mono text-xs uppercase tracking-[0.1em] px-5 py-3 transition-colors duration-mech ${
-                  mode === m ? "bg-signal text-ink font-medium" : "text-muted hover:text-bone"
-                }`}
-              >
-                {m === "agency" ? "I run brands" : "I build agents"}
-              </button>
-            ))}
+          <div className="mb-6 flex w-fit items-center gap-2 border border-hairline bg-panel px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+            <span className="h-2 w-2 bg-signal" aria-hidden />
+            Brand-locked content from brief to publish
           </div>
-
-          {dev ? (
-            <>
-              <span className="eyebrow text-signal">Open source · MCP-native · self-hostable</span>
-              <h1 className="font-display font-bold tracking-tight leading-[1.05] text-[clamp(36px,4.4vw,54px)] mt-3 mb-4">
-                AI can think.
-                <br />
-                It still can&rsquo;t <span className="text-signal">design.</span>
-              </h1>
-              <p className="text-muted text-[17px] leading-relaxed max-w-[540px] mb-5">
-                Brandrail teaches AI how your brand thinks visually. Compile a <b className="text-bone">BrandSpec</b>, and any
-                agent — <b className="text-bone">Claude, OpenClaw, ChatGPT, Codex, n8n</b> — renders designer-quality assets
-                through it, deterministically. Nothing ships off-brand. Ever.
-              </p>
-            </>
-          ) : (
-            <>
-              <span className="eyebrow text-signal">Every client · on-brand · on autopilot</span>
-              <h1 className="font-display font-bold tracking-tight leading-[1.05] text-[clamp(36px,4.4vw,54px)] mt-3 mb-4">
-                10× the content.
-                <br />
-                Zero brand drift.
-                <br />
-                <span className="text-signal">Zero new hires.</span>
-              </h1>
-              <p className="text-muted text-[17px] leading-relaxed max-w-[540px] mb-5">
-                Brandrail is your agency&rsquo;s content production line: compile each client&rsquo;s brand once, then any brief
-                becomes on-brand posts — <b className="text-bone">written in their voice, rendered to their exact spec, triaged
-                in one review queue.</b> Publish through the scheduler you already use. You keep the margin your production line was eating.
-              </p>
-            </>
-          )}
-
-          <UrlBox url={url} setUrl={setUrl} onSubmit={onSubmit} />
-          <p className="font-mono text-xs text-muted mt-3">
-            <span className="text-green">Free.</span> No signup. No credit card. 60 seconds —{" "}
-            <b className="text-bone">with their real brand.</b>{" "}
-            {dev && (
-              <>
-                Building an agent? <a href="/agents" className="text-signal border-b border-signal">Wire it up in 5 minutes →</a>
-              </>
-            )}
+          <h1 className="max-w-[690px] font-display text-[clamp(42px,5.7vw,68px)] font-bold leading-[0.98] tracking-[-0.045em]">
+            Every post. <span className="text-signal">On brand.</span>{" "}
+            Ready to publish.
+          </h1>
+          <p className="mt-6 max-w-[650px] text-[17px] leading-relaxed text-muted sm:text-lg">
+            Paste any website. Brandrail learns the brand, writes and renders social posts, lets you review them, and sends approved content to your scheduler—or your agent.
           </p>
-          {error && <p className="font-mono text-sm text-signal mt-3">ERR {error}</p>}
+          <div className="mt-7 max-w-[650px]">
+            <UrlBox id="hero-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
+            <span><b className="font-medium text-green">Free</b> · no signup · no card</span>
+            <span>Uses your real brand</span>
+            <a href="#workflow" className="text-bone underline decoration-hairline underline-offset-4 hover:decoration-signal">See the workflow ↓</a>
+          </div>
+          {error && <p className="mt-4 border-l-2 border-signal pl-3 font-mono text-sm text-signal" role="alert">{error}</p>}
         </div>
-
-        <BeforeAfterDemo />
-      </div>
-
-      <div className="mx-auto max-w-[1160px] px-6 mt-9">
-        <div className="flex flex-wrap gap-x-6 gap-y-2.5 font-mono text-xs text-[#6D6961] items-center">
-          {["Instagram", "LinkedIn", "TikTok", "Threads", "Bluesky", "Pinterest", "Facebook", "YouTube", "Mastodon", "X (BYOK)"].map((c) => (
-            <span key={c} className="before:content-['◇_'] before:text-signal">{c}</span>
-          ))}
-          <span className="text-signal">+ more</span>
-        </div>
-        <p className="font-mono text-[11px] text-[#5B5851] mt-2.5">
-          Renders every format for each. <span className="text-signal">Bluesky &amp; Mastodon publishing are live</span>; the rest publish through your scheduler while native rails roll out.
-        </p>
+        <HeroBoard />
       </div>
     </header>
   );
 }
 
-function UrlBox({ url, setUrl, onSubmit }: { url: string; setUrl: (v: string) => void; onSubmit: () => void }) {
+function UrlBox({ id, url, setUrl, onSubmit }: Omit<LandingProps, "error"> & { id: string }) {
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (url.trim()) onSubmit();
+  }
+
   return (
-    <div className="flex max-w-[540px] border border-hairline bg-panel">
+    <form onSubmit={submit} className="flex flex-col border border-hairline bg-panel focus-within:border-signal sm:flex-row">
+      <label htmlFor={id} className="sr-only">Website URL</label>
       <input
-        type="text"
+        id={id}
+        type="url"
+        inputMode="url"
+        required
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-        placeholder="https://your-client.com"
-        className="flex-1 bg-transparent border-0 outline-0 text-bone font-mono text-sm px-4 py-4 placeholder:text-[#5B5851]"
-        aria-label="Website URL"
+        onChange={(event) => setUrl(event.target.value)}
+        placeholder="https://yourbrand.com"
+        className="min-w-0 flex-1 border-0 bg-transparent px-4 py-4 font-mono text-sm text-bone outline-none placeholder:text-muted/60"
       />
-      <button onClick={onSubmit} className="btn border-0 border-l border-signal !rounded-none whitespace-nowrap">
-        See their next 5 posts →
+      <button type="submit" className="btn min-h-14 !rounded-none border-t border-signal !px-5 sm:border-l sm:border-t-0">
+        See my next 5 posts →
       </button>
-    </div>
+    </form>
   );
 }
 
-function BeforeAfterDemo() {
-  const [tab, setTab] = useState<"slop" | "rail">("rail");
-  // teach the interaction once: flip to slop, then back to rail
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const a = setTimeout(() => setTab("slop"), 2600);
-    const b = setTimeout(() => setTab("rail"), 5200);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, []);
+const FORMATS = [
+  { label: "CAROUSEL", color: "#FF4D00", title: "The field guide to faster launches", meta: "instagram · 4 slides", shape: "aspect-[4/5]" },
+  { label: "LINKEDIN", color: "#F2C230", title: "Ship the campaign, not another template", meta: "landscape · 1200×627", shape: "aspect-[1.91/1]" },
+  { label: "STORY", color: "#7FB5A6", title: "Three rules. One recognizable brand.", meta: "vertical · 1080×1920", shape: "aspect-[9/16]" },
+];
+
+function HeroBoard() {
   return (
-    <div className="border border-hairline bg-panel">
-      <div className="flex border-b border-hairline">
-        {(["slop", "rail"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 font-mono text-[12.5px] tracking-[0.12em] uppercase text-center py-3 border-r border-hairline last:border-r-0 transition-colors duration-mech ${
-              tab === t ? "bg-signal text-ink font-medium" : "text-muted"
-            }`}
-          >
-            {t === "slop" ? "Without Brandrail" : "Through Brandrail"}
-          </button>
-        ))}
-      </div>
-      <div className="p-6 min-h-[330px]">
-        {tab === "slop" ? (
-          <>
-            {/* the quarantined exhibit — the one place a gradient is allowed, ironically */}
-            <div className="p-6 rounded-[14px] text-white -rotate-[0.6deg]" style={{ background: "linear-gradient(135deg,#7b2ff7,#f107a3)" }}>
-              <span className="inline-block bg-white/20 rounded-full px-3 py-0.5 text-[11px] mb-3">✨ AI Generated ✨</span>
-              <h4 className="text-[19px] leading-snug mb-2.5 font-semibold">🚀 Exciting News!! We&rsquo;re SO thrilled to announce our GAME-CHANGING v2 launch!! 🎉🔥</h4>
-              <p className="text-[13.5px] opacity-90">Unleash the power of synergy with our revolutionary solution!! Don&rsquo;t miss out — link in bio!! 💪✨ #blessed #hustle #gamechanger</p>
-              <div className="mt-3.5 text-[11px] opacity-75">🖼️ image: businessman with 6 fingers shaking hands with robot</div>
-            </div>
-            <div className="font-mono text-xs mt-4 px-3.5 py-2.5 border border-dashed border-[#8a3ffc55] text-muted">
-              ✕ off-palette · ✕ wrong font · ✕ emoji soup · ✕ logo mangled · brand spec: 14 violations · client: furious
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="bg-[#101012] border border-hairline">
-              <div className="flex justify-between items-center px-4 py-3.5 border-b border-hairline-soft font-mono text-[11px] text-muted">
-                <span>acme · carousel 1/4 · 1080×1350</span>
-                <span className="text-green">✓ spec v12</span>
+    <div className="relative mx-auto w-full max-w-[570px] xl:mx-0">
+      <div className="absolute -left-4 top-10 hidden h-[calc(100%-5rem)] w-px bg-signal/50 sm:block" aria-hidden />
+      <div className="border border-hairline bg-panel shadow-[16px_16px_0_#0A0A0B,16px_16px_0_1px_#2E2E32]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[11px] text-muted">
+          <span>NORTHSTAR · ONE BRIEF · FIVE FORMATS</span>
+          <span className="text-green">✓ BRANDSPEC VALID</span>
+        </div>
+        <div className="grid grid-cols-3 gap-px bg-hairline-soft p-px">
+          {FORMATS.map((format, index) => (
+            <div key={format.label} className="flex min-h-[310px] flex-col bg-ink p-3.5 sm:min-h-[350px] sm:p-4">
+              <div className={`flex ${format.shape} w-full flex-col justify-between overflow-hidden border border-hairline bg-panel p-3`}>
+                <div>
+                  <span className="font-mono text-[8px] uppercase tracking-[0.14em] sm:text-[9px]" style={{ color: format.color }}>NORTHSTAR / 0{index + 1}</span>
+                  <span className="mt-2 block h-1 w-8" style={{ backgroundColor: format.color }} aria-hidden />
+                </div>
+                <div className="space-y-1">
+                  <span className="block h-1 w-4/5 bg-bone/85" />
+                  <span className="block h-1 w-3/5 bg-bone/40" />
+                </div>
               </div>
-              <div className="px-4 pt-6 pb-4" style={{ backgroundImage: "repeating-linear-gradient(90deg,#ffffff06 0 1px,transparent 1px 40px)" }}>
-                <span className="font-mono text-[11px] tracking-[0.16em] text-signal uppercase">Product update</span>
-                <h4 className="font-display text-2xl tracking-tight mt-2.5 mb-2 leading-tight">
-                  v2 renders 4× faster.
-                  <br />
-                  Same API. Zero migration.
-                </h4>
-                <div className="h-0.5 bg-signal w-14 my-4" />
-                <p className="text-[13.5px] text-muted max-w-[340px]">Benchmarks, changelog, and what&rsquo;s next — swipe through.</p>
-              </div>
-              <div className="flex justify-between font-mono text-[10.5px] text-[#5B5851] px-4 py-3 border-t border-hairline-soft">
-                <span>ACME.COM</span>
-                <span>02 — BENCHMARKS →</span>
-              </div>
+              <p className="mt-4 font-display text-[13px] font-bold leading-tight sm:text-base">{format.title}</p>
+              <span className="mt-auto pt-3 font-mono text-[8px] text-muted sm:text-[9px]">{format.meta}</span>
             </div>
-            <div className="font-mono text-xs mt-4 px-3.5 py-2.5 border border-dashed border-green text-green">
-              ✓ rendered deterministically · 0 violations · brand-locked · ready for your scheduler · client: kept
-            </div>
-          </>
-        )}
+          ))}
+        </div>
+        <div className="grid grid-cols-3 border-t border-hairline text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+          <span className="border-r border-hairline py-3 text-green">5 assets rendered</span>
+          <span className="border-r border-hairline py-3">+2 formats</span>
+          <span className="py-3 text-signal">Review next</span>
+        </div>
       </div>
     </div>
   );
 }
 
-function Ticker() {
-  const items = [
-    ["🚀 Exciting news!!", "businessman_6fingers.png"],
-    ["✨ purple gradient #4,081", '"Unleash the power of synergy"'],
-    ["🔥 #hustle #blessed #grindset", "logo stretched 140%"],
-    ['💪 "We’re SO thrilled to announce"', "font: whatever the model felt like"],
-    ["🎉 emoji soup (13 per line)", "brand colors: approximately"],
+function AudiencePaths() {
+  const paths = [
+    ["01", "ONE BRAND", "Creators & founders", "Turn one website and one idea into a consistent weekly content system.", "#one-brand", "See the solo workflow"],
+    ["02", "MANY BRANDS", "Agencies & teams", "Move every client through one production and approval rail without flattening their identity.", "#many-brands", "See the agency workflow"],
+    ["03", "BUILD WITH BRANDRAIL", "Developers & agents", "Give your product deterministic brand rendering through the API, MCP server or CLI.", "/agents", "Explore developer rails"],
   ];
-  const row = [...items, ...items];
   return (
-    <div className="bg-panel border-b border-hairline-soft overflow-hidden">
-      <div className="flex gap-14 whitespace-nowrap py-4 w-max motion-safe:animate-[btick_36s_linear_infinite]">
-        {row.map(([a, b], i) => (
-          <span key={i} className="font-mono text-[13px] text-muted flex gap-14">
-            <span>{a}</span>
-            <s className="text-[#5B5851]">{b}</s>
-          </span>
+    <section className="border-b border-hairline bg-panel" aria-label="Choose your path">
+      <div className="mx-auto grid max-w-[1180px] md:grid-cols-3">
+        {paths.map(([number, eyebrow, title, body, href, cta]) => (
+          <a key={number} href={href} className="group relative border-b border-hairline px-5 py-7 transition-colors hover:bg-ink md:border-b-0 md:border-r md:last:border-r-0 sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-mono text-xs text-signal">{number}</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{eyebrow}</span>
+            </div>
+            <h2 className="mt-7 font-display text-xl font-bold">{title}</h2>
+            <p className="mt-2 min-h-[3.6rem] text-sm leading-relaxed text-muted">{body}</p>
+            <span className="mt-5 inline-flex text-sm font-semibold text-bone group-hover:text-signal">{cta} →</span>
+            <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-signal transition-all duration-300 group-hover:w-full" aria-hidden />
+          </a>
         ))}
       </div>
-      <div className="font-mono text-xs text-signal text-center pb-3.5 pt-1 tracking-[0.14em] uppercase">
-        Your clients are paying you so their feed never looks like this.
-      </div>
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------- sections */
-function SecHead({ eyebrow, title, sub }: { eyebrow: string; title: React.ReactNode; sub?: React.ReactNode }) {
-  return (
-    <div className="max-w-[680px] mb-14">
-      <span className="eyebrow text-signal">{eyebrow}</span>
-      <h2 className="font-display font-bold tracking-tight text-[clamp(30px,3.6vw,42px)] mt-3.5 mb-4 leading-tight">{title}</h2>
-      {sub && <p className="text-muted text-[17px]">{sub}</p>}
-    </div>
-  );
-}
-
-function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
-  const dev = mode === "dev";
-  const Wrap = ({ children }: { children: React.ReactNode }) => (
-    <section id={id} className="py-24 border-b border-hairline-soft">
-      <div className="mx-auto max-w-[1160px] px-6">{children}</div>
     </section>
   );
+}
 
-  if (id === "math")
-    return (
-      <Wrap>
-        <SecHead eyebrow="The math" title="Your margin is hiding in your production line." sub="What it actually costs to keep one client's social on-brand, every day:" />
-        <div className="grid md:grid-cols-4 gap-px bg-hairline border border-hairline">
-          {[
-            ["In-house designer", "$4,500", "/mo", "One brand at a time. Sick days. Revisions. Quits after 14 months."],
-            ["Freelancers", "$150", "/post", "× 20 posts × revisions × chasing files at 11pm before the deadline."],
-            ["AI tool stack", "$300", "/mo", "Generates slop your team then fixes by hand. The designer stays on payroll."],
-          ].map(([h, big, unit, p]) => (
-            <MathCell key={h} h={h} big={big} unit={unit} p={p} />
+function SectionHead({ eyebrow, title, body, light = false }: { eyebrow: string; title: React.ReactNode; body?: React.ReactNode; light?: boolean }) {
+  return (
+    <div className="mb-12 max-w-[760px]">
+      <span className={`eyebrow ${light ? "!text-[#A83200]" : "text-signal"}`}>{eyebrow}</span>
+      <h2 className="mt-3.5 font-display text-[clamp(32px,4vw,48px)] font-bold leading-[1.05] tracking-[-0.035em]">{title}</h2>
+      {body && <p className={`mt-4 max-w-[680px] text-[17px] leading-relaxed ${light ? "text-[#514D47]" : "text-muted"}`}>{body}</p>}
+    </div>
+  );
+}
+
+function OutputSection() {
+  const outputs = [
+    { src: "/proof/carousel.png", label: "Instagram carousel", detail: "Slide 1 of 4 · 1080×1350" },
+    { src: "/proof/og-image.png", label: "Link preview", detail: "Open Graph · 1200×630" },
+    { src: "/proof/x-graphic.png", label: "Social graphic", detail: "Landscape · 1600×900" },
+  ];
+  return (
+    <section id="examples" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead
+          light
+          eyebrow="Output from the engine"
+          title={<>Not a mockup. Not a prompt lottery.<br />Finished assets from one brand system.</>}
+          body="These examples were rendered by the same engine behind the URL demo. Typography, palette, spacing and format rules are pulled from one BrandSpec and checked before the asset is returned."
+        />
+        <div className="grid gap-5 md:grid-cols-3">
+          {outputs.map((output, index) => (
+            <figure key={output.src} className="group border border-[#C9C4BA] bg-[#FBFAF7] p-3 shadow-[6px_6px_0_#D8D3C9]">
+              <div className="overflow-hidden border border-[#D8D3C9] bg-ink">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={output.src} alt={`${output.label} generated by Brandrail`} className="aspect-[4/3] w-full bg-white object-contain p-2 transition-transform duration-300 group-hover:scale-[1.015]" />
+              </div>
+              <figcaption className="flex items-start justify-between gap-3 px-1 pb-1 pt-3">
+                <div>
+                  <b className="block font-display text-sm">{output.label}</b>
+                  <span className="font-mono text-[10px] text-[#6A655D]">{output.detail}</span>
+                </div>
+                <span className="font-mono text-xs text-[#A83200]">0{index + 1}</span>
+              </figcaption>
+            </figure>
           ))}
-          <MathCell win h="Brandrail Agency" big="$199" unit="/mo · all clients" p="10,000 renders. 25 brand specs, enforced by a machine that never gets tired or creative with your client's logo." />
         </div>
-        <p className="font-mono text-[13px] text-muted mt-6">
-          At 10 clients, that&rsquo;s <b className="text-bone font-medium">≈ $8/client/mo</b> for production that used to cost you{" "}
-          <b className="text-bone font-medium">$450+/client/mo</b> in labor. The question isn&rsquo;t whether $199 is worth it — it&rsquo;s{" "}
-          <b className="text-bone font-medium">what the old way is costing you every month you keep it.</b>
+        <p className="mt-6 max-w-[720px] text-sm leading-relaxed text-[#5A554E]">
+          Product evidence, not a stock gallery. These assets came from the engine behind the live URL demo; named customer stories will be added as the first public pilots complete.
         </p>
-        <div className="mt-14 border border-hairline bg-panel p-8 grid md:grid-cols-2 gap-10 items-center">
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection() {
+  const steps = [
+    ["01", "Paste any website", "Brandrail reads the live site, real fonts, palette, imagery and existing voice."],
+    ["02", "Review the BrandSpec", "Confirm what is allowed, what is banned, and how the brand should compose a page."],
+    ["03", "Give it a brief", "A launch, offer, hiring post or weekly theme becomes copy and format-ready creative."],
+    ["04", "Approve and publish", "Edit, approve or regenerate the queue, then hand the approved set to your scheduler or agent."],
+  ];
+  return (
+    <section id="workflow" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead eyebrow="The workflow" title="From website to review queue in one rail." body="Brandrail does not replace creative direction. It turns the direction you already own into a repeatable production system." />
+        <div className="relative grid gap-8 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+          <div className="absolute left-0 right-0 top-3 hidden h-px bg-hairline xl:block" aria-hidden />
+          {steps.map(([number, title, body]) => (
+            <article key={number} className="relative border-l border-hairline pl-5 xl:border-l-0 xl:pl-0 xl:pt-10">
+              <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 bg-signal xl:left-0 xl:top-0" aria-hidden />
+              <span className="font-mono text-xs text-signal">{number}</span>
+              <h3 className="mt-3 font-display text-xl font-bold">{title}</h3>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function UseCasesSection() {
+  return (
+    <section id="use-cases" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-20 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead eyebrow="Built to scale with you" title="One brand today. Twenty-five tomorrow. Same rail." body="Start with the job you have now. Brandrail keeps the workflow simple for a solo operator and adds review, workspaces and automation when the workload grows." />
+        <div className="grid gap-px overflow-hidden border border-hairline bg-hairline lg:grid-cols-2">
+          <article id="one-brand" className="scroll-mt-24 bg-ink p-6 sm:p-8">
+            <div className="flex items-center justify-between gap-4">
+              <span className="eyebrow text-signal">One brand</span>
+              <span className="font-mono text-[10px] text-muted">CREATOR · FOUNDER · MARKETER</span>
+            </div>
+            <h3 className="mt-7 max-w-[430px] font-display text-3xl font-bold leading-tight">Show up every week without looking like a different company every day.</h3>
+            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Bring the idea; Brandrail carries your typography, palette, voice and layout across every format. Review five posts as one coherent set instead of rebuilding them one at a time.</p>
+            <div className="mt-8 grid grid-cols-3 border border-hairline text-center">
+              <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">1</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">brief</span></div>
+              <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">5</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">posts</span></div>
+              <div className="p-4"><strong className="font-display text-2xl text-signal">0</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">blank canvases</span></div>
+            </div>
+            <a href="#pricing" className="mt-7 inline-flex text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Start with the free plan →</a>
+          </article>
+          <article id="many-brands" className="scroll-mt-24 bg-ink p-6 sm:p-8">
+            <div className="flex items-center justify-between gap-4">
+              <span className="eyebrow text-signal">Many brands</span>
+              <span className="font-mono text-[10px] text-muted">AGENCY · FREELANCER · TEAM</span>
+            </div>
+            <h3 className="mt-7 max-w-[440px] font-display text-3xl font-bold leading-tight">Protect your creative judgment—and the margin around it.</h3>
+            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Compile each client once. Then let one queue handle the resizing, rule checks and approvals while every account stays visibly its own.</p>
+            <div className="mt-8 overflow-hidden border border-hairline">
+              {[["NORTHSTAR", "CAROUSEL", "approved"], ["SLOW SUNDAY", "STATIC", "review"], ["BOLT", "STORY", "approved"]].map(([brand, format, status]) => (
+                <div key={brand} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-hairline-soft px-3 py-3 last:border-b-0">
+                  <span className="font-mono text-[10px] text-bone">{brand}</span>
+                  <span className="font-mono text-[9px] text-muted">{format}</span>
+                  <span className={`font-mono text-[9px] uppercase ${status === "approved" ? "text-green" : "text-signal"}`}>{status === "approved" ? "✓ approved" : "review"}</span>
+                </div>
+              ))}
+            </div>
+            <a href="#pricing" className="mt-7 inline-flex text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Compare team plans →</a>
+          </article>
+        </div>
+        <a href="/agents" className="group mt-px grid gap-6 border border-hairline bg-ink p-6 transition-colors hover:border-signal sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <h3 className="font-display font-bold text-2xl mb-2.5">Same team. More retainers.</h3>
-            <p className="text-muted text-[15px]">Production capacity is why you say no to new clients. Remove it, and the team you already pay can carry more books — without the quality dropping on post one hundred.</p>
+            <span className="eyebrow text-green">Build with Brandrail</span>
+            <h3 className="mt-3 font-display text-2xl font-bold">Give any agent a brand system it cannot ignore.</h3>
+            <p className="mt-2 max-w-[720px] text-sm leading-relaxed text-muted">Compile websites to portable specs, render through the API, and wire the production rail into your product with MCP, CLI or SDK.</p>
           </div>
-          <div className="flex gap-10 justify-end font-mono text-center">
-            {[["−80%", "production hours"], ["+5", "clients, same team"], ["0", "off-brand posts"]].map(([b, s]) => (
-              <div key={s}>
-                <b className="block font-display text-4xl text-signal font-bold">{b}</b>
-                <span className="text-[11px] tracking-[0.12em] uppercase text-muted">{s}</span>
+          <span className="font-mono text-sm text-signal group-hover:text-bone">API · MCP · CLI →</span>
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function MechanismSection() {
+  const rules = [
+    ["Identity", "Fonts, color roles, logo use and clearspace"],
+    ["Composition", "Grid, density, whitespace and hierarchy"],
+    ["Imagery", "Photo direction, crop behavior and AI fences"],
+    ["Voice", "Tone, banned phrases, emoji and CTA limits"],
+  ];
+  return (
+    <section className="border-b border-hairline-soft py-20 md:py-28">
+      <div className="mx-auto grid max-w-[1180px] gap-12 px-5 sm:px-6 lg:grid-cols-2 lg:items-center">
+        <div>
+          <span className="eyebrow text-signal">The proprietary mechanism</span>
+          <h2 className="mt-3.5 font-display text-[clamp(32px,4vw,48px)] font-bold leading-[1.05] tracking-[-0.035em]">A brand system the machine must obey.</h2>
+          <p className="mt-5 text-[17px] leading-relaxed text-muted">Generic AI receives suggestions. Brandrail receives constraints. If an asset breaks a defined rule, the renderer returns a violation instead of silently shipping the mistake.</p>
+          <div className="mt-7 divide-y divide-hairline-soft border-y border-hairline-soft">
+            {rules.map(([title, body]) => (
+              <div key={title} className="grid gap-1 py-3.5 sm:grid-cols-[120px_1fr] sm:gap-4">
+                <b className="font-display text-sm">{title}</b>
+                <span className="text-sm text-muted">{body}</span>
               </div>
             ))}
           </div>
         </div>
-      </Wrap>
-    );
-
-  if (id === "who")
-    return (
-      <Wrap>
-        <SecHead eyebrow="Who it's for" title="Built for the people shipping content at machine speed." />
-        <div className="grid md:grid-cols-3 gap-px bg-hairline border border-hairline">
-          {[
-            ["01", "Agent builders", "Your OpenClaw or Claude pipeline posts daily. Make its output look like a designer did it — one MCP tool, one CLI command. Token-cheap by design."],
-            ["02", "Agencies & multi-brand teams", "10–100 accounts, one enforced brand spec each. Volume without the brand drift. Client workspaces, approval rails, and white-label reports included."],
-            ["03", "Automation teams", "n8n, Make, Zapier, or raw API. Trigger a branded carousel from a webhook, a CMS event, or a CI pipeline. Render → publish, one call."],
-          ].map(([n, h, p]) => (
-            <div key={n} className="bg-ink p-8">
-              <span className="font-mono text-signal text-[13px]">{n}</span>
-              <h3 className="font-display font-bold text-[19px] my-3">{h}</h3>
-              <p className="text-muted text-[14.5px]">{p}</p>
-            </div>
-          ))}
-        </div>
-      </Wrap>
-    );
-
-  if (id === "how")
-    return (
-      <Wrap>
-        <SecHead
-          eyebrow="How it works"
-          title="Three stations. One rail."
-          sub={!dev ? "Onboard a client in 15 minutes. Then the line runs itself — you approve, it ships." : undefined}
-        />
-        <div className="relative grid md:grid-cols-3 gap-10 mt-16">
-          <div className="hidden md:block absolute top-[7px] left-0 right-0 h-0.5 bg-hairline" aria-hidden />
-          <Station
-            n="1 · Compile the BrandSpec"
-            body={dev
-              ? "Point Brandrail at a website (Figma/Canva import coming). Out comes a BrandSpec — versioned, diffable, forkable. Not just palette and type: composition, imagery rules, voice, negative examples. Enforced, not suggested."
-              : "Drop in the client's website — Brandrail extracts a BrandSpec: not just fonts and colors, but composition rules, photography style, voice, and the “never do this” list. The taste your agency gets paid for, made enforceable."}
-            tag={dev ? "$ brandrail compile acme.com → brandspec v1" : "client onboarded → 15 minutes"}
-          />
-          <Station
-            n="2 · AI writes in-brand"
-            body="Every brief is drafted in the client's voice — tone, banned words, emoji limits and CTA style live in the BrandSpec and are enforced like design rules, so nothing off-voice makes it through. The planner weighs what performed and proposes next week accordingly."
-            tag="brief → copy · on-voice · gate-checked"
-          />
-          <Station
-            n="3 · Batch review → ship"
-            body="Every post renders pixel-perfect through the BrandSpec, then hits one keyboard-driven queue: triage many posts across many clients in minutes. Because the design layer is guaranteed, you're checking judgment — not fixing fonts. Approve, edit, or regenerate, then hand the approved set to your scheduler."
-            tag="approve · edit · regenerate — by keyboard"
-          />
-        </div>
-      </Wrap>
-    );
-
-  if (id === "engine")
-    return (
-      <Wrap>
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <span className="eyebrow text-signal">The engine</span>
-            <h2 className="font-display font-bold tracking-tight text-[clamp(30px,3.6vw,42px)] mt-3.5 mb-4">A design system, not a slot machine.</h2>
-            <ul className="mt-6">
-              {(dev
-                ? [
-                    ["The BrandSpec is the primitive.", " Portable, versionable, diffable, forkable. MIT-licensed. A brand refresh is a PR."],
-                    ["It captures taste, not just tokens.", " Composition rules, density limits, photography style, negative examples — the parts humans disagree about, schematized."],
-                    ["Deterministic rendering.", " Same brief in, same quality out — text, type, color and logos never hallucinate. Generative fills only masked zones, pinned so re-renders stay identical (bring your own fal.ai key)."],
-                    ["Auto-adapt.", " One piece → every aspect ratio and platform spec, one call."],
-                    ["One spec, every asset.", " Social today. Ads, decks, thumbnails, email headers, OG images next — same engine."],
-                  ]
-                : [
-                    ["It captures your taste, not just the logo.", " Composition, density, photo style, “never do this” — the judgment your clients pay you for, made enforceable."],
-                    ["Same quality on post #1 and post #1,000.", " Deterministic rendering — not “regenerate and pray.”"],
-                    ["One asset → every platform size,", " automatically. No more “can you resize this for LinkedIn?”"],
-                    ["Client-proof.", " Violations physically can't render. There is no “oops” to apologize for."],
-                    ["One spec, every asset.", " Social today — ads, decks, thumbnails, and email next. The BrandSpec you compile now carries all of it."],
-                  ]
-              ).map(([b, rest]) => (
-                <li key={b} className="py-3.5 border-b border-hairline-soft text-[15px] text-muted before:content-['—'] before:text-signal before:mr-3 before:font-mono">
-                  <b className="text-bone font-semibold">{b}</b>
-                  {rest}
-                </li>
-              ))}
-            </ul>
-          </div>
-          {dev ? <SpecJson /> : <ClientGrid />}
-        </div>
-      </Wrap>
-    );
-
-  if (id === "stack")
-    return (
-      <Wrap>
-        <SecHead eyebrow="The Agency plan, stacked" title="Everything your production line needs. One line item." />
-        <div className="border border-hairline">
-          {[
-            { h: "10,000 renders every month", p: "Finished, on-brand assets — carousels, statics, stories. Enough for 25 active clients posting daily.", val: "$15,000/mo at freelance rates" },
-            { h: "25 brand specs, compiled for you", p: "Website in — enforced brand system out. Figma/Canva import coming; we compile your first 5 with you, live.", val: "$500/brand at studio rates" },
-            { h: "AI planner for each client", p: "Proposes an on-brand content calendar with a rationale you can forward, weighted by what recently performed.", val: "your strategist's Tuesday, back" },
-            { h: "Approval rails + autopilot", p: "The keyboard review queue is live. Set a weekly cadence per brand and autopilot plans, renders and queues the week — you approve, or trust it to ship.", val: "included" },
-            { h: "White-label client reports", p: "A branded report per client, styled in their own colors — generate and send as your agency.", val: "8 hrs/mo, back" },
-            { h: "Founding-cohort onboarding", p: "Direct line to the founders. Your feature requests jump the queue while the cohort is open.", val: "priceless, briefly" },
-          ].map(({ h, p, val }) => (
-            <div key={h} className="grid grid-cols-[1fr_auto] gap-5 px-6 py-5 border-b border-hairline-soft items-center">
-              <div>
-                <h4 className="font-display text-[17px] font-medium flex items-center gap-2.5">{h}</h4>
-                <p className="text-[13.5px] text-muted mt-0.5">{p}</p>
-              </div>
-              <span className="font-mono text-[13px] text-muted whitespace-nowrap hidden sm:block">{val}</span>
-            </div>
-          ))}
-          <div className="bg-panel flex justify-between items-center px-6 py-6 border-t-2 border-signal">
-            <span className="font-mono text-xs tracking-[0.14em] uppercase text-muted">All of it</span>
-            <span className="flex items-baseline">
-              <span className="font-mono text-[15px] text-[#5B5851] line-through mr-3.5">$15,500+/mo equivalent</span>
-              <span className="font-display text-3xl font-bold text-signal">$199 <small className="text-[13px] font-mono text-muted font-normal">/mo</small></span>
-            </span>
-          </div>
-        </div>
-      </Wrap>
-    );
-
-  if (id === "guarantee")
-    return (
-      <Wrap>
-        <div className="border-2 border-signal p-11 grid md:grid-cols-[auto_1fr] gap-9 items-center bg-panel">
-          <div className="w-24 h-24 border-2 border-signal flex items-center justify-center font-mono text-[10px] tracking-[0.1em] text-center text-signal uppercase leading-normal">
-            Slop-free
-            <br />
-            guarantee
-            <br />
-            30 days
-          </div>
-          <div>
-            <h3 className="font-display font-bold text-2xl mb-3">Run one client on Brandrail for 30 days.</h3>
-            <p className="text-muted text-[15.5px] max-w-[640px]">
-              If it doesn&rsquo;t cut that client&rsquo;s production time <b className="text-bone">in half</b>, you get every cent back —{" "}
-              <b className="text-bone">and you keep the compiled brand specs.</b> We take the risk, because the engine doesn&rsquo;t miss.
-              No credit-card trials, no cancellation mazes, no &ldquo;contact us to cancel.&rdquo;
-            </p>
-          </div>
-        </div>
-      </Wrap>
-    );
-
-  if (id === "agents")
-    return (
-      <Wrap>
-        <SecHead
-          eyebrow="Agent-native"
-          title={dev ? "Your agent already knows how to use it." : "And when you're ready — your own AI staff."}
-          sub={dev
-            ? "MCP server and a token-cheap CLI, from day one. Add Brandrail to any agent in 60 seconds."
-            : "Brandrail speaks the same protocols as Claude, ChatGPT, and every major AI agent. If your ops team automates with n8n or Make, the whole line — plan, render, publish — runs from their existing workflows."}
-        />
-        <Terminal
-          lines={[
-            ["$", "brandrail compile acme.com"],
-            ["✓ compiled", "BrandSpec v1 · palette, real fonts, photos pinned"],
-            ["$", 'brandrail render "announce our v2 launch" --brand acme'],
-            ["✓ rendered", "5 formats · brand spec v1 · 0 violations → ./assets"],
-          ]}
-          cursor
-        />
-        <div className="flex gap-6 flex-wrap mt-8 font-mono text-[13px] text-muted">
-          {["Claude", "OpenClaw", "ChatGPT", "Codex", "Cursor", "n8n", "Make"].map((a) => (
-            <span key={a} className="border border-hairline px-4 py-2">{a}</span>
-          ))}
-        </div>
-      </Wrap>
-    );
-
-  if (id === "oss")
-    return (
-      <Wrap>
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <span className="eyebrow text-signal">Open source</span>
-            <h2 className="font-display font-bold tracking-tight text-[clamp(30px,3.6vw,42px)] mt-3.5 mb-4">
-              {dev ? "Self-host the rails. Own your keys." : "Open source. Because trust is the product."}
-            </h2>
-            <ul className="mt-6">
-              {(dev
-                ? [
-                    ["MIT edges.", " The SDK, CLI, MCP server, and the BrandSpec format are MIT — embed them anywhere, zero license friction. (Publishing rails land as the AGPL core.)"],
-                    ["BYOK.", " Your model keys, your data. Point the engine at OpenRouter or any OpenAI-compatible gateway; when publishing ships, X posting is your own key with the cost shown first."],
-                    ["The BrandSpec is portable.", " Compile it, diff it, fork it, export it. Your brand's taste isn't locked in a vendor's database."],
-                    ["Built in public.", " Open metrics, public roadmap, changelog that never sleeps."],
-                  ]
-                : [
-                    ["The code is public.", " Star, audit, and fork it. Your clients' data isn't a black box."],
-                    ["No lock-in.", " Your templates and brand specs export in an open format. Leave anytime, take everything."],
-                    ["Your keys, your accounts.", " Client credentials stay under your control — never resold, never pooled."],
-                    ["Built in public.", " Open roadmap and changelog as we grow — no black box, no lock-in."],
-                  ]
-              ).map(([b, rest]) => (
-                <li key={b} className="py-3.5 border-b border-hairline-soft text-[15px] text-muted before:content-['—'] before:text-signal before:mr-3 before:font-mono">
-                  <b className="text-bone font-semibold">{b}</b>
-                  {rest}
-                </li>
-              ))}
-            </ul>
-          </div>
-          {dev ? (
-            <Terminal
-              lines={[
-                ["$", "git clone github.com/apwn/brandrail && pnpm i"],
-                ["$", "brandrail compile acme.com && brandrail render 'summer sale' --brand acme"],
-                ["✓ rendered", "5 formats · 0 violations · ./assets"],
-                ["$", "brandrail mcp   # MCP server — point your agent here"],
-              ]}
-            />
-          ) : (
-            <div className="border border-hairline bg-panel p-8">
-              <div className="eyebrow text-signal mb-4">Why this matters to your clients</div>
-              <p className="text-muted text-[15px] leading-relaxed">
-                When a client asks <b className="text-bone">&ldquo;where does our data live?&rdquo;</b> — you have a better answer than any
-                closed tool can give: open code, exportable everything, credentials you control. For enterprise clients with procurement
-                checklists, that answer wins deals.
-              </p>
-            </div>
-          )}
-        </div>
-      </Wrap>
-    );
-
-  if (id === "pricing")
-    return (
-      <Wrap>
-        <SecHead eyebrow="Pricing" title="Priced on output. Not seats, not posts, not tricks." />
-        <div className="grid md:grid-cols-4 gap-px bg-hairline border border-hairline">
-          <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Uncapped generative w/ your fal.ai key", "Your own keys"]} cta="git clone →" href="https://github.com/apwn/brandrail" />
-          <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo · 100 generative", "3 brands · connect channels", "AI planner + batch review", "MCP + CLI + API"]} cta="Start free →" />
-          <Plan hot name="Agency" price="$199" unit="/mo" items={["10,000 renders/mo · 1,000 generative", "25 brands · client workspaces", "Approval rails · white-label reports", "30-day slop-free guarantee"]} cta="Start free →" />
-          <Plan name="Rail" price="$0.02" unit="/render" items={["Pure API / MCP access", "Usage-based, volume discounts", "For agent builders & platforms", "99.9% SLA available"]} cta="Read the docs →" href="/docs" />
-        </div>
-        <p className="font-mono text-[12.5px] text-muted mt-6">
-          <b className="text-green font-medium">✓ 30-day money-back guarantee on Agency.</b> No credit-card trials. No cancellation mazes.
-          We read our competitors&rsquo; Trustpilot pages so you don&rsquo;t have to.
-        </p>
-      </Wrap>
-    );
-
-  if (id === "cohort")
-    return (
-      <Wrap>
-        <div className="bg-panel border border-hairline p-10 grid md:grid-cols-[1fr_auto] gap-10 items-center">
-          <div>
-            <span className="eyebrow text-signal">Founding agency cohort</span>
-            <h3 className="font-display font-bold text-2xl mt-3 mb-2.5">20 agencies. Locked pricing. Forever.</h3>
-            <p className="text-muted text-[15px] max-w-[560px]">
-              The first 20 agencies get Agency-tier pricing locked for life, white-glove onboarding of their first 5 clients, and a direct
-              line to the founders — because your workflow requests become the roadmap. When the slots are gone, they&rsquo;re gone; the price isn&rsquo;t.
-            </p>
-          </div>
-          <div className="font-mono text-center">
-            <b className="block font-display text-[52px] text-signal font-bold leading-none">7</b>
-            <span className="text-[11px] tracking-[0.14em] uppercase text-muted">slots left</span>
-            <div className="flex gap-[3px] mt-3">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <i key={i} className={`w-2.5 h-3.5 ${i < 13 ? "bg-hairline" : "bg-signal"}`} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </Wrap>
-    );
-
-  if (id === "proof")
-    return (
-      <Wrap>
-        <SecHead eyebrow="Wall of proof" title="These were rendered by Brandrail." sub="Real output from the engine on this page — no stock photos, no AI illustration, no human touch-ups." />
-        <div className="grid md:grid-cols-3 gap-5">
-          {[
-            { src: "/proof/carousel.png", label: "IG carousel · slide 1/4" },
-            { src: "/proof/og-image.png", label: "OG image · 1200×630" },
-            { src: "/proof/x-graphic.png", label: "X graphic · 1600×900" },
-          ].map(({ src, label }) => (
-            <div key={label} className="border border-hairline bg-panel">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={label} className="w-full aspect-[4/3] object-cover object-top border-b border-hairline-soft" />
-              <div className="font-mono text-[10.5px] text-[#6D6961] px-3.5 py-2.5">
-                {label} · <b className="text-signal font-normal">0 violations · 0 humans</b>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Wrap>
-    );
-
-  if (id === "faq")
-    return (
-      <Wrap>
-        <SecHead eyebrow="FAQ" title="The questions you're already asking." />
-        <div>
-          {(dev ? DEV_FAQ : AGENCY_FAQ).map(([q, a]) => (
-            <details key={q} className="border-b border-hairline-soft group">
-              <summary className="cursor-pointer list-none font-display text-lg font-medium py-5.5 py-5 flex justify-between items-center">
-                {q}
-                <span className="font-mono text-signal text-xl group-open:hidden">+</span>
-                <span className="font-mono text-signal text-xl hidden group-open:inline">–</span>
-              </summary>
-              <p className="text-muted text-[15px] pb-5 max-w-[760px]"><Rich html={a} /></p>
-            </details>
-          ))}
-        </div>
-      </Wrap>
-    );
-
-  return null;
-}
-
-/* ------------------------------------------------------------- primitives */
-/** Renders the FAQ copy's one allowed markup — <b class='text-bone'>…</b> —
- * as real elements. No raw HTML injection: the string is split, only the exact
- * bold pattern becomes a <b>, everything else is plain text. */
-function Rich({ html }: { html: string }) {
-  const parts = html.split(/(<b class='text-bone'>.*?<\/b>)/g);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const m = /^<b class='text-bone'>(.*?)<\/b>$/.exec(p);
-        return m ? (
-          <b key={i} className="text-bone font-semibold">{m[1]}</b>
-        ) : (
-          <span key={i}>{p}</span>
-        );
-      })}
-    </>
-  );
-}
-
-function MathCell({ h, big, unit, p, win }: { h: string; big: string; unit: string; p: string; win?: boolean }) {
-  return (
-    <div className={`p-7 ${win ? "bg-panel outline outline-2 -outline-offset-2 outline-signal" : "bg-ink"}`}>
-      <h4 className="font-mono text-[11.5px] tracking-[0.14em] uppercase text-muted mb-3.5">{h}</h4>
-      <div className={`font-display text-3xl font-bold tracking-tight ${win ? "text-signal" : ""}`}>
-        {big} <small className="text-[13px] text-muted font-mono font-normal">{unit}</small>
-      </div>
-      <p className="text-[13px] text-muted mt-2.5">{p}</p>
-    </div>
-  );
-}
-
-function Station({ n, body, tag }: { n: string; body: string; tag: string }) {
-  return (
-    <div className="relative pt-9 before:content-[''] before:absolute before:top-0 before:left-0 before:w-4 before:h-4 before:bg-signal">
-      <h3 className="font-display font-bold text-xl mb-2.5">{n}</h3>
-      <p className="text-muted text-[14.5px]">{body}</p>
-      <span className="font-mono text-[11.5px] text-muted block mt-3.5">{tag}</span>
-    </div>
-  );
-}
-
-function SpecJson() {
-  return (
-    <pre className="bg-panel border border-hairline font-mono text-[12.5px] leading-[1.75] p-6 text-muted overflow-x-auto">
-      <span className="text-[#5B5851]">{"// brandspec v12 · acme · forked-from: agency-master v3"}</span>
-      {"\n{"}
-      {"\n  "}<span className="text-bone">&quot;identity&quot;</span>: {"{ "}<span className="text-bone">&quot;signal&quot;</span>: <span className="text-signal">&quot;#FF4D00&quot;</span>, <span className="text-bone">&quot;display&quot;</span>: <span className="text-signal">&quot;Space Grotesk/700&quot;</span>, <span className="text-bone">&quot;logo.distort&quot;</span>: <span className="text-signal">false</span> {"}"},
-      {"\n  "}<span className="text-bone">&quot;composition&quot;</span>: {"{ "}<span className="text-bone">&quot;grid&quot;</span>: <span className="text-signal">&quot;12col/8px&quot;</span>, <span className="text-bone">&quot;density&quot;</span>: <span className="text-signal">&quot;max 3/zone&quot;</span> {"}"},
-      {"\n  "}<span className="text-bone">&quot;imagery&quot;</span>: {"{ "}<span className="text-bone">&quot;photo&quot;</span>: <span className="text-signal">&quot;natural light, no stock&quot;</span>, <span className="text-bone">&quot;aiFence&quot;</span>: <span className="text-signal">&quot;bg.mask only&quot;</span> {"}"},
-      {"\n  "}<span className="text-bone">&quot;voice&quot;</span>: {"{ "}<span className="text-bone">&quot;emojiMax&quot;</span>: <span className="text-signal">1</span>, <span className="text-bone">&quot;banned&quot;</span>: [<span className="text-signal">&quot;synergy&quot;</span>, <span className="text-signal">&quot;game-changing&quot;</span>] {"}"},
-      {"\n  "}<span className="text-bone">&quot;judgment&quot;</span>: {"{ "}<span className="text-bone">&quot;positive&quot;</span>: <span className="text-signal">[12 ex]</span>, <span className="text-bone">&quot;negative&quot;</span>: <span className="text-signal">[9 ex]</span> {"}"}
-      {"\n}"}
-      {"\n"}<span className="text-[#5B5851]">{"// diffable. forkable. a brand refresh is a PR."}</span>
-      {"\n"}<span className="text-[#5B5851]">{"// violations are build errors. nothing ships off-brand."}</span>
-    </pre>
-  );
-}
-
-function ClientGrid() {
-  const rows: Array<[string, string, string, boolean, boolean, string[]]> = [
-    ["ACME", "#FF4D00", "ACME.COM", false, false, ["v2 is live", "4× faster", "Zero migration", "Changelog"]],
-    ["NORDIC SPA", "#7FB5A6", "NORDICSPA.SE", true, false, ["Winter rituals", "Open late", "Gift cards", "The sauna guide"]],
-    ["BOLT GYM", "#F2C230", "BOLTGYM.CO", false, true, ["No excuses", "PR week", "6am club", "Join now"]],
-  ];
-  return (
-    <div className="border border-hairline bg-panel">
-      <div className="font-mono text-[11px] text-muted px-4 py-3 border-b border-hairline-soft flex justify-between">
-        <span>this week · 3 clients · 12 posts</span>
-        <span className="text-green">✓ 0 violations</span>
-      </div>
-      {rows.map(([label, color, domain, italic, upper, titles]) => (
-        <div key={label} className="grid grid-cols-[90px_repeat(4,1fr)] gap-px bg-hairline-soft">
-          <div className="bg-panel font-mono text-[10.5px] text-muted flex items-center px-3.5 tracking-[0.08em]">{label}</div>
-          {titles.map((t, i) => (
-            <div key={i} className="bg-ink aspect-square flex flex-col justify-between p-2.5">
-              <div className="h-[3px] w-3/5" style={{ background: color }} />
-              <div className={`font-display font-bold text-[11px] leading-tight ${italic ? "italic font-serif font-normal" : ""} ${upper ? "uppercase" : ""}`}>{t}</div>
-              <div className="font-mono text-[7.5px] text-[#5B5851]">{domain}</div>
-            </div>
-          ))}
-        </div>
-      ))}
-      <div className="font-mono text-[11px] text-muted px-4 py-3 flex justify-between">
-        <span>every post, every client, always on-spec</span>
-        <span>approved in one queue</span>
-      </div>
-    </div>
-  );
-}
-
-function Terminal({ lines, cursor }: { lines: Array<[string, string]>; cursor?: boolean }) {
-  return (
-    <div className="bg-[#0D0D0F] border border-hairline font-mono text-[13.5px] leading-loose p-6 max-w-[780px]">
-      {lines.map(([label, rest], i) => {
-        const ok = label.startsWith("✓");
-        return (
-          <div key={i}>
-            <span className={ok ? "text-green" : "text-muted"}>{label}</span>{" "}
-            <span className={ok ? "text-[#5B5851]" : "text-bone"}>{rest}</span>
-          </div>
-        );
-      })}
-      {cursor && (
-        <div>
-          <span className="text-muted">$</span>{" "}
-          <span className="inline-block w-2 h-[15px] bg-signal align-[-2px] motion-safe:animate-[bblink_1s_steps(1)_infinite]" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Plan({ name, price, unit, items, cta, hot, href = "#top" }: { name: string; price: string; unit: string; items: string[]; cta: string; hot?: boolean; href?: string }) {
-  return (
-    <div className={`bg-ink p-7 flex flex-col relative ${hot ? "outline outline-2 -outline-offset-2 outline-signal" : ""}`}>
-      {hot && <span className="absolute -top-px -right-px bg-signal text-ink font-mono text-[9.5px] tracking-[0.1em] px-2.5 py-1">AGENCIES START HERE</span>}
-      <h3 className="font-display font-bold text-[17px]">{name}</h3>
-      <div className="font-display text-3xl font-bold my-3.5 mb-1">{price} <small className="text-[13px] text-muted font-mono font-normal">{unit}</small></div>
-      <ul className="my-4.5 my-4 flex-1">
-        {items.map((it) => (
-          <li key={it} className="text-[13.5px] text-muted py-1.5 border-b border-hairline-soft">{it}</li>
-        ))}
-      </ul>
-      <a href={href} className={hot ? "btn justify-center" : "btn-ghost justify-center"}>{cta}</a>
-    </div>
-  );
-}
-
-function FinalCta({ dev, url, setUrl, onSubmit }: { dev: boolean; url: string; setUrl: (v: string) => void; onSubmit: () => void }) {
-  return (
-    <section className="text-center pt-28 overflow-hidden">
-      <div className="mx-auto max-w-[1160px] px-6">
-        <blockquote className="font-display text-[clamp(24px,3vw,34px)] font-medium max-w-[760px] mx-auto mb-10 leading-snug">
-          {dev ? (
-            <>AI can <span className="text-signal">think</span>. It still can&rsquo;t <span className="text-signal">design</span>.<br />Teach it how your brand thinks visually.</>
-          ) : (
-            <>Every month you wait costs <span className="text-signal">$450 per client</span> in production labor.<br />Seeing your next 5 posts costs <span className="text-signal">60 seconds</span>.</>
-          )}
-        </blockquote>
-        <div className="max-w-[540px] mx-auto">
-          <UrlBox url={url} setUrl={setUrl} onSubmit={onSubmit} />
-        </div>
-        <p className="font-mono text-xs text-muted mt-4.5 mt-4">
-          Social today. Ads, decks, thumbnails, email tomorrow — <b className="text-bone">same BrandSpec, same engine.</b>
-        </p>
-      </div>
-      <div
-        className="font-display font-bold text-[clamp(90px,16vw,220px)] tracking-[-0.05em] leading-[0.9] mt-20 whitespace-nowrap select-none text-transparent"
-        style={{ WebkitTextStroke: "1px #2E2E32" }}
-        aria-hidden
-      >
-        brand<span style={{ WebkitTextStroke: "1px #FF4D00" }}>rail</span>
+        <BrandSpecCard />
       </div>
     </section>
   );
 }
 
-function FooterLarge() {
-  // [label, href] — a null href renders an honest "soon" marker, never a dead "#"
-  const col = (h: string, links: Array<[string, string | null]>) => (
-    <div>
-      <h5 className="font-mono text-[11px] tracking-[0.16em] uppercase text-muted mb-4">{h}</h5>
-      {links.map(([l, href]) =>
-        href ? (
-          <a key={l} href={href} className="block text-[13.5px] text-muted py-1 hover:text-bone">{l}</a>
-        ) : (
-          <span key={l} className="block text-[13.5px] text-[#5B5851] py-1">{l} <span className="font-mono text-[10px]">soon</span></span>
-        ),
-      )}
+function BrandSpecCard() {
+  return (
+    <div className="border border-hairline bg-panel font-mono text-[12px] leading-[1.8] text-muted shadow-[12px_12px_0_#0A0A0B,12px_12px_0_1px_#2E2E32]">
+      <div className="flex justify-between border-b border-hairline px-5 py-3 text-[10px] uppercase tracking-[0.12em]">
+        <span>northstar.brandspec.json</span><span className="text-green">valid · v12</span>
+      </div>
+      <pre className="overflow-x-auto p-5"><span className="text-bone">{"{"}</span>{`\n  `}<span className="text-signal">&quot;identity&quot;</span>: <span className="text-bone">{"{"}</span>{`\n    "signal": "#FF4D00",\n    "display": "Space Grotesk/700",\n    "logo.distort": false\n  },\n  `}<span className="text-signal">&quot;composition&quot;</span>: <span className="text-bone">{"{"}</span>{`\n    "grid": "12col/8px",\n    "density": "max 3/zone"\n  },\n  `}<span className="text-signal">&quot;voice&quot;</span>: <span className="text-bone">{"{"}</span>{`\n    "emojiMax": 1,\n    "banned": ["synergy", "game-changing"]\n  }\n`}<span className="text-bone">{"}"}</span></pre>
+      <div className="border-t border-hairline px-5 py-3 text-[10px] text-green">✓ portable · diffable · exportable · enforced</div>
     </div>
   );
+}
+
+function ComparisonSection() {
+  const rows = [
+    ["Compiles a brand system from a URL", "—", "—", "✓"],
+    ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
+    ["Writes and renders social content", "Separate tools", "—", "✓"],
+    ["Multi-brand approval queue", "—", "—", "✓"],
+    ["Publishes or hands off to a scheduler", "—", "—", "✓"],
+  ];
   return (
-    <footer className="border-t-2 border-hairline pt-16 pb-10 bg-panel">
-      <div className="mx-auto max-w-[1160px] px-6 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
-        <div>
-          <a className="font-display font-bold text-xl" href="/">brand<span className="border-b-[3px] border-signal pb-px">rail</span></a>
-          <p className="text-[13px] text-muted mt-3 max-w-[260px]">AI can think. It still can&rsquo;t design. Brandrail teaches AI how your brand thinks visually — through an open, enforceable BrandSpec.</p>
+    <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead eyebrow="Where Brandrail fits" title="Design tools create. Schedulers distribute. Brandrail runs the production line between them." body="Keep the tools you already like. Brandrail turns the brand into enforceable rules, creates the assets, and gives you one place to approve them." />
+        <div className="overflow-x-auto border border-hairline">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <thead className="bg-panel font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+              <tr><th className="p-4 font-normal">Capability</th><th className="p-4 font-normal">Canva / Figma</th><th className="p-4 font-normal">Schedulers</th><th className="border-l border-signal p-4 font-normal text-signal">Brandrail</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row[0]} className="border-t border-hairline-soft">
+                  <th className="p-4 font-display font-medium">{row[0]}</th>
+                  <td className="p-4 text-muted">{row[1]}</td>
+                  <td className="p-4 text-muted">{row[2]}</td>
+                  <td className="border-l border-signal p-4 font-mono text-green">{row[3]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        {col("Agents & tools", [
-          ["For agent builders", "/agents"],
-          ["MCP server", "/docs#mcp"],
-          ["CLI", "/docs#cli"],
-          ["Public API", "/docs#api"],
-          ["API keys", "/dashboard#api-keys"],
-        ])}
-        {col("Resources", [
-          ["Docs", "/docs"],
-          ["GitHub", "https://github.com/apwn/brandrail"],
-          ["Review queue", "/review"],
-          ["Workspace", "/dashboard"],
-          ["Public roadmap", null],
-        ])}
-        {col("Company", [
-          ["Pricing", "/#pricing"],
-          ["Settings", "/settings"],
-          ["The Manifesto", null],
-          ["Terms", null],
-          ["Privacy", null],
-        ])}
       </div>
-      <div className="mx-auto max-w-[1160px] px-6 flex justify-between font-mono text-[11.5px] text-[#5B5851] mt-14 pt-5.5 pt-5 border-t border-hairline-soft">
-        <span>© Brandrail 2026 · AGPL-3.0 · built in public</span>
-        <span className="hidden sm:inline">this page: rendered by brandrail · 0 humans · 0 slop</span>
+    </section>
+  );
+}
+
+function PricingSection() {
+  const plans = [
+    {
+      name: "Free",
+      audience: "For trying your first brand",
+      price: "$0",
+      suffix: "forever",
+      items: ["50 cloud renders / month", "5 generative renders", "URL-to-BrandSpec compiler", "Preview, restyle and export"],
+      cta: "Try your brand free",
+      href: "#top",
+    },
+    {
+      name: "Studio",
+      audience: "For creators and growing brands",
+      price: "$49",
+      suffix: "/ month",
+      badge: "MOST POPULAR",
+      items: ["1,000 renders / month", "100 generative renders", "3 active BrandSpecs", "AI planner + batch review", "API, MCP and CLI access"],
+      cta: "Start with Studio",
+      href: "/dashboard",
+    },
+    {
+      name: "Agency",
+      audience: "For teams managing clients",
+      price: "$199",
+      suffix: "/ month",
+      items: ["10,000 renders / month", "1,000 generative renders", "25 active BrandSpecs", "Client workspaces + team access", "Multi-brand approvals + reports"],
+      cta: "Start an agency pilot",
+      href: "/dashboard",
+    },
+  ];
+  return (
+    <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead light eyebrow="Simple plans, honest scaling" title="Start with one brand. Add horsepower when the workload earns it." body="The full product idea is available before you pay. Upgrade for more volume, more brands and the collaboration layer—not to unlock a usable result." />
+        <div className="grid items-stretch gap-5 lg:grid-cols-3">
+          {plans.map((plan) => (
+            <article key={plan.name} className={`relative flex flex-col border bg-[#FBFAF7] p-6 shadow-[6px_6px_0_#D8D3C9] sm:p-7 ${plan.badge ? "border-[#A83200] lg:-translate-y-2" : "border-[#C9C4BA]"}`}>
+              {plan.badge && <span className="absolute right-4 top-0 -translate-y-1/2 bg-[#A83200] px-3 py-1 font-mono text-[9px] tracking-[0.12em] text-white">{plan.badge}</span>}
+              <h3 className="font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-[#A83200]">{plan.name}</h3>
+              <p className="mt-2 min-h-10 text-sm text-[#6A655D]">{plan.audience}</p>
+              <div className="mt-5 border-y border-[#D8D3C9] py-5">
+                <strong className="font-display text-5xl tracking-[-0.04em]">{plan.price}</strong>
+                <span className="ml-2 font-mono text-[11px] text-[#6A655D]">{plan.suffix}</span>
+              </div>
+              <ul className="mt-4 flex-1">
+                {plan.items.map((item) => <li key={item} className="border-b border-[#E2DED6] py-3 text-sm before:mr-2 before:text-[#A83200] before:content-['✓']">{item}</li>)}
+              </ul>
+              <a href={plan.href} className={`mt-6 inline-flex min-h-12 items-center justify-center px-5 text-sm font-semibold transition-colors ${plan.badge ? "bg-[#A83200] text-white hover:bg-ink" : "border border-ink text-ink hover:bg-ink hover:text-bone"}`}>{plan.cta} →</a>
+            </article>
+          ))}
+        </div>
+        <div className="mt-7 grid border border-[#C9C4BA] bg-[#F0ECE3] lg:grid-cols-[1.2fr_.8fr]">
+          <div className="border-b border-[#D8D3C9] p-6 sm:p-8 lg:border-b-0 lg:border-r">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#A83200]">Rail for developers</span><h3 className="mt-2 font-display text-2xl font-bold">Brand-safe rendering inside your product.</h3></div>
+              <div className="text-right"><strong className="font-display text-3xl">$0.02</strong><span className="block font-mono text-[10px] text-[#6A655D]">per deterministic render</span></div>
+            </div>
+            <p className="mt-4 max-w-[680px] text-sm leading-relaxed text-[#514D47]">Usage-based API access with MCP, CLI and portable BrandSpecs. No editor seat required for the agents doing the work.</p>
+            <a href="/agents" className="mt-5 inline-flex text-sm font-semibold underline decoration-[#A83200] underline-offset-4">Explore developer pricing →</a>
+          </div>
+          <div className="p-6 sm:p-8">
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#A83200]">Open by design</span>
+            <h3 className="mt-2 font-display text-xl font-bold">Self-host the rail. Keep the spec.</h3>
+            <p className="mt-3 text-sm leading-relaxed text-[#514D47]">The SDK, CLI, MCP server and BrandSpec format are open. Use the cloud where it helps; leave with your system intact.</p>
+            <a href="https://github.com/apwn/brandrail" className="mt-5 inline-flex text-sm font-semibold underline decoration-[#A83200] underline-offset-4">View on GitHub →</a>
+          </div>
+        </div>
+        <div className="mt-7 border-2 border-[#A83200] p-5 sm:flex sm:items-start sm:justify-between sm:gap-8">
+          <div><b className="font-display text-lg">Agency pilot guarantee</b><p className="mt-1 max-w-[800px] text-sm leading-relaxed text-[#514D47]">If the pilot does not cut measured production time for the selected client by at least half within 30 days, we refund the month. You keep the compiled BrandSpecs.</p></div>
+          <span className="mt-3 block shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-[#A83200] sm:mt-1">Agency plan only</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const FAQ = [
+  ["Is Brandrail for one brand or many?", "Both. The Free and Studio plans are built for creators, founders and in-house marketers running one to three brands. Agency adds the volume, workspaces and approval layer needed to manage client accounts."],
+  ["Does Brandrail replace designers or Canva?", "No. Designers still own the system, campaigns and judgment. Canva and Figma remain useful for bespoke design work; Brandrail removes repeat production and makes the rules your team defines enforceable across routine content."],
+  ["How long does setup take?", "The live URL compile returns an initial BrandSpec in about 60 seconds. You can review uncertain fields, refine the rules and start rendering before connecting a scheduler or inviting a team."],
+  ["What happens when the website does not contain the full brand system?", "The compiler marks low-confidence fields for review. Your team can correct colors, voice, imagery and constraints before the spec is used. Brandrail should expose uncertainty, not pretend it has taste it could not observe."],
+  ["What exactly is enforced?", "The renderer checks the BrandSpec rules it can measure: typography, color roles, contrast, density, spacing, logo behavior, format dimensions, banned words and other configured limits. Human approval still owns factual accuracy and creative judgment."],
+  ["Do I have to replace my scheduler?", "No. Approved assets can flow into the scheduler you already use. Bluesky and Mastodon publishing are available directly today; additional native publishing rails are rolling out separately."],
+  ["Can developers and agents use it directly?", "Yes. Brandrail exposes the same portable BrandSpec and deterministic renderer through the API, MCP server and CLI, with usage-based pricing for products that do not need editor seats."],
+  ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable, and the SDK, CLI, MCP server and spec format are open. Your brand system is not trapped inside a proprietary editor."],
+];
+
+function FaqSection() {
+  return (
+    <section id="faq" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+      <div className="mx-auto max-w-[900px] px-5 sm:px-6">
+        <SectionHead eyebrow="FAQ" title="Before you put your brand on the rail." />
+        <div className="border-t border-hairline">
+          {FAQ.map(([question, answer]) => (
+            <details key={question} className="group border-b border-hairline-soft">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-5 font-display text-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                {question}<span className="font-mono text-xl text-signal group-open:rotate-45" aria-hidden>+</span>
+              </summary>
+              <p className="max-w-[760px] pb-6 text-[15px] leading-relaxed text-muted">{answer}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
+  return (
+    <section className="relative overflow-hidden py-24 text-center md:py-32">
+      <div className="surface-grid absolute inset-0 opacity-50" aria-hidden />
+      <div className="relative mx-auto max-w-[820px] px-5 sm:px-6">
+        <span className="eyebrow text-signal">Use your real brand</span>
+        <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">The fastest way to believe it is to see your next five posts.</h2>
+        <p className="mx-auto mt-5 max-w-[620px] text-[17px] text-muted">Paste a public website. No signup, no card and no carefully selected demo brand.</p>
+        <div className="mx-auto mt-8 max-w-[650px] text-left"><UrlBox id="final-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-hairline bg-panel py-12">
+      <div className="mx-auto grid max-w-[1180px] gap-9 px-5 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div>
+          <a href="/" className="font-display text-xl font-bold">brand<span className="border-b-[3px] border-signal">rail</span></a>
+          <p className="mt-3 max-w-[340px] text-sm leading-relaxed text-muted">The brand-locked content engine—from brief to publish, for one brand or many.</p>
+        </div>
+        <div><h3 className="eyebrow text-bone">Product</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="#workflow">How it works</a><a className="block hover:text-bone" href="#use-cases">Use cases</a><a className="block hover:text-bone" href="#pricing">Pricing</a><a className="block hover:text-bone" href="/dashboard">Workspace</a></div></div>
+        <div><h3 className="eyebrow text-bone">Builders</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="/agents">For agent builders</a><a className="block hover:text-bone" href="/docs">Documentation</a><a className="block hover:text-bone" href="https://github.com/apwn/brandrail">GitHub</a><a className="block hover:text-bone" href="/review">Review queue</a></div></div>
+      </div>
+      <div className="mx-auto mt-10 flex max-w-[1180px] flex-col gap-2 border-t border-hairline px-5 pt-5 font-mono text-[11px] text-muted sm:flex-row sm:justify-between sm:px-6">
+        <span>© Brandrail 2026 · built in public</span><span>Portable BrandSpecs · deterministic rails · human approval</span>
       </div>
     </footer>
   );
 }
-
-/* ------------------------------------------------------------------- copy */
-const AGENCY_FAQ: Array<[string, string]> = [
-  ["Will my clients know I use Brandrail?", "Only if you tell them. Workspaces, approval links, and monthly reports are <b class='text-bone'>white-labeled as your agency</b> on the Agency plan. Your clients see your brand doing exceptional work, faster."],
-  ["How long does it take to onboard a client?", "About <b class='text-bone'>15 minutes</b>: paste their website (or connect their Canva/Figma), review the compiled brand spec, connect their channels. The first calendar proposal lands the same day."],
-  ["What if the AI writes something a client wouldn't say?", "Two safety nets. The voice model is trained on <b class='text-bone'>each client's own content</b> — banned words, emoji limits, and tone rules live in the brand spec and are enforced like design rules. And nothing publishes without passing your <b class='text-bone'>approval queue</b>."],
-  ["What exactly is a BrandSpec?", "A versioned, machine-readable definition of how your brand thinks visually — not just colors and fonts, but <b class='text-bone'>composition rules, photo style, voice, and negative examples</b>. It's diffable and forkable like code: keep a master spec, fork a child per client, a brand refresh is a reviewed diff. The format is open (MIT)."],
-  ["How is this different from Figma or Canva?", "Figma and Canva are where humans <b class='text-bone'>design</b>. Brandrail is where brands <b class='text-bone'>produce</b>: agents render finished assets through an enforced BrandSpec, at volume, reviewed in one queue. Today you compile the BrandSpec from a URL; <b class='text-bone'>Figma/Canva import is on the way</b> — so we sit upstream of your design system, not in place of it."],
-  ["How is this different from Postiz or Buffer?", "Schedulers move content; they don't make it good. Brandrail is <b class='text-bone'>rails + brain + renderer</b>: the brand spec, the deterministic design engine, and the performance-weighted planner are the parts no scheduler ships."],
-];
-const DEV_FAQ: Array<[string, string]> = [
-  ["What exactly is a BrandSpec?", "A versioned, machine-readable definition of how a brand thinks visually — identity, composition, imagery, voice, and judgment (positive + negative examples). <b class='text-bone'>Portable, diffable, forkable, MIT-licensed.</b> A brand refresh is a PR; violations are build errors."],
-  ["How is this different from AI image generators?", "Diffusion models <b class='text-bone'>approximate</b> a brand; a design system <b class='text-bone'>enforces</b> it. Layout, typography, color, and logos always render deterministically; generative AI is fenced to masked background zones only (bring your own fal.ai key), pinned so re-renders stay identical — never touching your type or logo."],
-  ["How do I add it to my agent?", "MCP server + a token-cheap CLI. Point your agent at the MCP endpoint, or call <b class='text-bone'>brandrail compile</b> / <b class='text-bone'>render</b> from any pipeline. 60 seconds to first render."],
-  ["Is the self-hosted version crippled?", "No. Rails, scheduler, agent framework, MCP, and CLI are all AGPL and fully functional. The <b class='text-bone'>cloud rendering engine</b> is metered (50 free renders/mo self-hosted) because that's where the heavy compute lives."],
-  ["What about X's API pricing?", "X charges per post (plus a link surcharge) as of 2026, so when X publishing lands it'll be <b class='text-bone'>bring-your-own-key</b> — you pay X directly, with the cost shown before anything ships. <b class='text-bone'>Bluesky publishing is live today</b>; the managed platforms are rolling out."],
-  ["What exactly is a “render”?", "One finished asset: a carousel counts one render per slide, a static post is one, a short video is per-10-seconds. Estimates are shown before you spend anything."],
-];
