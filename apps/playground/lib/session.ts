@@ -9,12 +9,19 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
  * renders carry over. The engine trusts this id via the `x-brandrail-user`
  * header the proxies forward.
  */
-const SECRET = process.env.SESSION_SECRET ?? "brandrail-dev-secret-change-me";
 const COOKIE = "brandrail_session";
 const YEAR = 60 * 60 * 24 * 365;
 
+function sessionSecret(): string {
+  const value = process.env.SESSION_SECRET;
+  if (process.env.NODE_ENV === "production" && (!value || value.length < 32)) {
+    throw new Error("SESSION_SECRET must be set to at least 32 characters in production");
+  }
+  return value ?? "brandrail-dev-secret-change-me";
+}
+
 function mac(uid: string): string {
-  return createHmac("sha256", SECRET).update(uid).digest("base64url");
+  return createHmac("sha256", sessionSecret()).update(uid).digest("base64url");
 }
 export function signSession(uid: string): string {
   return `${uid}.${mac(uid)}`;
@@ -49,7 +56,7 @@ export async function ensureUserId(): Promise<string> {
   const existing = verify(jar.get(COOKIE)?.value);
   if (existing) return existing;
   const uid = newUid();
-  jar.set(COOKIE, signSession(uid), { httpOnly: true, sameSite: "lax", path: "/", maxAge: YEAR });
+  jar.set(COOKIE, signSession(uid), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: YEAR });
   return uid;
 }
 
@@ -61,5 +68,5 @@ export async function clearSession(): Promise<void> {
 /** Rewrite the session to a specific uid — the magic-link landing sets the
  * cookie to the CANONICAL user id (their existing workspace on any device). */
 export async function setSessionUid(uid: string): Promise<void> {
-  (await cookies()).set(COOKIE, signSession(uid), { httpOnly: true, sameSite: "lax", path: "/", maxAge: YEAR });
+  (await cookies()).set(COOKIE, signSession(uid), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: YEAR });
 }

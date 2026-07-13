@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 
-/** Team seats (Agency): invite an email; their magic-link login lands in this
- * workspace. V0 is shared-workspace access — no roles yet, and that's stated. */
+/** Agency reviewer seats: distinct identities with review-only access. */
 export function MembersCard({ plan, members: initial }: { plan: string; members: string[] }) {
   const [members, setMembers] = useState(initial);
   const [value, setValue] = useState("");
@@ -49,10 +48,10 @@ export function MembersCard({ plan, members: initial }: { plan: string; members:
 
   return (
     <section className="panel p-5 mt-4">
-      <p className="eyebrow text-bone">TEAM · SHARED WORKSPACE</p>
+      <p className="eyebrow text-bone">TEAM · REVIEWER SEATS</p>
       <p className="text-muted text-sm mt-2">
-        Invited emails sign in with their own magic link and land here — same brands, same review queue.
-        <span className="font-mono text-[11px] block mt-1 text-muted">V0: full shared access, no per-member roles yet.</span>
+        Invited reviewers sign in with their own magic link and can inspect brands and work the review queue.
+        <span className="font-mono text-[11px] block mt-1 text-muted">Billing, publishing credentials, automation, API keys and account settings stay owner-only.</span>
       </p>
       <div className="flex gap-2 mt-3">
         <input

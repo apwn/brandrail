@@ -7,5 +7,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ brand: 
   const uid = await ensureUserId();
   const res = await engine(`/v0/reports/${encodeURIComponent(brand)}`, {}, uid);
   if (!res.ok) return Response.json(await res.json().catch(() => ({ error: "report failed" })), { status: res.status });
-  return new Response(res.body, { headers: { "content-type": "text/html; charset=utf-8" } });
+  return new Response(res.body, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "content-security-policy": res.headers.get("content-security-policy") ?? "default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; frame-ancestors 'self'",
+      "x-content-type-options": "nosniff",
+      "cache-control": "private, no-store",
+    },
+  });
 }

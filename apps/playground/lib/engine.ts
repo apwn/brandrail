@@ -6,6 +6,9 @@ const ENGINE_KEY = process.env.BRANDRAIL_API_KEY;
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 export async function engine(path: string, init: RequestInit = {}, userId?: string): Promise<Response> {
+  if (process.env.NODE_ENV === "production" && (!INTERNAL_SECRET || INTERNAL_SECRET.length < 24)) {
+    throw new Error("INTERNAL_SECRET must be set to at least 24 characters in production");
+  }
   return fetch(`${ENGINE_URL}${path}`, {
     ...init,
     headers: {

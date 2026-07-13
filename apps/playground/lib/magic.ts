@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
  * Magic-link auth: the ONLY way an email gets verified. A signed, short-lived
@@ -10,18 +10,26 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * key (local dev / self-host), the link is printed to the server console and —
  * in non-production only — returned to the client so the flow stays testable.
  */
-const SECRET = process.env.SESSION_SECRET ?? "brandrail-dev-secret-change-me";
 const TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function magicSecret(): string {
+  const value = process.env.SESSION_SECRET;
+  if (process.env.NODE_ENV === "production" && (!value || value.length < 32)) {
+    throw new Error("SESSION_SECRET must be set to at least 32 characters in production");
+  }
+  return value ?? "brandrail-dev-secret-change-me";
+}
 
 export interface MagicPayload {
   email: string;
   anonId: string;
   exp: number;
+  jti: string;
 }
 
 export function signMagicToken(email: string, anonId: string, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ email: email.trim().toLowerCase(), anonId, exp: now + TTL_MS })).toString("base64url");
-  const sig = createHmac("sha256", `magic:${SECRET}`).update(body).digest("base64url");
+  const body = Buffer.from(JSON.stringify({ email: email.trim().toLowerCase(), anonId, exp: now + TTL_MS, jti: randomBytes(16).toString("hex") })).toString("base64url");
+  const sig = createHmac("sha256", `magic:${magicSecret()}`).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
 
@@ -30,12 +38,13 @@ export function verifyMagicToken(token: string, now = Date.now()): MagicPayload 
   if (dot < 0) return null;
   const body = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  const expected = createHmac("sha256", `magic:${SECRET}`).update(body).digest("base64url");
+  const expected = createHmac("sha256", `magic:${magicSecret()}`).update(body).digest("base64url");
   try {
     if (sig.length !== expected.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as MagicPayload;
     if (typeof payload.exp !== "number" || payload.exp < now) return null;
     if (typeof payload.email !== "string" || !payload.email.includes("@")) return null;
+    if (typeof payload.jti !== "string" || !/^[a-f0-9]{32}$/.test(payload.jti)) return null;
     return payload;
   } catch {
     return null;

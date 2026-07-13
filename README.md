@@ -16,30 +16,34 @@ website URL in
 
 > AI didn't kill content. It killed *taste*. We think the fix isn't less automation — it's automation with a design system. Agents should be free to think and forbidden to freestyle your brand. Brandrail is the rail between the two. Open source, self-hostable, built in public. **Death to slop.**
 
-## Quickstart (under 5 minutes)
+## Quickstart
+
+> **Pre-release:** the CLI, SDK, and MCP packages are built and tested in this repo but are not on npm yet. Clone the repo and run them from source until the first public release.
 
 **Humans:**
 
 ```sh
-npm i -g brandrail
+git clone https://github.com/apwn/brandrail.git
+cd brandrail
+pnpm install && pnpm build
 export BRANDRAIL_API_URL=https://api.brandrail.dev   # or your self-hosted engine
 
-brandrail compile acme.com
+node packages/cli/dist/index.js compile acme.com
 # spec    ./acme.brandspec.json
 # colors  ink #101012 · paper #FFFFFF · signal #FF4D00
 # type    Space Grotesk / Inter
 
-brandrail render "Summer promotion" --brand acme --out ./assets
+node packages/cli/dist/index.js render "Summer promotion" --brand acme --out ./assets
 # 8 assets · acme v1 · 0 violations
 ```
 
 **Agents (MCP):**
 
 ```sh
-claude mcp add brandrail -e BRANDRAIL_API_URL=https://api.brandrail.dev -- npx -y @brandrail/mcp
+claude mcp add brandrail -e BRANDRAIL_API_URL=https://api.brandrail.dev -- node packages/mcp/dist/index.js
 ```
 
-Then ask your agent: *"compile acme.com and render a summer promotion."* Four tools: `compile_brand`, `render_assets`, `get_spec`, `diff_spec` — token-cheap outputs, structured errors, no slop. See [`packages/mcp/README.md`](packages/mcp/README.md).
+Then ask your agent: *"compile acme.com and render a summer promotion."* Five tools: `compile_brand`, `render_assets`, `get_spec`, `list_templates`, `diff_spec` — token-cheap outputs, structured errors, no slop. See [`packages/mcp/README.md`](packages/mcp/README.md).
 
 **Programmatic:**
 
@@ -51,7 +55,7 @@ const { spec } = await api.compile("acme.com");
 const { assets } = await api.render(spec.meta.name, "Summer promotion");
 ```
 
-**Playground:** paste your website → see your next 5 posts in 60 seconds. `apps/playground`, or the hosted one at playground.brandrail.dev.
+**Playground:** paste your website → compile its BrandSpec, give it one brief, and render five social formats. `apps/playground`, or the hosted one at playground.brandrail.dev.
 
 ## What's in this repo
 

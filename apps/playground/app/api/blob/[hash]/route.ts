@@ -12,7 +12,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ hash: s
   return new Response(res.body, {
     headers: {
       "content-type": res.headers.get("content-type") ?? "application/octet-stream",
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
     },
   });
 }

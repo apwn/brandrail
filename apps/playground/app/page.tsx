@@ -543,7 +543,7 @@ function BriefBar({ onRender }: { onRender: (brief: string) => void }) {
       >
         <input className="field" placeholder='e.g. "Summer promotion"' value={value} onChange={(e) => setValue(e.target.value)} aria-label="Brief" />
         <button className="btn whitespace-nowrap" type="submit" disabled={!value.trim()}>
-          Render 5 posts →
+          Render 5 formats →
         </button>
       </form>
       <div className="mt-3 flex gap-2 flex-wrap">
@@ -731,10 +731,9 @@ function StudioCard({
 }
 
 /**
- * The value gate. Seeing the posts is free; TAKING them (zip, unlimited
- * restyles, publishing, a saved workspace) is what an account is. Signing in is
- * one verified email — a magic link, no password — and it's what makes the
- * workspace recoverable on any device.
+ * The value gate. Previewing is anonymous; exporting, continuing within the
+ * free monthly allowance, and saving a workspace require one verified email.
+ * Paid workflow features remain governed by the engine's plan entitlements.
  */
 function AccountGate({
   reason,
@@ -776,7 +775,7 @@ function AccountGate({
   const pitch =
     reason === "download"
       ? "One verified email unlocks the full-res zip, saves this brand to your workspace, and makes it all recoverable on any device. No password — we email you a sign-in link."
-      : "You've felt the studio — two free restyles. A free account makes them unlimited, saves this brand, and lets you publish. No password — we email you a sign-in link.";
+      : "You've felt the studio — two anonymous restyles. A free account saves this brand and lets you keep creating within the free monthly allowance. No password — we email you a sign-in link.";
 
   return (
     <div className="fixed inset-0 bg-ink/90 flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
@@ -831,7 +830,7 @@ function Footer() {
       <a className="font-mono text-[11px] text-muted hover:text-bone transition-colors duration-mech" href="https://github.com/apwn/brandrail">
         github.com/apwn/brandrail
       </a>
-      <span className="font-mono text-[11px] text-muted">agents: `npx @brandrail/mcp` · humans: `npm i -g brandrail`</span>
+      <span className="font-mono text-[11px] text-muted">CLI · MCP · SDK are pre-release — run them from GitHub</span>
     </footer>
   );
 }

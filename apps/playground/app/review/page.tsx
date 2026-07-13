@@ -50,9 +50,11 @@ export default function ReviewPage() {
   const [cursor, setCursor] = useState(0);
   const [editing, setEditing] = useState<Copy["formats"] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [role, setRole] = useState<"owner" | "reviewer">("owner");
   const shownAt = useRef<number>(0);
 
   useEffect(() => {
+    fetch("/api/auth/session").then((r) => r.json()).then((data) => setRole(data.role === "reviewer" ? "reviewer" : "owner")).catch(() => {});
     fetch("/api/specs")
       .then((r) => r.json())
       .then((d) => setSpecs(d.specs ?? []))
@@ -258,7 +260,7 @@ export default function ReviewPage() {
         const res = await fetch("/api/publish", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, channelIds, renderId: it.renderId, imageFiles: og ? [og.filename] : [] }),
+          body: JSON.stringify({ text, channelIds, renderId: it.renderId, imageFiles: og ? [og.filename] : [], idempotencyKey: `review:${batch.id}:${it.id}:${it.renderId}` }),
         });
         res.ok ? ok++ : failed++;
       }
@@ -305,6 +307,15 @@ export default function ReviewPage() {
 
   /* ---------------------------------------------------------------- render */
   if (!batch) {
+    if (role === "reviewer") {
+      return (
+        <main className="min-h-screen bg-ink text-bone px-6 py-14 max-w-3xl mx-auto">
+          <a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a>
+          <h1 className="text-3xl font-semibold mt-6">Reviewer access</h1>
+          <p className="text-muted mt-2 max-w-xl">Open a review batch from the workspace. Creating batches, planning content and publishing remain with the workspace owner.</p>
+        </main>
+      );
+    }
     return (
       <main className="min-h-screen bg-ink text-bone px-6 py-14 max-w-3xl mx-auto">
         <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
@@ -387,9 +398,9 @@ export default function ReviewPage() {
           <button className="btn-ghost !py-1.5 !px-3 text-xs" onClick={exportApproved} disabled={busy}>
             Export ↓
           </button>
-          <button className="btn !py-1.5 !px-3 text-xs" onClick={publishApproved} disabled={busy}>
+          {role === "owner" && <button className="btn !py-1.5 !px-3 text-xs" onClick={publishApproved} disabled={busy}>
             Publish approved →
-          </button>
+          </button>}
         </div>
       </header>
 

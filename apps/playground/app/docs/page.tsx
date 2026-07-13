@@ -39,15 +39,15 @@ curl -X POST https://api.brandrail.dev/v0/compile \\
   -H "x-api-key: brk_…" -H "content-type: application/json" \\
   -d '{"url": "https://acme.com"}'
 
-# 2. render — brief in, 5 finished assets out (deterministic)
+# 2. render — brief in, 5 social formats out (deterministic)
 curl -X POST https://api.brandrail.dev/v0/render \\
   -H "x-api-key: brk_…" -H "content-type: application/json" \\
   -d '{"brand": "acme", "brief": "Summer promotion"}'`}</Code>
 
       <H2 id="auth">Auth &amp; keys</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
-        Mint keys in <a href="/dashboard#api-keys" className="text-signal">your workspace → API keys</a> (free, needs a
-        verified email). Send as <code className="text-bone">x-api-key</code> or{" "}
+        Studio and Agency workspaces can mint keys in <a href="/dashboard#api-keys" className="text-signal">workspace → API keys</a> after
+        email verification. Send as <code className="text-bone">x-api-key</code> or{" "}
         <code className="text-bone">Authorization: Bearer</code>. A key scopes every call to your workspace — your
         brands, your renders, your meter.
       </p>
@@ -78,13 +78,16 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
       <Code>{`claude mcp add brandrail \\
   -e BRANDRAIL_API_URL=https://api.brandrail.dev \\
   -e BRANDRAIL_API_KEY=brk_… \\
-  -- npx -y @brandrail/mcp`}</Code>
+	  -- node /path/to/brandrail/packages/mcp/dist/index.js`}</Code>
 
       <H2 id="cli">CLI</H2>
-      <Code>{`npm i -g brandrail
-brandrail compile https://acme.com
-brandrail render acme "Summer promotion" --json
-brandrail spec diff acme 1 2
+      <p className="text-muted text-sm mt-3 leading-relaxed">
+        Before the first npm release, clone and build the repo, then run the CLI directly:
+      </p>
+      <Code>{`pnpm install && pnpm build
+node packages/cli/dist/index.js compile https://acme.com
+node packages/cli/dist/index.js render acme "Summer promotion" --json
+node packages/cli/dist/index.js spec diff acme 1 2
 # exit codes: 0 ok · 2 spec violation · 3 low confidence`}</Code>
 
       <H2 id="spec">The BrandSpec</H2>

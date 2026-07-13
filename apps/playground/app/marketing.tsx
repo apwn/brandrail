@@ -32,7 +32,7 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
 function Announcement() {
   return (
     <div className="border-b border-hairline bg-panel px-4 py-2.5 text-center font-mono text-xs text-muted">
-      <span className="text-bone">Your website already contains a brand system.</span> Turn it into five ready-to-review posts free.{" "}
+      <span className="text-bone">Your website already contains a brand system.</span> Compile it and render your first on-brand content set free.{" "}
       <a className="text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone" href="#top">
         Try your URL →
       </a>
@@ -79,7 +79,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             Ready to publish.
           </h1>
           <p className="mt-6 max-w-[650px] text-[17px] leading-relaxed text-muted sm:text-lg">
-            Paste any website. Brandrail learns the brand, writes and renders social posts, lets you review them, and sends approved content to your scheduler—or your agent.
+            Paste any website. Brandrail learns the brand, writes and renders social assets, lets you review them, and publishes to Bluesky or Mastodon—or hands the work to your agent through the API.
           </p>
           <div className="mt-7 max-w-[650px]">
             <UrlBox id="hero-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} />
@@ -120,7 +120,7 @@ function UrlBox({ id, url, setUrl, onSubmit }: Omit<LandingProps, "error"> & { i
         className="min-w-0 flex-1 border-0 bg-transparent px-4 py-4 font-mono text-sm text-bone outline-none placeholder:text-muted/60"
       />
       <button type="submit" className="btn min-h-14 !rounded-none border-t border-signal !px-5 sm:border-l sm:border-t-0">
-        See my next 5 posts →
+        Compile my brand free →
       </button>
     </form>
   );
@@ -160,7 +160,7 @@ function HeroBoard() {
           ))}
         </div>
         <div className="grid grid-cols-3 border-t border-hairline text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
-          <span className="border-r border-hairline py-3 text-green">5 assets rendered</span>
+          <span className="border-r border-hairline py-3 text-green">5 formats rendered</span>
           <span className="border-r border-hairline py-3">+2 formats</span>
           <span className="py-3 text-signal">Review next</span>
         </div>
@@ -284,10 +284,10 @@ function UseCasesSection() {
               <span className="font-mono text-[10px] text-muted">CREATOR · FOUNDER · MARKETER</span>
             </div>
             <h3 className="mt-7 max-w-[430px] font-display text-3xl font-bold leading-tight">Show up every week without looking like a different company every day.</h3>
-            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Bring the idea; Brandrail carries your typography, palette, voice and layout across every format. Review five posts as one coherent set instead of rebuilding them one at a time.</p>
+            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Bring the idea; Brandrail carries your typography, palette, voice and layout across every format. Review one coherent content set instead of rebuilding every size from scratch.</p>
             <div className="mt-8 grid grid-cols-3 border border-hairline text-center">
               <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">1</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">brief</span></div>
-              <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">5</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">posts</span></div>
+              <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">5</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">formats</span></div>
               <div className="p-4"><strong className="font-display text-2xl text-signal">0</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">blank canvases</span></div>
             </div>
             <a href="#pricing" className="mt-7 inline-flex text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Start with the free plan →</a>
@@ -371,7 +371,7 @@ function ComparisonSection() {
     ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
     ["Writes and renders social content", "Separate tools", "—", "✓"],
     ["Multi-brand approval queue", "—", "—", "✓"],
-    ["Publishes or hands off to a scheduler", "—", "—", "✓"],
+    ["Direct publish + API handoff", "—", "Distribution", "Bluesky · Mastodon · API"],
   ];
   return (
     <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
@@ -406,7 +406,7 @@ function PricingSection() {
       audience: "For trying your first brand",
       price: "$0",
       suffix: "forever",
-      items: ["50 cloud renders / month", "5 generative renders", "URL-to-BrandSpec compiler", "Preview, restyle and export"],
+      items: ["50 finished assets / month", "5 generative images", "1 active BrandSpec", "Compile, render, restyle + export"],
       cta: "Try your brand free",
       href: "#top",
     },
@@ -416,7 +416,7 @@ function PricingSection() {
       price: "$49",
       suffix: "/ month",
       badge: "MOST POPULAR",
-      items: ["1,000 renders / month", "100 generative renders", "3 active BrandSpecs", "AI planner + batch review", "API, MCP and CLI access"],
+      items: ["1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Planner, batch review + autopilot", "Direct publishing + API keys"],
       cta: "Start with Studio",
       href: "/dashboard",
     },
@@ -425,7 +425,7 @@ function PricingSection() {
       audience: "For teams managing clients",
       price: "$199",
       suffix: "/ month",
-      items: ["10,000 renders / month", "1,000 generative renders", "25 active BrandSpecs", "Client workspaces + team access", "Multi-brand approvals + reports"],
+      items: ["10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats with scoped access", "Multi-brand approvals + client reports"],
       cta: "Start an agency pilot",
       href: "/dashboard",
     },
@@ -433,7 +433,7 @@ function PricingSection() {
   return (
     <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead light eyebrow="Simple plans, honest scaling" title="Start with one brand. Add horsepower when the workload earns it." body="The full product idea is available before you pay. Upgrade for more volume, more brands and the collaboration layer—not to unlock a usable result." />
+        <SectionHead light eyebrow="Simple plans, honest scaling" title="Start with one brand. Add the workflow when the workload earns it." body="Free proves the brand system with real finished assets. Studio adds the weekly production loop. Agency adds volume, reviewer access and client reporting." />
         <div className="grid items-stretch gap-5 lg:grid-cols-3">
           {plans.map((plan) => (
             <article key={plan.name} className={`relative flex flex-col border bg-[#FBFAF7] p-6 shadow-[6px_6px_0_#D8D3C9] sm:p-7 ${plan.badge ? "border-[#A83200] lg:-translate-y-2" : "border-[#C9C4BA]"}`}>
@@ -455,10 +455,10 @@ function PricingSection() {
           <div className="border-b border-[#D8D3C9] p-6 sm:p-8 lg:border-b-0 lg:border-r">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#A83200]">Rail for developers</span><h3 className="mt-2 font-display text-2xl font-bold">Brand-safe rendering inside your product.</h3></div>
-              <div className="text-right"><strong className="font-display text-3xl">$0.02</strong><span className="block font-mono text-[10px] text-[#6A655D]">per deterministic render</span></div>
+              <div className="text-right"><strong className="font-display text-3xl">Included</strong><span className="block font-mono text-[10px] text-[#6A655D]">with Studio + Agency</span></div>
             </div>
-            <p className="mt-4 max-w-[680px] text-sm leading-relaxed text-[#514D47]">Usage-based API access with MCP, CLI and portable BrandSpecs. No editor seat required for the agents doing the work.</p>
-            <a href="/agents" className="mt-5 inline-flex text-sm font-semibold underline decoration-[#A83200] underline-offset-4">Explore developer pricing →</a>
+            <p className="mt-4 max-w-[680px] text-sm leading-relaxed text-[#514D47]">Create a workspace key for the REST API, MCP or CLI. Hosted usage follows your plan&rsquo;s asset allowance; self-hosting is open for teams that want their own infrastructure.</p>
+            <a href="/agents" className="mt-5 inline-flex text-sm font-semibold underline decoration-[#A83200] underline-offset-4">Explore the developer rail →</a>
           </div>
           <div className="p-6 sm:p-8">
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#A83200]">Open by design</span>
@@ -477,13 +477,13 @@ function PricingSection() {
 }
 
 const FAQ = [
-  ["Is Brandrail for one brand or many?", "Both. The Free and Studio plans are built for creators, founders and in-house marketers running one to three brands. Agency adds the volume, workspaces and approval layer needed to manage client accounts."],
+  ["Is Brandrail for one brand or many?", "Both. Free is for proving one brand. Studio is built for creators, founders and in-house marketers running up to three. Agency adds 25 active brands, reviewer seats and client reporting."],
   ["Does Brandrail replace designers or Canva?", "No. Designers still own the system, campaigns and judgment. Canva and Figma remain useful for bespoke design work; Brandrail removes repeat production and makes the rules your team defines enforceable across routine content."],
   ["How long does setup take?", "The live URL compile returns an initial BrandSpec in about 60 seconds. You can review uncertain fields, refine the rules and start rendering before connecting a scheduler or inviting a team."],
   ["What happens when the website does not contain the full brand system?", "The compiler marks low-confidence fields for review. Your team can correct colors, voice, imagery and constraints before the spec is used. Brandrail should expose uncertainty, not pretend it has taste it could not observe."],
   ["What exactly is enforced?", "The renderer checks the BrandSpec rules it can measure: typography, color roles, contrast, density, spacing, logo behavior, format dimensions, banned words and other configured limits. Human approval still owns factual accuracy and creative judgment."],
-  ["Do I have to replace my scheduler?", "No. Approved assets can flow into the scheduler you already use. Bluesky and Mastodon publishing are available directly today; additional native publishing rails are rolling out separately."],
-  ["Can developers and agents use it directly?", "Yes. Brandrail exposes the same portable BrandSpec and deterministic renderer through the API, MCP server and CLI, with usage-based pricing for products that do not need editor seats."],
+  ["Do I have to replace my scheduler?", "No. Bluesky and Mastodon publishing are available directly today. For other networks, export the approved assets or hand them to your existing workflow through the API; additional native connections are not advertised until they are live."],
+  ["Can developers and agents use it directly?", "Yes. Studio and Agency include workspace API keys for the same portable BrandSpec and deterministic renderer through REST, MCP and CLI. The open engine can also be self-hosted."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable, and the SDK, CLI, MCP server and spec format are open. Your brand system is not trapped inside a proprietary editor."],
 ];
 
@@ -513,8 +513,8 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
       <div className="surface-grid absolute inset-0 opacity-50" aria-hidden />
       <div className="relative mx-auto max-w-[820px] px-5 sm:px-6">
         <span className="eyebrow text-signal">Use your real brand</span>
-        <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">The fastest way to believe it is to see your next five posts.</h2>
-        <p className="mx-auto mt-5 max-w-[620px] text-[17px] text-muted">Paste a public website. No signup, no card and no carefully selected demo brand.</p>
+        <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">The fastest way to believe it is to compile your real brand.</h2>
+        <p className="mx-auto mt-5 max-w-[620px] text-[17px] text-muted">Paste a public website, review the extracted system, then give it one brief. No signup, no card and no carefully selected demo brand.</p>
         <div className="mx-auto mt-8 max-w-[650px] text-left"><UrlBox id="final-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
       </div>
     </section>

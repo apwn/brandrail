@@ -14,7 +14,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
   return new Response(res.body, {
     headers: {
       "content-type": "image/png",
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
     },
   });
 }

@@ -16,9 +16,14 @@ export default async function Settings() {
   }
 
   let user: { id: string; email: string | null; emailVerified?: boolean; plan: string } = { id: uid, email: null, plan: "free" };
+  let role: "owner" | "reviewer" = "owner";
   try {
     const res = await engine("/v0/me/usage", {}, uid);
-    if (res.ok) user = ((await res.json()) as { user: typeof user }).user;
+    if (res.ok) {
+      const data = (await res.json()) as { user: typeof user; role?: "owner" | "reviewer" };
+      user = data.user;
+      role = data.role ?? "owner";
+    }
   } catch {
     /* engine down — show what we have */
   }
@@ -31,7 +36,12 @@ export default async function Settings() {
         <span className="eyebrow mt-[2px]">SETTINGS</span>
         <a href="/dashboard" className="eyebrow text-muted hover:text-bone ml-auto">← WORKSPACE</a>
       </header>
-      <SettingsPanel email={user.email} verified={Boolean(user.emailVerified)} plan={user.plan} uid={user.id} />
+      {role === "reviewer" ? (
+        <section className="panel p-5 mt-10">
+          <p className="eyebrow text-bone">REVIEWER ACCOUNT</p>
+          <p className="text-muted text-sm mt-2">Your identity is <b className="text-bone">{user.email}</b>. Workspace billing, credentials, member access and deletion are controlled by the owner.</p>
+        </section>
+      ) : <SettingsPanel email={user.email} verified={Boolean(user.emailVerified)} plan={user.plan} uid={user.id} />}
     </main>
   );
 }

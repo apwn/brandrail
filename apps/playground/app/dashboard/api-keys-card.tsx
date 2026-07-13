@@ -62,7 +62,7 @@ export function ApiKeysCard({ verified }: { verified: boolean }) {
 
   const engineUrl = typeof window !== "undefined" ? `${location.protocol}//${location.host}` : "https://api.brandrail.dev";
   const snippet = (key: string) =>
-    `claude mcp add brandrail -e BRANDRAIL_API_URL=${engineUrl} -e BRANDRAIL_API_KEY=${key} -- npx -y @brandrail/mcp`;
+    `claude mcp add brandrail -e BRANDRAIL_API_URL=${engineUrl} -e BRANDRAIL_API_KEY=${key} -- node /path/to/brandrail/packages/mcp/dist/index.js`;
 
   return (
     <section id="api-keys" className="panel p-5 mt-4">

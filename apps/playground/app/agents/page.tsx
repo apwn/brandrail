@@ -10,7 +10,7 @@ const STEPS: Array<{ n: string; title: string; body: React.ReactNode; code?: str
     title: "Get an API key",
     body: (
       <>
-        Sign in (one magic link) and mint a key in{" "}
+        On Studio or Agency, sign in (one magic link) and mint a key in{" "}
         <a href="/dashboard#api-keys" className="text-signal">your workspace → API keys</a>. The key scopes your agent to
         your brands — it&rsquo;s shown once, treat it like a password.
       </>
@@ -23,7 +23,7 @@ const STEPS: Array<{ n: string; title: string; body: React.ReactNode; code?: str
     code: `claude mcp add brandrail \\
   -e BRANDRAIL_API_URL=https://api.brandrail.dev \\
   -e BRANDRAIL_API_KEY=brk_… \\
-  -- npx -y @brandrail/mcp`,
+	  -- node /path/to/brandrail/packages/mcp/dist/index.js`,
   },
   {
     n: "03",
@@ -40,7 +40,7 @@ const STEPS: Array<{ n: string; title: string; body: React.ReactNode; code?: str
 ✓ BrandSpec v1 · confidence 0.92 · fonts+photos pinned
 
 > render "Summer promotion" for acme
-✓ 5 assets · 0 violations · deterministic`,
+✓ 5 formats · 8 files · 0 violations · deterministic`,
   },
 ];
 

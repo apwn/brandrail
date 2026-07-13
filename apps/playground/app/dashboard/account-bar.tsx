@@ -4,7 +4,7 @@ import { useState } from "react";
 
 /** Account card: sign in with a magic link (verified email — the identity your
  * workspace and plan hang off), or sign out. */
-export function AccountBar({ email, verified, plan }: { email: string | null; verified?: boolean; plan: string }) {
+export function AccountBar({ email, verified, plan, role = "owner" }: { email: string | null; verified?: boolean; plan: string; role?: "owner" | "reviewer" }) {
   const [value, setValue] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [devLink, setDevLink] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export function AccountBar({ email, verified, plan }: { email: string | null; ve
         <div>
           <p className="eyebrow text-bone">ACCOUNT</p>
           <p className="text-bone mt-2">{email} <span className="text-green font-mono text-[11px]">✓ verified</span></p>
-          <p className="font-mono text-xs text-muted mt-1">{plan} plan</p>
+          <p className="font-mono text-xs text-muted mt-1">{plan} workspace · {role}</p>
         </div>
         <div className="flex gap-4 mt-4">
           <a href="/settings" className="eyebrow text-muted hover:text-bone">SETTINGS</a>
