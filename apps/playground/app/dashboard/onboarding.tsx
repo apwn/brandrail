@@ -1,0 +1,44 @@
+/** The activation checklist: the shortest path from signup to shipped post.
+ * Server-rendered from real state — it disappears once every step is done. */
+export function OnboardingChecklist({
+  verified,
+  hasBrand,
+  hasChannel,
+  hasApproved,
+}: {
+  verified: boolean;
+  hasBrand: boolean;
+  hasChannel: boolean;
+  hasApproved: boolean;
+}) {
+  const steps = [
+    { done: hasBrand, label: "Compile your first brand", hint: "paste a site URL — 60 seconds", href: "/" },
+    { done: verified, label: "Verify your email", hint: "one magic link — makes this workspace recoverable", href: "#account" },
+    { done: hasChannel, label: "Connect a channel", hint: "Bluesky or Mastodon work instantly", href: "#channels" },
+    { done: hasApproved, label: "Approve your first post", hint: "review queue → approve → it ships", href: "/review" },
+  ];
+  const remaining = steps.filter((s) => !s.done).length;
+  if (remaining === 0) return null;
+
+  return (
+    <section className="panel p-5 mt-10 border-signal/40">
+      <div className="flex items-baseline justify-between">
+        <p className="eyebrow text-bone">GET TO YOUR FIRST SHIPPED POST</p>
+        <span className="font-mono text-[11px] text-muted">{steps.length - remaining}/{steps.length}</span>
+      </div>
+      <ol className="mt-4 grid sm:grid-cols-2 gap-3">
+        {steps.map((s, i) => (
+          <li key={s.label}>
+            <a href={s.href} className={`flex items-start gap-3 group ${s.done ? "opacity-50" : ""}`}>
+              <span className={`font-mono text-sm mt-px ${s.done ? "text-green" : "text-signal"}`}>{s.done ? "✓" : `${i + 1}.`}</span>
+              <span>
+                <span className={`block text-sm ${s.done ? "line-through text-muted" : "text-bone group-hover:text-signal"}`}>{s.label}</span>
+                <span className="block font-mono text-[11px] text-muted mt-0.5">{s.hint}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}

@@ -54,9 +54,31 @@ export default function Playground() {
   const [brief, setBrief] = useState("");
   const [render, setRender] = useState<RenderResponse | null>(null);
   const [email, setEmail] = useState("");
-  const [gateOpen, setGateOpen] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  // the value gate: previews are free; TAKING (zip, heavy restyling) needs a
+  // verified account. `gate` records what the visitor was trying to do.
+  const [gate, setGate] = useState<null | "download" | "restyle">(null);
+  const [account, setAccount] = useState<{ email: string | null; verified: boolean } | null>(null);
+  const [restyles, setRestyles] = useState(0);
   const [zipping, setZipping] = useState(false);
+
+  const verified = Boolean(account?.verified);
+
+  async function refreshAccount() {
+    try {
+      const res = await fetch("/api/auth/session");
+      const data = (await res.json()) as { user: { email: string | null; emailVerified?: boolean } | null };
+      setAccount(data.user ? { email: data.user.email, verified: Boolean(data.user.emailVerified) } : null);
+    } catch {
+      /* stay anonymous */
+    }
+  }
+  // re-check when the tab regains focus — the magic link opens in another tab
+  useEffect(() => {
+    void refreshAccount();
+    const onFocus = () => void refreshAccount();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   const spec = compiled?.spec ?? null;
   const lowConfidence = useMemo(
@@ -159,9 +181,16 @@ export default function Playground() {
 
   const [restyling, setRestyling] = useState<string | null>(null);
 
-  /** studio: re-render one format with a chosen template and/or edited copy. */
+  /** studio: re-render one format with a chosen template and/or edited copy.
+   * Anonymous visitors get 2 free restyles — enough to feel the studio, not
+   * enough to run a production workflow without an account. */
   async function restyleFormat(format: string, archetype: string, copyOverride?: SlideCopy[]) {
     if (!render || !spec) return;
+    if (!verified && restyles >= 2) {
+      setGate("restyle");
+      return;
+    }
+    setRestyles((n) => n + 1);
     setError(null);
     setRestyling(format);
     try {
@@ -206,20 +235,6 @@ export default function Playground() {
     }
   }
 
-  async function submitEmail() {
-    const res = await fetch("/api/waitlist", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, brand: spec?.meta.name ?? null }),
-    });
-    if (res.ok) {
-      setUnlocked(true);
-      setGateOpen(false);
-      void downloadZip();
-    } else {
-      setError(((await res.json()) as { error?: string }).error ?? "try again");
-    }
-  }
 
   async function downloadZip() {
     if (!render) return;
@@ -294,21 +309,26 @@ export default function Playground() {
           render={render}
           brand={spec.meta.name}
           brief={brief}
-          unlocked={unlocked}
+          unlocked={verified}
           zipping={zipping}
           restyling={restyling}
           onRestyle={restyleFormat}
-          onDownload={() => (unlocked ? void downloadZip() : setGateOpen(true))}
+          onDownload={() => (verified ? void downloadZip() : setGate("download"))}
           onAgain={() => setStep("sheet")}
         />
       )}
 
-      {gateOpen && (
-        <EmailGate
+      {gate && (
+        <AccountGate
+          reason={gate}
           email={email}
           setEmail={setEmail}
-          onSubmit={submitEmail}
-          onClose={() => setGateOpen(false)}
+          onVerified={() => {
+            void refreshAccount();
+            setGate(null);
+            if (gate === "download") void downloadZip();
+          }}
+          onClose={() => setGate(null)}
         />
       )}
       <Footer />
@@ -710,39 +730,95 @@ function StudioCard({
   );
 }
 
-function EmailGate({
+/**
+ * The value gate. Seeing the posts is free; TAKING them (zip, unlimited
+ * restyles, publishing, a saved workspace) is what an account is. Signing in is
+ * one verified email — a magic link, no password — and it's what makes the
+ * workspace recoverable on any device.
+ */
+function AccountGate({
+  reason,
   email,
   setEmail,
-  onSubmit,
+  onVerified,
   onClose,
 }: {
+  reason: "download" | "restyle";
   email: string;
   setEmail: (v: string) => void;
-  onSubmit: () => void;
+  onVerified: () => void;
   onClose: () => void;
 }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [devLink, setDevLink] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function requestLink() {
+    setState("sending");
+    setErr(null);
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const body = (await res.json()) as { ok?: boolean; devLink?: string; error?: string };
+      if (!res.ok) throw new Error(body.error ?? "couldn't send the link");
+      setDevLink(body.devLink ?? null);
+      setState("sent");
+    } catch (e) {
+      setErr((e as Error).message);
+      setState("error");
+    }
+  }
+
+  const headline = reason === "download" ? "Your assets. Your workspace." : "Keep the studio open.";
+  const pitch =
+    reason === "download"
+      ? "One verified email unlocks the full-res zip, saves this brand to your workspace, and makes it all recoverable on any device. No password — we email you a sign-in link."
+      : "You've felt the studio — two free restyles. A free account makes them unlimited, saves this brand, and lets you publish. No password — we email you a sign-in link.";
+
   return (
     <div className="fixed inset-0 bg-ink/90 flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
-      <div className="panel max-w-md w-full p-8">
+      <div className="panel max-w-md w-full p-8 relative">
+        <button className="absolute top-4 right-4 font-mono text-muted hover:text-bone" onClick={onClose} aria-label="close">✕</button>
         <div className="rail w-10 mb-6" />
-        <h3 className="font-display font-bold text-2xl tracking-tight">Take them with you.</h3>
-        <p className="text-muted text-sm mt-3 leading-relaxed">
-          The zip is free. Leave an email and we&rsquo;ll also tell you when the API, CLI and MCP server
-          open up — Brandrail is open source and built in public.
-        </p>
-        <form
-          className="mt-6 flex gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}
-        >
-          <input className="field" type="email" placeholder="you@studio.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-          <button className="btn whitespace-nowrap" type="submit">Unlock zip</button>
-        </form>
-        <button className="font-mono text-[11px] text-muted mt-4 hover:text-bone transition-colors duration-mech" onClick={onClose}>
-          no thanks, back to the grid
-        </button>
+        {state !== "sent" ? (
+          <>
+            <h3 className="font-display font-bold text-2xl tracking-tight">{headline}</h3>
+            <p className="text-muted text-sm mt-3 leading-relaxed">{pitch}</p>
+            <form
+              className="mt-6 flex gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void requestLink();
+              }}
+            >
+              <input className="field" type="email" placeholder="you@studio.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+              <button className="btn whitespace-nowrap" type="submit" disabled={state === "sending"}>
+                {state === "sending" ? "sending…" : "Email my link"}
+              </button>
+            </form>
+            {err && <p className="font-mono text-xs text-signal mt-3">ERR {err}</p>}
+            <p className="font-mono text-[11px] text-muted mt-4">Free plan. No credit card. The preview stays free either way.</p>
+          </>
+        ) : (
+          <>
+            <h3 className="font-display font-bold text-2xl tracking-tight">Check your inbox.</h3>
+            <p className="text-muted text-sm mt-3 leading-relaxed">
+              We sent a sign-in link to <b className="text-bone">{email}</b>. Click it, come back to this tab, and you&rsquo;re in —
+              your work here carries over.
+            </p>
+            {devLink && (
+              <a className="btn mt-5 inline-block" href={devLink} target="_blank" rel="noreferrer">
+                Dev mode: open the link →
+              </a>
+            )}
+            <button className="font-mono text-[11px] text-muted mt-5 block hover:text-bone" onClick={onVerified}>
+              I clicked it — continue →
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -65,7 +65,7 @@ export function ChannelsCard() {
   }
 
   return (
-    <section className="mt-10">
+    <section id="channels" className="mt-10">
       <div className="flex items-center justify-between mb-3">
         <p className="eyebrow text-bone">CHANNELS ({channels.length})</p>
         {/* trust slider */}

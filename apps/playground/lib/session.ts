@@ -57,3 +57,9 @@ export async function ensureUserId(): Promise<string> {
 export async function clearSession(): Promise<void> {
   (await cookies()).delete(COOKIE);
 }
+
+/** Rewrite the session to a specific uid — the magic-link landing sets the
+ * cookie to the CANONICAL user id (their existing workspace on any device). */
+export async function setSessionUid(uid: string): Promise<void> {
+  (await cookies()).set(COOKIE, signSession(uid), { httpOnly: true, sameSite: "lax", path: "/", maxAge: YEAR });
+}

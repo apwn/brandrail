@@ -3,11 +3,15 @@ import { getUserId } from "@/lib/session";
 import { AccountBar } from "./account-bar";
 import { BillingControls } from "./billing-controls";
 import { ChannelsCard } from "./channels-card";
+import { OnboardingChecklist } from "./onboarding";
+import { ApiKeysCard } from "./api-keys-card";
+import { MembersCard } from "./members-card";
 
 type Usage = {
-  user: { id: string; email: string | null; plan: "free" | "studio" | "agency" };
+  user: { id: string; email: string | null; emailVerified?: boolean; plan: "free" | "studio" | "agency"; members?: string[] };
   limit: number;
-  counts: { brands: number; batches: number; rendersThisMonth: number };
+  genLimit: number;
+  counts: { brands: number; batches: number; rendersThisMonth: number; generativeThisMonth: number };
 };
 
 async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
@@ -19,7 +23,8 @@ async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
   }
 }
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
+  const { welcome } = await searchParams;
   const uid = await getUserId();
 
   if (!uid) {
@@ -34,14 +39,17 @@ export default async function Dashboard() {
     );
   }
 
-  const [usage, specs, batches] = await Promise.all([
-    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, limit: 50, counts: { brands: 0, batches: 0, rendersThisMonth: 0 } }),
+  const [usage, specs, batches, channels] = await Promise.all([
+    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
+    load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
   const pct = Math.min(100, Math.round((used / usage.limit) * 100));
+  const genUsed = usage.counts.generativeThisMonth ?? 0;
+  const genPct = Math.min(100, Math.round((genUsed / (usage.genLimit || 1)) * 100));
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -57,9 +65,23 @@ export default async function Dashboard() {
         </nav>
       </header>
 
+      {welcome && (
+        <div className="panel border-green/50 mt-8 px-4 py-3 text-sm">
+          <span className="font-mono text-green">✓</span>{" "}
+          {welcome === "back" ? "Welcome back — your workspace followed you to this device." : "You're in. This workspace is now yours on any device."}
+        </div>
+      )}
+
+      <OnboardingChecklist
+        verified={Boolean(usage.user.emailVerified)}
+        hasBrand={specs.specs.length > 0}
+        hasChannel={channels.channels.length > 0}
+        hasApproved={batches.batches.some((b) => b.counts.approved > 0)}
+      />
+
       {/* account + usage */}
-      <section className="mt-10 grid md:grid-cols-[1fr_1fr] gap-4">
-        <AccountBar email={usage.user.email} plan={usage.user.plan} />
+      <section id="account" className="mt-10 grid md:grid-cols-[1fr_1fr] gap-4">
+        <AccountBar email={usage.user.email} verified={usage.user.emailVerified} plan={usage.user.plan} />
         <div className="panel p-5">
           <p className="eyebrow text-bone">RENDERS THIS MONTH</p>
           <div className="flex items-baseline gap-2 mt-2">
@@ -70,11 +92,26 @@ export default async function Dashboard() {
             <div className="h-full bg-signal" style={{ width: `${pct}%` }} />
           </div>
           {pct >= 100 && <p className="text-signal font-mono text-xs mt-2">limit reached — resets next month</p>}
+
+          <div className="mt-4 pt-4 border-t border-hairline">
+            <p className="eyebrow text-bone">GENERATIVE IMAGES <span className="text-muted">· metered separately (API cost)</span></p>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="font-display font-bold text-2xl">{genUsed}</span>
+              <span className="text-muted font-mono text-sm">/ {usage.genLimit} this month</span>
+            </div>
+            <div className="h-1.5 bg-hairline mt-3 rounded-none overflow-hidden">
+              <div className="h-full bg-signal" style={{ width: `${genPct}%` }} />
+            </div>
+            {genPct >= 100 && <p className="text-signal font-mono text-xs mt-2">generative cap reached — self-host with your own fal.ai key for uncapped</p>}
+          </div>
+
           <BillingControls plan={usage.user.plan} />
         </div>
       </section>
 
       <ChannelsCard />
+      <ApiKeysCard verified={Boolean(usage.user.emailVerified)} />
+      <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />
 
       {/* brands */}
       <section className="mt-10">

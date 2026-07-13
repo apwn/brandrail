@@ -62,8 +62,8 @@ function Nav() {
         </a>
         <div className="hidden md:flex gap-7 text-sm text-muted">
           <a href="#engine" className="hover:text-bone">Product</a>
-          <a href="#agents" className="hover:text-bone">Agents</a>
-          <a href="#oss" className="hover:text-bone">Open Source</a>
+          <a href="/agents" className="hover:text-bone">Agents</a>
+          <a href="/docs" className="hover:text-bone">Docs</a>
           <a href="#pricing" className="hover:text-bone">Pricing</a>
           <a href="/review" className="hover:text-bone">Review</a>
           <a href="/dashboard" className="hover:text-bone">Workspace</a>
@@ -155,7 +155,7 @@ function Hero({
             <b className="text-bone">with their real brand.</b>{" "}
             {dev && (
               <>
-                Or <a href="#oss" className="text-bone border-b border-hairline">git clone</a> and self-host.
+                Building an agent? <a href="/agents" className="text-signal border-b border-signal">Wire it up in 5 minutes →</a>
               </>
             )}
           </p>
@@ -416,7 +416,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
                 ? [
                     ["The BrandSpec is the primitive.", " Portable, versionable, diffable, forkable. MIT-licensed. A brand refresh is a PR."],
                     ["It captures taste, not just tokens.", " Composition rules, density limits, photography style, negative examples — the parts humans disagree about, schematized."],
-                    ["Deterministic rendering.", " Same brief in, same quality out — text, type, color and logos never hallucinate. Generative fills only masked zones, pinned so re-renders stay identical (bring your own image model)."],
+                    ["Deterministic rendering.", " Same brief in, same quality out — text, type, color and logos never hallucinate. Generative fills only masked zones, pinned so re-renders stay identical (bring your own fal.ai key)."],
                     ["Auto-adapt.", " One piece → every aspect ratio and platform spec, one call."],
                     ["One spec, every asset.", " Social today. Ads, decks, thumbnails, email headers, OG images next — same engine."],
                   ]
@@ -584,10 +584,10 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
       <Wrap>
         <SecHead eyebrow="Pricing" title="Priced on output. Not seats, not posts, not tricks." />
         <div className="grid md:grid-cols-4 gap-px bg-hairline border border-hairline">
-          <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Community templates", "Your own keys"]} cta="git clone →" />
-          <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo", "3 brands · connect channels", "AI planner + batch review", "MCP + CLI + API"]} cta="Start free →" />
-          <Plan hot name="Agency" price="$199" unit="/mo" items={["10,000 renders/mo", "25 brands · client workspaces", "Approval rails · white-label reports", "30-day slop-free guarantee"]} cta="Start free →" />
-          <Plan name="Rail" price="$0.02" unit="/render" items={["Pure API / MCP access", "Usage-based, volume discounts", "For agent builders & platforms", "99.9% SLA available"]} cta="Read the docs →" />
+          <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Uncapped generative w/ your fal.ai key", "Your own keys"]} cta="git clone →" href="https://github.com/brandrail/brandrail" />
+          <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo · 100 generative", "3 brands · connect channels", "AI planner + batch review", "MCP + CLI + API"]} cta="Start free →" />
+          <Plan hot name="Agency" price="$199" unit="/mo" items={["10,000 renders/mo · 1,000 generative", "25 brands · client workspaces", "Approval rails · white-label reports", "30-day slop-free guarantee"]} cta="Start free →" />
+          <Plan name="Rail" price="$0.02" unit="/render" items={["Pure API / MCP access", "Usage-based, volume discounts", "For agent builders & platforms", "99.9% SLA available"]} cta="Read the docs →" href="/docs" />
         </div>
         <p className="font-mono text-[12.5px] text-muted mt-6">
           <b className="text-green font-medium">✓ 30-day money-back guarantee on Agency.</b> No credit-card trials. No cancellation mazes.
@@ -778,7 +778,7 @@ function Terminal({ lines, cursor }: { lines: Array<[string, string]>; cursor?: 
   );
 }
 
-function Plan({ name, price, unit, items, cta, hot }: { name: string; price: string; unit: string; items: string[]; cta: string; hot?: boolean }) {
+function Plan({ name, price, unit, items, cta, hot, href = "#top" }: { name: string; price: string; unit: string; items: string[]; cta: string; hot?: boolean; href?: string }) {
   return (
     <div className={`bg-ink p-7 flex flex-col relative ${hot ? "outline outline-2 -outline-offset-2 outline-signal" : ""}`}>
       {hot && <span className="absolute -top-px -right-px bg-signal text-ink font-mono text-[9.5px] tracking-[0.1em] px-2.5 py-1">AGENCIES START HERE</span>}
@@ -789,7 +789,7 @@ function Plan({ name, price, unit, items, cta, hot }: { name: string; price: str
           <li key={it} className="text-[13.5px] text-muted py-1.5 border-b border-hairline-soft">{it}</li>
         ))}
       </ul>
-      <a href="#top" className={hot ? "btn justify-center" : "btn-ghost justify-center"}>{cta}</a>
+      <a href={href} className={hot ? "btn justify-center" : "btn-ghost justify-center"}>{cta}</a>
     </div>
   );
 }
@@ -824,12 +824,17 @@ function FinalCta({ dev, url, setUrl, onSubmit }: { dev: boolean; url: string; s
 }
 
 function FooterLarge() {
-  const col = (h: string, links: string[]) => (
+  // [label, href] — a null href renders an honest "soon" marker, never a dead "#"
+  const col = (h: string, links: Array<[string, string | null]>) => (
     <div>
       <h5 className="font-mono text-[11px] tracking-[0.16em] uppercase text-muted mb-4">{h}</h5>
-      {links.map((l) => (
-        <a key={l} href="#" className="block text-[13.5px] text-muted py-1 hover:text-bone">{l}</a>
-      ))}
+      {links.map(([l, href]) =>
+        href ? (
+          <a key={l} href={href} className="block text-[13.5px] text-muted py-1 hover:text-bone">{l}</a>
+        ) : (
+          <span key={l} className="block text-[13.5px] text-[#5B5851] py-1">{l} <span className="font-mono text-[10px]">soon</span></span>
+        ),
+      )}
     </div>
   );
   return (
@@ -839,9 +844,27 @@ function FooterLarge() {
           <a className="font-display font-bold text-xl" href="/">brand<span className="border-b-[3px] border-signal pb-px">rail</span></a>
           <p className="text-[13px] text-muted mt-3 max-w-[260px]">AI can think. It still can&rsquo;t design. Brandrail teaches AI how your brand thinks visually — through an open, enforceable BrandSpec.</p>
         </div>
-        {col("Agents & tools", ["MCP server", "CLI", "Brandrail × Claude", "Brandrail × OpenClaw", "Brandrail × ChatGPT", "n8n node", "Public API"])}
-        {col("Resources", ["Docs", "GitHub", "For agencies", "The Slop Report", "Compare: vs Postiz", "Compare: vs Canva", "Public roadmap"])}
-        {col("Company", ["Pricing", "The Manifesto", "Open metrics", "Changelog", "Terms", "Privacy"])}
+        {col("Agents & tools", [
+          ["For agent builders", "/agents"],
+          ["MCP server", "/docs#mcp"],
+          ["CLI", "/docs#cli"],
+          ["Public API", "/docs#api"],
+          ["API keys", "/dashboard#api-keys"],
+        ])}
+        {col("Resources", [
+          ["Docs", "/docs"],
+          ["GitHub", "https://github.com/brandrail/brandrail"],
+          ["Review queue", "/review"],
+          ["Workspace", "/dashboard"],
+          ["Public roadmap", null],
+        ])}
+        {col("Company", [
+          ["Pricing", "/#pricing"],
+          ["Settings", "/settings"],
+          ["The Manifesto", null],
+          ["Terms", null],
+          ["Privacy", null],
+        ])}
       </div>
       <div className="mx-auto max-w-[1160px] px-6 flex justify-between font-mono text-[11.5px] text-[#5B5851] mt-14 pt-5.5 pt-5 border-t border-hairline-soft">
         <span>© Brandrail 2026 · AGPL-3.0 · built in public</span>
@@ -862,7 +885,7 @@ const AGENCY_FAQ: Array<[string, string]> = [
 ];
 const DEV_FAQ: Array<[string, string]> = [
   ["What exactly is a BrandSpec?", "A versioned, machine-readable definition of how a brand thinks visually — identity, composition, imagery, voice, and judgment (positive + negative examples). <b class='text-bone'>Portable, diffable, forkable, MIT-licensed.</b> A brand refresh is a PR; violations are build errors."],
-  ["How is this different from AI image generators?", "Diffusion models <b class='text-bone'>approximate</b> a brand; a design system <b class='text-bone'>enforces</b> it. Layout, typography, color, and logos always render deterministically; generative AI is fenced to masked background zones only (bring your own image model), pinned so re-renders stay identical — never touching your type or logo."],
+  ["How is this different from AI image generators?", "Diffusion models <b class='text-bone'>approximate</b> a brand; a design system <b class='text-bone'>enforces</b> it. Layout, typography, color, and logos always render deterministically; generative AI is fenced to masked background zones only (bring your own fal.ai key), pinned so re-renders stay identical — never touching your type or logo."],
   ["How do I add it to my agent?", "MCP server + a token-cheap CLI. Point your agent at the MCP endpoint, or call <b class='text-bone'>brandrail compile</b> / <b class='text-bone'>render</b> from any pipeline. 60 seconds to first render."],
   ["Is the self-hosted version crippled?", "No. Rails, scheduler, agent framework, MCP, and CLI are all AGPL and fully functional. The <b class='text-bone'>cloud rendering engine</b> is metered (50 free renders/mo self-hosted) because that's where the heavy compute lives."],
   ["What about X's API pricing?", "X charges per post (plus a link surcharge) as of 2026, so when X publishing lands it'll be <b class='text-bone'>bring-your-own-key</b> — you pay X directly, with the cost shown before anything ships. <b class='text-bone'>Bluesky publishing is live today</b>; the managed platforms are rolling out."],
