@@ -106,7 +106,7 @@ brandrail spec diff acme 1 2
         <p className="text-muted text-sm mt-2 leading-relaxed">
           npm packages (<code className="text-bone">@brandrail/mcp</code>, <code className="text-bone">brandrail</code> CLI,{" "}
           <code className="text-bone">@brandrail/sdk</code>) ship with the first public release; until then run them from
-          the <a href="https://github.com/brandrail/brandrail" className="text-signal">repo</a>. LinkedIn/X/Meta/TikTok
+          the <a href="https://github.com/apwn/brandrail" className="text-signal">repo</a>. LinkedIn/X/Meta/TikTok
           publishing requires per-platform app registration on your instance; Bluesky and Mastodon work out of the box.
         </p>
       </div>

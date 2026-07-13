@@ -828,8 +828,8 @@ function Footer() {
   return (
     <footer className="mt-24 border-t border-hairline pt-6 pb-10 flex flex-wrap items-center gap-x-6 gap-y-2">
       <span className="eyebrow">DEATH TO SLOP</span>
-      <a className="font-mono text-[11px] text-muted hover:text-bone transition-colors duration-mech" href="https://github.com/brandrail/brandrail">
-        github.com/brandrail
+      <a className="font-mono text-[11px] text-muted hover:text-bone transition-colors duration-mech" href="https://github.com/apwn/brandrail">
+        github.com/apwn/brandrail
       </a>
       <span className="font-mono text-[11px] text-muted">agents: `npx @brandrail/mcp` · humans: `npm i -g brandrail`</span>
     </footer>

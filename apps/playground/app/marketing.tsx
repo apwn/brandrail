@@ -69,7 +69,7 @@ function Nav() {
           <a href="/dashboard" className="hover:text-bone">Workspace</a>
         </div>
         <div className="flex items-center gap-3">
-          <a href="https://github.com/brandrail" className="font-mono text-[13px] border border-hairline px-3.5 py-2 text-muted hover:text-bone hover:border-bone">GitHub ★</a>
+          <a href="https://github.com/apwn/brandrail" className="font-mono text-[13px] border border-hairline px-3.5 py-2 text-muted hover:text-bone hover:border-bone">GitHub ★</a>
           <a href="#top" className="btn !py-2 !px-4 !text-[13px]">Get started — free</a>
         </div>
       </div>
@@ -556,7 +556,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
           {dev ? (
             <Terminal
               lines={[
-                ["$", "git clone github.com/brandrail/brandrail && pnpm i"],
+                ["$", "git clone github.com/apwn/brandrail && pnpm i"],
                 ["$", "brandrail compile acme.com && brandrail render 'summer sale' --brand acme"],
                 ["✓ rendered", "5 formats · 0 violations · ./assets"],
                 ["$", "brandrail mcp   # MCP server — point your agent here"],
@@ -581,7 +581,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
       <Wrap>
         <SecHead eyebrow="Pricing" title="Priced on output. Not seats, not posts, not tricks." />
         <div className="grid md:grid-cols-4 gap-px bg-hairline border border-hairline">
-          <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Uncapped generative w/ your fal.ai key", "Your own keys"]} cta="git clone →" href="https://github.com/brandrail/brandrail" />
+          <Plan name="Open source" price="$0" unit="self-hosted" items={["Full rails + agent framework", "50 cloud renders/mo", "Uncapped generative w/ your fal.ai key", "Your own keys"]} cta="git clone →" href="https://github.com/apwn/brandrail" />
           <Plan name="Studio" price="$49" unit="/mo" items={["1,000 renders/mo · 100 generative", "3 brands · connect channels", "AI planner + batch review", "MCP + CLI + API"]} cta="Start free →" />
           <Plan hot name="Agency" price="$199" unit="/mo" items={["10,000 renders/mo · 1,000 generative", "25 brands · client workspaces", "Approval rails · white-label reports", "30-day slop-free guarantee"]} cta="Start free →" />
           <Plan name="Rail" price="$0.02" unit="/render" items={["Pure API / MCP access", "Usage-based, volume discounts", "For agent builders & platforms", "99.9% SLA available"]} cta="Read the docs →" href="/docs" />
@@ -850,7 +850,7 @@ function FooterLarge() {
         ])}
         {col("Resources", [
           ["Docs", "/docs"],
-          ["GitHub", "https://github.com/brandrail/brandrail"],
+          ["GitHub", "https://github.com/apwn/brandrail"],
           ["Review queue", "/review"],
           ["Workspace", "/dashboard"],
           ["Public roadmap", null],

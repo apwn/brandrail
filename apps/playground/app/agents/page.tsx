@@ -82,7 +82,7 @@ export default function AgentsPage() {
         <p className="eyebrow text-bone">HONEST STATUS</p>
         <p className="text-muted text-sm mt-2 leading-relaxed">
           The MCP server, CLI and SDK are built and tested in this repo; the npm packages publish with the first public
-          release — until then, <a href="https://github.com/brandrail/brandrail" className="text-signal">clone the repo</a>{" "}
+          release — until then, <a href="https://github.com/apwn/brandrail" className="text-signal">clone the repo</a>{" "}
           and run them from source, or self-host the whole engine (AGPL, no key needed in dev mode).
         </p>
       </div>

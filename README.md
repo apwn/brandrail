@@ -53,7 +53,7 @@ const { assets } = await api.render(spec.meta.name, "Summer promotion");
 
 **Playground:** paste your website → see your next 5 posts in 60 seconds. `apps/playground`, or the hosted one at playground.brandrail.dev.
 
-## What's in this repo (MIT)
+## What's in this repo
 
 | Package | What |
 |---|---|
@@ -63,7 +63,7 @@ const { assets } = await api.render(spec.meta.name, "Summer promotion");
 | [`packages/mcp`](packages/mcp) | MCP server for agents (stdio + HTTP) |
 | [`apps/playground`](apps/playground) | The web playground |
 
-The rendering/compiling engine runs server-side (`RENDER_API_URL`); everything a developer embeds, vendors, or ships lives here under MIT. **Templates consume BrandSpec tokens only** — hardcoded design values are lint errors — and the same spec + copy produces byte-identical PNGs, enforced in CI.
+The rendering/compiling engine runs server-side (`RENDER_API_URL`); everything a developer embeds, vendors, or ships lives here. The four `packages/*` are **MIT** (embed them anywhere); the app/rails are **AGPL-3.0** — see [`LICENSING.md`](LICENSING.md). **Templates consume BrandSpec tokens only** — hardcoded design values are lint errors — and the same spec + copy produces byte-identical PNGs, enforced in CI.
 
 ## Templates
 
@@ -94,4 +94,4 @@ The playground and packages expect an engine at `BRANDRAIL_API_URL` (default `ht
 
 ---
 
-MIT on everything in this repo · built in public · [playground](https://playground.brandrail.dev) · **on-brand, on autopilot**
+Open-core — MIT packages, AGPL-3.0 app ([`LICENSING.md`](LICENSING.md)) · built in public · **on-brand, on autopilot**
