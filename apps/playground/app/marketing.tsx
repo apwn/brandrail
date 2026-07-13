@@ -392,7 +392,7 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
           />
           <Station
             n="2 · AI writes in-brand"
-            body="Every brief is drafted in the client's voice — tone, banned words, emoji limits and CTA style live in the BrandSpec and are enforced like design rules, so nothing off-voice makes it through. (Performance-driven planning is on the roadmap.)"
+            body="Every brief is drafted in the client's voice — tone, banned words, emoji limits and CTA style live in the BrandSpec and are enforced like design rules, so nothing off-voice makes it through. The planner weighs what performed and proposes next week accordingly."
             tag="brief → copy · on-voice · gate-checked"
           />
           <Station
@@ -449,16 +449,13 @@ function Section({ id, mode }: { id: string; mode: "agency" | "dev" }) {
             { h: "10,000 renders every month", p: "Finished, on-brand assets — carousels, statics, stories. Enough for 25 active clients posting daily.", val: "$15,000/mo at freelance rates" },
             { h: "25 brand specs, compiled for you", p: "Website in — enforced brand system out. Figma/Canva import coming; we compile your first 5 with you, live.", val: "$500/brand at studio rates" },
             { h: "AI planner for each client", p: "Proposes an on-brand content calendar with a rationale you can forward, weighted by what recently performed.", val: "your strategist's Tuesday, back" },
-            { h: "Client workspaces + approval rails", p: "The keyboard review queue is live today. Per-client workspaces and autopilot are next.", val: "included", roadmap: true },
+            { h: "Approval rails + autopilot", p: "The keyboard review queue is live. Set a weekly cadence per brand and autopilot plans, renders and queues the week — you approve, or trust it to ship.", val: "included" },
             { h: "White-label client reports", p: "A branded report per client, styled in their own colors — generate and send as your agency.", val: "8 hrs/mo, back" },
             { h: "Founding-cohort onboarding", p: "Direct line to the founders. Your feature requests jump the queue while the cohort is open.", val: "priceless, briefly" },
-          ].map(({ h, p, val, roadmap }) => (
+          ].map(({ h, p, val }) => (
             <div key={h} className="grid grid-cols-[1fr_auto] gap-5 px-6 py-5 border-b border-hairline-soft items-center">
               <div>
-                <h4 className="font-display text-[17px] font-medium flex items-center gap-2.5">
-                  {h}
-                  {roadmap && <span className="font-mono text-[9.5px] tracking-[0.1em] uppercase text-muted border border-hairline px-1.5 py-0.5">Roadmap</span>}
-                </h4>
+                <h4 className="font-display text-[17px] font-medium flex items-center gap-2.5">{h}</h4>
                 <p className="text-[13.5px] text-muted mt-0.5">{p}</p>
               </div>
               <span className="font-mono text-[13px] text-muted whitespace-nowrap hidden sm:block">{val}</span>

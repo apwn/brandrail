@@ -6,6 +6,8 @@ import { ChannelsCard } from "./channels-card";
 import { OnboardingChecklist } from "./onboarding";
 import { ApiKeysCard } from "./api-keys-card";
 import { MembersCard } from "./members-card";
+import { AutopilotCard } from "./autopilot-card";
+import { QueueCard } from "./queue-card";
 
 type Usage = {
   user: { id: string; email: string | null; emailVerified?: boolean; plan: "free" | "studio" | "agency"; members?: string[] };
@@ -109,6 +111,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
+      <AutopilotCard verified={Boolean(usage.user.emailVerified)} />
+      <QueueCard />
       <ChannelsCard />
       <ApiKeysCard verified={Boolean(usage.user.emailVerified)} />
       <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />
