@@ -3,6 +3,8 @@
 export function OnboardingChecklist({
   verified,
   hasBrand,
+  hasAgent,
+  hasAgentRun,
   hasChannel,
   hasApproved,
   hasScheduled,
@@ -11,6 +13,8 @@ export function OnboardingChecklist({
 }: {
   verified: boolean;
   hasBrand: boolean;
+  hasAgent: boolean;
+  hasAgentRun: boolean;
   hasChannel: boolean;
   hasApproved: boolean;
   hasScheduled: boolean;
@@ -18,8 +22,10 @@ export function OnboardingChecklist({
   canReview: boolean;
 }) {
   const steps = [
-    { done: hasBrand, label: "Compile your first brand", hint: "paste a site URL — 60 seconds", href: "/" },
     { done: verified, label: "Verify your email", hint: "one magic link — makes this workspace recoverable", href: "#account" },
+    { done: hasBrand, label: "Compile your first brand", hint: "give the agent enforceable context", href: "/" },
+    { done: hasAgent, label: "Connect your agent", hint: "one hosted MCP connection", href: "#agent" },
+    { done: hasAgentRun, label: "Run your first dry plan", hint: "ask the agent what it would do before it mutates", href: "#agent" },
     ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "direct or OAuth — credentials stay encrypted", href: "#channels" }] : []),
     ...(canReview ? [{ done: hasApproved, label: "Approve your first asset", hint: "make the judgment once; the rail remembers", href: "/review" }] : []),
     ...(canPublish ? [{ done: hasScheduled, label: "Schedule your first post", hint: "place it on the calendar and let the rail ship", href: "/calendar" }] : []),
@@ -30,7 +36,7 @@ export function OnboardingChecklist({
   return (
     <section className="panel p-5 mt-10 border-signal/40">
       <div className="flex items-baseline justify-between">
-        <p className="eyebrow text-bone">{canPublish ? "GET TO YOUR FIRST SHIPPED POST" : "FINISH YOUR BRAND FOUNDATION"}</p>
+        <p className="eyebrow text-bone">{canPublish ? "FROM AGENT CONNECTION TO FIRST SHIPPED POST" : "ACTIVATE YOUR AGENT WORKSPACE"}</p>
         <span className="font-mono text-[11px] text-muted">{steps.length - remaining}/{steps.length}</span>
       </div>
       <ol className="mt-4 grid sm:grid-cols-2 gap-3">

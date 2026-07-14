@@ -42,7 +42,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     redirect("/login");
   }
 
-  const [usage, specs, batches, channels, renders, workspaces, scheduled] = await Promise.all([
+  const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit] = await Promise.all([
     load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
@@ -50,6 +50,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     load<{ renders: Array<{ id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string; width: number; height: number }> } }> }>("/v0/renders?limit=12", uid, { renders: [] }),
     load<{ workspaces: Array<{ id: string; label: string; role: "owner" | "reviewer"; active: boolean }> }>("/v0/me/workspaces", uid, { workspaces: [] }),
     load<{ posts: Array<{ status: string }> }>("/v0/scheduled", uid, { posts: [] }),
+    load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
+    load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -101,6 +103,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {owner && <OnboardingChecklist
         verified={Boolean(usage.user.emailVerified)}
         hasBrand={specs.specs.length > 0}
+        hasAgent={keys.keys.length > 0}
+        hasAgentRun={audit.events.some((event) => event.actor === "agent" && event.status < 400 && ["/v0/agent/plan", "/v0/render", "/v0/compile"].includes(event.path))}
         hasChannel={channels.channels.length > 0}
         hasApproved={batches.batches.some((b) => b.counts.approved > 0)}
         hasScheduled={scheduled.posts.some((post) => post.status !== "cancelled")}

@@ -8,21 +8,21 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-mono", weight
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://playground.brandrail.dev"),
-  title: "Brandrail — every post, on brand, ready to publish",
+  title: "Brandrail — agent-native content operations",
   description:
-    "Brand-locked content from brief to publish. Paste any website and see five ready-to-review posts rendered from an enforceable BrandSpec in 60 seconds.",
+    "Connect your agent to an enforceable brand system. Plan, render, review, publish and learn without letting AI break the brand.",
   openGraph: {
-    title: "Brandrail — every post, on brand, ready to publish",
-    description: "Turn any website into a portable BrandSpec and five ready-to-review social posts. Try your real brand free.",
+    title: "Your agent can write. Brandrail makes it publish on-brand.",
+    description: "Agent-native content operations with BrandSpec enforcement, human approval, publishing and performance feedback.",
     type: "website",
     url: "/",
-    images: [{ url: "/proof/og-image.png", width: 1200, height: 630, alt: "Brandrail brand-locked social content" }],
+    images: [{ url: "/og-agent.png", width: 1731, height: 909, alt: "Brandrail agent-native content operations workflow" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Brandrail — every post, on brand, ready to publish",
-    description: "Paste any website. See five ready-to-review posts in 60 seconds.",
-    images: ["/proof/og-image.png"],
+    title: "Your agent can write. Brandrail makes it publish on-brand.",
+    description: "BrandSpec-enforced content operations with human approval built in.",
+    images: ["/og-agent.png"],
   },
 };
 

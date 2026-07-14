@@ -19,6 +19,7 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
+  const [check, setCheck] = useState<"idle" | "running" | "ok" | "failed">("idle");
 
   async function load() {
     const res = await fetch("/api/keys");
@@ -62,6 +63,22 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
     setTimeout(() => setCopied(null), 1500);
   }
 
+  async function testConnection() {
+    if (!minted) return;
+    setCheck("running");
+    try {
+      const res = await fetch(mcpPath, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${minted}` },
+        body: JSON.stringify({ jsonrpc: "2.0", id: "dashboard-check", method: "tools/list" }),
+      });
+      const body = await res.json() as { result?: { tools?: Array<{ name: string }> } };
+      setCheck(res.ok && body.result?.tools?.length === 14 ? "ok" : "failed");
+    } catch {
+      setCheck("failed");
+    }
+  }
+
   const remoteUrl = `${origin}${mcpPath}`;
   const snippet = (key: string) => JSON.stringify({
     mcpServers: { brandrail: { type: "http", url: remoteUrl, headers: { Authorization: `Bearer ${key}` } } },
@@ -98,8 +115,15 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
                   {copied === "snippet" ? "copied ✓" : "copy"}
                 </button>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
+                <button className="btn-ghost !px-3 !py-1.5 text-xs" onClick={testConnection} disabled={check === "running"}>{check === "running" ? "Checking…" : check === "ok" ? "14 tools reachable ✓" : "Test hosted connection"}</button>
+                {check === "failed" && <span className="font-mono text-[10px] text-signal">Connection failed. Revoke this key and try again.</span>}
+                {check === "ok" && <span className="font-mono text-[10px] text-green">Authenticated · workspace scoped · ready for your agent</span>}
+              </div>
             </div>
           )}
+
+          {keys.length > 0 && !minted && <p className="mt-4 border-l-2 border-hairline pl-3 font-mono text-[10px] leading-relaxed text-muted">This connection is active, but its credential is write-only and cannot be shown again. If you lost the configuration, revoke it below and create a replacement.</p>}
 
           <div className="grid gap-3 mt-5 md:grid-cols-[1fr_auto]">
             <input className="field !py-2" placeholder="connection name (e.g. Claude Desktop)" value={label} onChange={(e) => setLabel(e.target.value)} />

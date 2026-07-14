@@ -45,6 +45,8 @@ export async function handleMcp(req: Request): Promise<Response> {
   if (!apiKey) return Response.json({ error: "Use Authorization: Bearer <workspace key>" }, { status: 401 });
   const message = (await req.json().catch(() => null)) as { jsonrpc?: string; id?: string | number | null; method?: string; params?: { name?: string; arguments?: Record<string, unknown> } } | null;
   if (!message?.method) return Response.json({ jsonrpc: "2.0", id: message?.id ?? null, error: { code: -32600, message: "Invalid MCP request" } }, { status: 400 });
+  const auth = await agentEngine("/v0/me/usage", apiKey);
+  if (!auth.ok) return Response.json({ jsonrpc: "2.0", id: message.id ?? null, error: { code: -32001, message: "Invalid or inactive Brandrail workspace key" } }, { status: 401 });
   if (message.method.startsWith("notifications/")) return new Response(null, { status: 202 });
   const result = (value: unknown) => Response.json({ jsonrpc: "2.0", id: message.id ?? null, result: value });
   if (message.method === "initialize") return result({ protocolVersion: "2025-03-26", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "brandrail", version: "0.2.0" } });
