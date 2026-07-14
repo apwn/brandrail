@@ -231,16 +231,55 @@ program.command("schedule")
   .option("--render <id>", "saved render ID")
   .option("--images <files>", "comma-separated filenames from the saved render")
   .option("--idempotency-key <key>", "deduplicate retries")
-  .action(async (text: string, opts: { channels: string; at?: string; render?: string; images?: string; idempotencyKey?: string }) => {
+  .option("--dry-run", "validate and print the execution without publishing")
+  .option("--confirm", "confirm an agent publish without a review reference")
+  .option("--approval <ref>", "approved batch:item reference")
+  .action(async (text: string, opts: { channels: string; at?: string; render?: string; images?: string; idempotencyKey?: string; dryRun?: boolean; confirm?: boolean; approval?: string }) => {
     try {
       const channelIds = opts.channels.split(",").map((value) => value.trim()).filter(Boolean);
       if (!channelIds.length) fail("at least one channel ID is required");
       if (opts.at && !Number.isFinite(Date.parse(opts.at))) fail("--at must be a valid ISO date");
-      const result = await client().schedule({ text, channelIds, ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.render ? { renderId: opts.render } : {}), ...(opts.images ? { imageFiles: opts.images.split(",").map((value) => value.trim()).filter(Boolean) } : {}), ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}) });
+      const approvalParts = opts.approval?.split(":");
+      if (opts.approval && approvalParts?.length !== 2) fail("--approval must be batchId:itemId");
+      const result = await client().schedule({ text, channelIds, ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.render ? { renderId: opts.render } : {}), ...(opts.images ? { imageFiles: opts.images.split(",").map((value) => value.trim()).filter(Boolean) } : {}), ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}), ...(opts.dryRun ? { dryRun: true } : {}), ...(opts.confirm ? { confirm: true } : {}), ...(approvalParts ? { approval: { batchId: approvalParts[0]!, itemId: approvalParts[1]! } } : {}) });
       if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else if (result.dryRun) console.log(`dry-run  ${result.ready ? "ready" : "blocked"}`);
       else console.log(`${result.post.status}  ${result.post.id}  ${result.post.scheduledAt}${result.deduplicated ? "  (deduplicated)" : ""}`);
     } catch (e) { handleError(e); }
   });
+
+const agent = program.command("agent").description("plan and inspect agent execution");
+agent.command("plan")
+  .description("dry-run a campaign before anything mutates")
+  .argument("<objective>", "campaign objective")
+  .option("--brand <name>", "BrandSpec name")
+  .option("--channels <ids>", "comma-separated channel IDs")
+  .option("--assets <count>", "estimated finished assets", "5")
+  .option("--publish-at <iso>", "optional target publish time")
+  .action(async (objective: string, opts: { brand?: string; channels?: string; assets: string; publishAt?: string }) => {
+    try {
+      const plan = await client().executionPlan({ objective, ...(opts.brand ? { brand: opts.brand } : {}), ...(opts.channels ? { channels: opts.channels.split(",").map((value) => value.trim()).filter(Boolean) } : {}), assetCount: Number(opts.assets), ...(opts.publishAt ? { publishAt: opts.publishAt } : {}) });
+      if (isJson()) console.log(JSON.stringify({ ok: true, plan }));
+      else {
+        console.log(`${plan.ready ? "ready" : "blocked"}  ${plan.brand ?? "no brand"}  ${plan.estimate.finishedAssets} assets`);
+        for (const blocker of plan.blockers) console.log(`blocker  ${blocker}`);
+        for (const step of plan.steps) console.log(`${step.mutates ? "write" : "read "}  ${step.ready ? "✓" : "×"} ${step.action}`);
+      }
+    } catch (e) { handleError(e); }
+  });
+
+const review = program.command("review").description("resume human-in-the-loop work");
+review.command("status").argument("<batchId>").description("show approval state and next action").action(async (batchId: string) => {
+  try {
+    const status = await client().reviewStatus(batchId);
+    if (isJson()) console.log(JSON.stringify({ ok: true, status }));
+    else {
+      console.log(`${status.ready ? "ready" : "waiting"}  ${status.title}  ${status.counts.approved}/${status.counts.total} approved`);
+      console.log(`next  ${status.nextAction}`);
+      for (const item of status.flagged) console.log(`flag  ${item.itemId}  ${item.note ?? "needs review"}`);
+    }
+  } catch (e) { handleError(e); }
+});
 
 program.command("calendar").description("list scheduled and published posts").option("--status <status>", "filter by status").action(async (opts: { status?: string }) => {
   try {

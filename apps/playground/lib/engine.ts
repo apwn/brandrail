@@ -25,6 +25,18 @@ export async function engine(path: string, init: RequestInit = {}, userId?: stri
   });
 }
 
+/** Pass a self-serve workspace key through to the engine. Used by the hosted
+ * stateless MCP endpoint; unlike `engine`, this must never substitute the
+ * service credential or a browser-session identity. */
+export async function agentEngine(path: string, apiKey: string, init: RequestInit = {}): Promise<Response> {
+  if (!/^brk_[a-f0-9]{40}$/.test(apiKey)) return Response.json({ error: "invalid API key" }, { status: 401 });
+  return fetch(`${ENGINE_URL}${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", "x-api-key": apiKey, ...(init.headers ?? {}) },
+    signal: init.signal ?? AbortSignal.timeout(120_000),
+  });
+}
+
 /**
  * Daily compile cap per IP: 3 anonymous, more with a verified account (the
  * account should always GIVE something). In-memory is fine for V0 (single

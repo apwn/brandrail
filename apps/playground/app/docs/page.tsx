@@ -46,7 +46,7 @@ curl -X POST https://api.brandrail.dev/v0/render \\
 
       <H2 id="auth">Auth &amp; keys</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
-        Studio and Agency workspaces can mint keys in <a href="/dashboard#api-keys" className="text-signal">workspace → API keys</a> after
+        Every verified workspace can mint one free key in <a href="/dashboard#agent" className="text-signal">workspace → Agent connection</a> after
         email verification. Send as <code className="text-bone">x-api-key</code> or{" "}
         <code className="text-bone">Authorization: Bearer</code>. A key scopes every call to your workspace — your
         brands, your renders, your meter.
@@ -59,10 +59,12 @@ GET  /v0/specs                your brands
 GET  /v0/specs/:brand         one spec (?version=N for history)
 PATCH /v0/specs/:brand        edit → new version
 POST /v0/render               {brand, brief, formats?, archetype?} → assets
+POST /v0/agent/plan           dry-run objective → blockers + execution steps
 GET  /v0/renders              saved render history
 GET  /v0/renders/:id          manifest + asset URLs
 POST /v0/brands/:brand/background  generate + pin brand imagery
 POST /v0/batches              many briefs → review queue
+GET  /v0/batches/:id/status   resumable approval state
 POST /v0/plan                 AI planner: brand → proposed briefs
 POST /v0/publish              text + images → connected channels
 GET  /v0/scheduled            calendar posts + delivery state
@@ -70,6 +72,8 @@ GET  /v0/campaigns            campaign workspaces + live progress
 POST /v0/campaigns            objective + linked brands/batches/posts
 GET  /v0/analytics            channel, post and six-month performance
 POST /v0/analytics/refresh    pull fresh metrics from connected networks
+GET  /v0/me/audit             human + agent mutation log
+GET  /v0/me/webhooks          signed event subscriptions
 GET  /v0/reports/:brand       white-label HTML report`}</Code>
       <p className="text-muted text-sm mt-3 leading-relaxed">
         Renders that would violate the spec return <code className="text-bone">422</code> with structured violations —
@@ -78,14 +82,18 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
 
       <H2 id="mcp">MCP server</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
-        Five tools for any MCP-capable agent: <code className="text-bone">compile_brand</code>,{" "}
-        <code className="text-bone">render_assets</code>, <code className="text-bone">get_spec</code>,{" "}
-        <code className="text-bone">list_templates</code>, <code className="text-bone">diff_spec</code>.
+        The hosted MCP endpoint exposes the full lifecycle: brands, dry-run planning, deterministic rendering,
+        campaigns, review pauses, channels, scheduling, calendar, analytics and audit.
       </p>
-      <Code>{`claude mcp add brandrail \\
-  -e BRANDRAIL_API_URL=https://api.brandrail.dev \\
-  -e BRANDRAIL_API_KEY=brk_… \\
-	  -- node /path/to/brandrail/packages/mcp/dist/index.js`}</Code>
+      <Code>{`{
+  "mcpServers": {
+    "brandrail": {
+      "type": "http",
+      "url": "https://playground.brandrail.dev/api/mcp",
+      "headers": { "Authorization": "Bearer brk_…" }
+    }
+  }
+}`}</Code>
 
       <H2 id="cli">CLI</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
@@ -94,9 +102,11 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
       <Code>{`pnpm install && pnpm build
 node packages/cli/dist/index.js compile https://acme.com
 node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
+node packages/cli/dist/index.js agent plan "Launch campaign" --brand acme --json
+node packages/cli/dist/index.js review status batch_123 --json
 node packages/cli/dist/index.js spec diff acme@1 acme@2
 node packages/cli/dist/index.js channels
-node packages/cli/dist/index.js schedule "Launch day" --channels ch_123 --at 2026-08-01T15:00:00Z
+node packages/cli/dist/index.js schedule "Launch day" --channels ch_123 --at 2026-08-01T15:00:00Z --dry-run
 node packages/cli/dist/index.js campaign create --name "Q3 launch" --objective "Generate 20 demos"
 node packages/cli/dist/index.js analytics --refresh
 # exit codes: 0 ok · 2 spec violation · 3 low confidence`}</Code>

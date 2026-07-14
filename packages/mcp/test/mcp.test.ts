@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const bin = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 
 describe("Brandrail MCP server", () => {
-  it("completes the stdio handshake and advertises the five public tools", async () => {
+  it("completes the stdio handshake and advertises the full lifecycle tools", async () => {
     const transport = new StdioClientTransport({ command: process.execPath, args: [bin] });
     const client = new Client({ name: "brandrail-test", version: "1.0.0" });
     try {
@@ -18,6 +18,16 @@ describe("Brandrail MCP server", () => {
         "get_spec",
         "list_templates",
         "diff_spec",
+        "list_brands",
+        "plan_campaign",
+        "list_channels",
+        "create_review_batch",
+        "get_review_status",
+        "list_campaigns",
+        "schedule_post",
+        "list_calendar",
+        "get_analytics",
+        "get_audit_log",
       ]);
     } finally {
       await client.close();

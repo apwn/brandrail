@@ -2,9 +2,10 @@ import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in — Brandrail" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
-  const { plan } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ plan?: string; agent?: string }> }) {
+  const { plan, agent } = await searchParams;
   const selected = plan === "studio" || plan === "agency" ? plan : undefined;
+  const connectingAgent = agent === "1";
   return (
     <main className="min-h-screen grid lg:grid-cols-[1.05fr_.95fr]">
       <section className="hidden border-r border-hairline bg-panel p-12 lg:flex lg:flex-col lg:justify-between">
@@ -20,10 +21,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
           <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
-          <p className="eyebrow text-signal mt-12">{selected ? `${selected.toUpperCase()} SELECTED` : "WELCOME BACK"}</p>
-          <h2 className="font-display text-4xl font-bold mt-3">{selected ? `Start with ${selected[0].toUpperCase()}${selected.slice(1)}` : "Open your workspace"}</h2>
-          <p className="text-muted mt-3">Enter your email. The link signs you in and {selected ? "continues to secure checkout" : "restores your workspace"}.</p>
-          <LoginForm plan={selected} />
+          <p className="eyebrow text-signal mt-12">{selected ? `${selected.toUpperCase()} SELECTED` : connectingAgent ? "FREE AGENT CONNECTION" : "WELCOME BACK"}</p>
+          <h2 className="font-display text-4xl font-bold mt-3">{selected ? `Start with ${selected[0].toUpperCase()}${selected.slice(1)}` : connectingAgent ? "Connect your agent" : "Open your workspace"}</h2>
+          <p className="text-muted mt-3">Enter your email. The link signs you in and {selected ? "continues to secure checkout" : connectingAgent ? "opens the agent connection panel" : "restores your workspace"}.</p>
+          <LoginForm plan={selected} agent={connectingAgent} />
           <p className="font-mono text-[11px] text-muted mt-5">The link expires in 15 minutes and can be used once.</p>
         </div>
       </section>

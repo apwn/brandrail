@@ -183,5 +183,116 @@ export function buildServer(): McpServer {
     },
   );
 
+  server.registerTool(
+    "list_brands",
+    { description: "List the BrandSpecs available in this workspace. Start here when no brand was specified.", inputSchema: {} },
+    async () => {
+      try {
+        const specs = await api.listSpecs();
+        return { content: [{ type: "text" as const, text: specs.length ? specs.map((spec) => `${spec.name}@${spec.version}`).join("\n") : "No brands yet. Use compile_brand first." }] };
+      } catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "plan_campaign",
+    {
+      description: "Dry-run a campaign before mutating anything. Returns blockers, safeguards, asset estimate and exact execution steps. Always call this before a multi-step campaign.",
+      inputSchema: {
+        objective: z.string().min(3), brand: z.string().optional(), channels: z.array(z.string()).optional(),
+        assetCount: z.number().int().min(1).max(50).optional(), publishAt: z.string().optional(),
+      },
+    },
+    async (input) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.executionPlan(input), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "list_channels",
+    { description: "List connected social channels and IDs. Studio required.", inputSchema: {} },
+    async () => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.listChannels(), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "create_review_batch",
+    {
+      description: "Render assets into a human approval queue, then pause. Never self-approve. Studio required.",
+      inputSchema: {
+        title: z.string().optional(),
+        items: z.array(z.object({ brand: z.string(), brief: z.string(), archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional() })).min(1).max(50),
+      },
+    },
+    async ({ title, items }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.createReviewBatch({ title, items: items as Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "get_review_status",
+    { description: "Resume after a human approval pause. Returns approved render IDs, flagged notes, comments and the next safe action.", inputSchema: { batchId: z.string() } },
+    async ({ batchId }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.reviewStatus(batchId), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "list_campaigns",
+    { description: "List campaigns with live approval, publishing and performance progress. Studio required.", inputSchema: {} },
+    async () => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.listCampaigns(), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "schedule_post",
+    {
+      description: "Dry-run, schedule, or publish an approved post. Use dryRun=true first. Provide approval IDs, or set confirm=true only after the user explicitly confirms publishing.",
+      inputSchema: {
+        text: z.string(), channelIds: z.array(z.string()).min(1), scheduledAt: z.string().optional(), renderId: z.string().optional(),
+        imageFiles: z.array(z.string()).optional(), idempotencyKey: z.string().optional(), dryRun: z.boolean().optional(), confirm: z.boolean().optional(),
+        approval: z.object({ batchId: z.string(), itemId: z.string() }).optional(),
+      },
+    },
+    async (input) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.schedule(input), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "list_calendar",
+    { description: "List scheduled, publishing, published, failed and cancelled posts. Studio required.", inputSchema: {} },
+    async () => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.listScheduled(), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "get_analytics",
+    { description: "Read aggregate content performance and the current feedback-loop insight. Studio required.", inputSchema: {} },
+    async () => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.analytics(), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "get_audit_log",
+    { description: "Read recent human and agent workspace mutations for oversight and debugging.", inputSchema: { limit: z.number().int().min(1).max(250).optional() } },
+    async ({ limit }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.audit(limit), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
   return server;
 }

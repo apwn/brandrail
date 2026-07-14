@@ -12,13 +12,14 @@ import { BrandActions } from "./brand-actions";
 import { CheckoutIntent } from "./checkout-intent";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ShareBatchButton } from "./share-batch-button";
+import { WebhooksCard } from "./webhooks-card";
 import { redirect } from "next/navigation";
 
 type Usage = {
   user: { id: string; email: string | null; emailVerified?: boolean; plan: "free" | "studio" | "agency"; members?: string[] };
   role: "owner" | "reviewer";
   workspaceId: string;
-  entitlements: { brands: number; features: string[] };
+  entitlements: { brands: number; apiKeys: number; features: string[] };
   limit: number;
   genLimit: number;
   counts: { brands: number; batches: number; rendersThisMonth: number; generativeThisMonth: number };
@@ -42,7 +43,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
 
   const [usage, specs, batches, channels, renders, workspaces, scheduled] = await Promise.all([
-    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, features: [] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
+    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
     load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }),
@@ -68,11 +69,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
         <nav className="flex items-center gap-5 eyebrow">
           {workspaces.workspaces.length > 1 && <WorkspaceSwitcher workspaces={workspaces.workspaces} />}
+          {owner && <a href="#agent" className="text-signal hover:text-bone">AGENT</a>}
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
           {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
           {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
           {owner && has("planner") && <a href="/analytics" className="hover:text-bone">SIGNAL</a>}
+          <a href="/activity" className="hover:text-bone">ACTIVITY</a>
         </nav>
       </header>
 
@@ -104,6 +107,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         canPublish={has("publishing")}
         canReview={has("batchReview")}
       />}
+
+      {owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} />}
+      {owner && has("webhooks") && <WebhooksCard />}
 
       {/* account + usage */}
       <section id="account" className="mt-10 grid md:grid-cols-[1fr_1fr] gap-4">
@@ -189,7 +195,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {owner && has("autopilot") && <AutopilotCard verified={Boolean(usage.user.emailVerified)} />}
           {has("batchReview") ? <QueueCard /> : !owner ? <LockedFeature title="BATCH REVIEW" plan="Studio" /> : null}
           {owner && has("publishing") && <ChannelsCard />}
-          {owner && has("apiKeys") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} engineUrl={process.env.NEXT_PUBLIC_BRANDRAIL_API_URL ?? "https://api.brandrail.dev"} />}
           {owner && <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />}
         </>
       )}
@@ -227,7 +232,7 @@ function UpgradeRail({ verified }: { verified: boolean }) {
   return (
     <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
       <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div><p className="eyebrow text-signal">WHEN THE WEEKLY WORKLOAD ARRIVES</p><h2 className="font-display text-2xl font-bold mt-3">Turn the brand system into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free keeps the complete compile, render, restyle and export loop. Studio adds the operational leverage: planning, batch approvals, autopilot, direct publishing and API keys.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ CONNECT AGENTS</span></div></div>
+        <div><p className="eyebrow text-signal">WHEN THE AGENT NEEDS TO OPERATE</p><h2 className="font-display text-2xl font-bold mt-3">Turn a free agent connection into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free lets one agent compile, inspect and render one brand. Studio unlocks the operational rail: campaign planning, human approval pauses, signed events, direct publishing and the performance loop.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ WEBHOOKS</span></div></div>
         <a href={verified ? "/dashboard?checkout=studio" : "/login?plan=studio"} className="btn whitespace-nowrap">Start Studio →</a>
       </div>
     </section>

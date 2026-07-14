@@ -64,6 +64,22 @@ export interface AnalyticsSummary {
   insight: string;
 }
 
+export interface ExecutionPlan {
+  dryRun: true; ready: boolean; objective: string; brand: string | null; blockers: string[];
+  safeguards: { brandSpecEnforced: boolean; humanApproval: string; idempotentPublishing: boolean };
+  estimate: { finishedAssets: number; monthlyRemaining: number };
+  steps: Array<{ id: string; action: string; mutates: boolean; ready: boolean }>;
+}
+
+export interface ReviewStatus {
+  id: string; title: string; ready: boolean;
+  counts: { total: number; pending: number; approved: number; flagged: number };
+  nextAction: string;
+  approved: Array<{ itemId: string; renderId: string; brand: string; brief: string; status: string }>;
+  flagged: Array<{ itemId: string; brand: string; brief: string; note: string | null }>;
+  comments: Array<{ id: string; itemId?: string; author: string; text: string; createdAt: string }>;
+}
+
 export class BrandrailError extends Error {
   readonly status: number;
   readonly violations: Violation[];
@@ -191,8 +207,26 @@ export class Brandrail {
     });
   }
 
-  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string }): Promise<{ scheduled: boolean; post: ScheduledPost; deduplicated?: boolean }> {
+  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string; dryRun?: boolean; confirm?: boolean; approval?: { batchId: string; itemId: string } }): Promise<{ dryRun: true; ready: boolean; action: string; channels: string[]; renderId: string | null } | { scheduled: boolean; post: ScheduledPost; deduplicated?: boolean; dryRun?: false }> {
     return this.request("/v0/publish", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  executionPlan(input: { objective: string; brand?: string; channels?: string[]; assetCount?: number; publishAt?: string }): Promise<ExecutionPlan> {
+    return this.request("/v0/agent/plan", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  reviewStatus(batchId: string): Promise<ReviewStatus> {
+    return this.request(`/v0/batches/${encodeURIComponent(batchId)}/status`);
+  }
+
+  createReviewBatch(input: { title?: string; items: Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }): Promise<{ id: string; title: string; items: unknown[] }> {
+    return this.request("/v0/batches", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  async audit(limit = 50): Promise<Array<{ id: string; action: string; actor: string; actorId: string; path: string; method: string; status: number; createdAt: string }>> {
+    const safeLimit = Math.min(250, Math.max(1, Math.floor(limit)));
+    const { events } = await this.request<{ events: Array<{ id: string; action: string; actor: string; actorId: string; path: string; method: string; status: number; createdAt: string }> }>(`/v0/me/audit?limit=${safeLimit}`);
+    return events;
   }
 
   async listChannels(): Promise<Channel[]> {

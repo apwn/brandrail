@@ -1,6 +1,6 @@
 # @brandrail/mcp
 
-The Brandrail MCP server. Gives any MCP-capable agent four tools:
+The Brandrail MCP server. Gives any MCP-capable agent the full controlled content lifecycle:
 
 | Tool | What it does | Comes back |
 |---|---|---|
@@ -9,10 +9,26 @@ The Brandrail MCP server. Gives any MCP-capable agent four tools:
 | `render_assets(brand, brief, formats?, archetype?)` | brief → finished brand-locked PNGs on disk | file paths (~100 tokens) |
 | `get_spec(brand, version?)` | fetch the full spec | canonical JSON (~600–1200 tokens) |
 | `diff_spec(brand, from, to)` | semantic diff between versions | readable diff (~50–200 tokens) |
+| `list_brands()` | inspect workspace brands | names + versions |
+| `plan_campaign(objective, …)` | dry-run before mutation | blockers + execution steps |
+| `list_channels()` | inspect connected destinations | scoped channel IDs |
+| `create_review_batch(items)` | render and pause for a human | stateful review batch |
+| `get_review_status(batchId)` | resume after approval | approved IDs + flagged notes |
+| `list_campaigns()` | inspect campaign progress | live production metrics |
+| `schedule_post(…)` | dry-run/schedule/publish safely | delivery state |
+| `list_calendar()` | inspect content delivery | scheduled + published posts |
+| `get_analytics()` | close the feedback loop | reach + engagement insight |
+| `get_audit_log()` | inspect mutations | actor + route + status |
 
 `render_assets` auto-picks a fitting mix of templates across the 5 formats; pass `archetype` (from `list_templates`) to force one.
 
 Spec violations fail loudly with structured errors — the agent never receives a degraded render.
+
+Publishing is also fail-closed: an agent must supply an approved batch item or `confirm=true` after explicit user confirmation. Use `dryRun=true` first.
+
+## Hosted remote MCP
+
+The hosted app exposes a stateless Streamable HTTP endpoint at `https://playground.brandrail.dev/api/mcp`. Authenticate with `Authorization: Bearer brk_…`. Mint one free connection in the workspace control room.
 
 ## Claude Desktop / Claude Code
 
