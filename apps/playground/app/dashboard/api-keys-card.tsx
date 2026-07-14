@@ -11,7 +11,7 @@ interface KeyRow {
 
 /** Self-serve API keys — the agent on-ramp. Mint a key, paste the MCP snippet
  * into your agent, done. The full key is shown exactly once. */
-export function ApiKeysCard({ verified }: { verified: boolean }) {
+export function ApiKeysCard({ verified, engineUrl }: { verified: boolean; engineUrl: string }) {
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [label, setLabel] = useState("");
   const [minted, setMinted] = useState<string | null>(null);
@@ -60,7 +60,6 @@ export function ApiKeysCard({ verified }: { verified: boolean }) {
     setTimeout(() => setCopied(null), 1500);
   }
 
-  const engineUrl = typeof window !== "undefined" ? `${location.protocol}//${location.host}` : "https://api.brandrail.dev";
   const snippet = (key: string) =>
     `claude mcp add brandrail -e BRANDRAIL_API_URL=${engineUrl} -e BRANDRAIL_API_KEY=${key} -- node /path/to/brandrail/packages/mcp/dist/index.js`;
 

@@ -61,3 +61,14 @@ export async function isVerifiedUser(uid: string): Promise<boolean> {
     return false;
   }
 }
+
+export async function getUserAccess(uid: string): Promise<{ verified: boolean; plan: "free" | "studio" | "agency" }> {
+  try {
+    const res = await engine("/v0/me/usage", {}, uid);
+    if (!res.ok) return { verified: false, plan: "free" };
+    const data = (await res.json()) as { user?: { emailVerified?: boolean; plan?: "free" | "studio" | "agency" } };
+    return { verified: Boolean(data.user?.emailVerified), plan: data.user?.plan ?? "free" };
+  } catch {
+    return { verified: false, plan: "free" };
+  }
+}

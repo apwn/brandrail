@@ -23,5 +23,6 @@ export async function GET(req: Request) {
   const { user, adopted } = (await res.json()) as { user: { id: string }; adopted: boolean };
 
   await setSessionUid(user.id);
+  if (payload.next) redirect(payload.next);
   redirect(adopted ? "/dashboard?welcome=back" : "/dashboard?welcome=1");
 }

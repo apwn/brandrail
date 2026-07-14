@@ -59,7 +59,9 @@ GET  /v0/specs                your brands
 GET  /v0/specs/:brand         one spec (?version=N for history)
 PATCH /v0/specs/:brand        edit → new version
 POST /v0/render               {brand, brief, formats?, archetype?} → assets
+GET  /v0/renders              saved render history
 GET  /v0/renders/:id          manifest + asset URLs
+POST /v0/brands/:brand/background  generate + pin brand imagery
 POST /v0/batches              many briefs → review queue
 POST /v0/plan                 AI planner: brand → proposed briefs
 POST /v0/publish              text + images → connected channels
@@ -86,8 +88,8 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
       </p>
       <Code>{`pnpm install && pnpm build
 node packages/cli/dist/index.js compile https://acme.com
-node packages/cli/dist/index.js render acme "Summer promotion" --json
-node packages/cli/dist/index.js spec diff acme 1 2
+node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
+node packages/cli/dist/index.js spec diff acme@1 acme@2
 # exit codes: 0 ok · 2 spec violation · 3 low confidence`}</Code>
 
       <H2 id="spec">The BrandSpec</H2>

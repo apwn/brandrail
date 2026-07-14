@@ -51,27 +51,28 @@ export default function ReviewPage() {
   const [editing, setEditing] = useState<Copy["formats"] | null>(null);
   const [busy, setBusy] = useState(false);
   const [role, setRole] = useState<"owner" | "reviewer">("owner");
+  const [access, setAccess] = useState<"loading" | "allowed" | "locked" | "signedout">("loading");
   const shownAt = useRef<number>(0);
 
   useEffect(() => {
-    fetch("/api/auth/session").then((r) => r.json()).then((data) => setRole(data.role === "reviewer" ? "reviewer" : "owner")).catch(() => {});
-    fetch("/api/specs")
-      .then((r) => r.json())
-      .then((d) => setSpecs(d.specs ?? []))
-      .catch(() => setSpecs([]));
-    // resume an existing batch when linked from the dashboard (?batch=<id>)
-    const id = new URLSearchParams(window.location.search).get("batch");
-    if (id) {
-      fetch(`/api/batch/${encodeURIComponent(id)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((b: Batch | null) => {
-          if (!b?.items) return;
-          setBatch(b);
-          const first = b.items.findIndex((i) => i.status === "pending");
-          setCursor(first >= 0 ? first : 0);
-        })
-        .catch(() => {});
-    }
+    fetch("/api/auth/session").then((r) => r.json()).then(async (data) => {
+      if (!data.user) return setAccess("signedout");
+      const features = Array.isArray(data.entitlements?.features) ? data.entitlements.features as string[] : [];
+      if (!features.includes("batchReview")) return setAccess("locked");
+      setRole(data.role === "reviewer" ? "reviewer" : "owner");
+      setAccess("allowed");
+      const specsRes = await fetch("/api/specs");
+      if (specsRes.ok) setSpecs(((await specsRes.json()) as { specs?: Array<{ name: string }> }).specs ?? []);
+      const id = new URLSearchParams(window.location.search).get("batch");
+      if (!id) return;
+      const batchRes = await fetch(`/api/batch/${encodeURIComponent(id)}`);
+      if (!batchRes.ok) return;
+      const loaded = await batchRes.json() as Batch;
+      if (!loaded?.items) return;
+      setBatch(loaded);
+      const first = loaded.items.findIndex((item) => item.status === "pending");
+      setCursor(first >= 0 ? first : 0);
+    }).catch(() => setAccess("signedout"));
   }, []);
 
   // reset the review timer whenever the focused item changes
@@ -306,6 +307,9 @@ export default function ReviewPage() {
   }, [items]);
 
   /* ---------------------------------------------------------------- render */
+  if (access === "loading") return <AccessScreen title="Loading review workspace…" body="Checking your workspace access and latest plan." />;
+  if (access === "signedout") return <AccessScreen title="Sign in to review" body="Review queues live in a recoverable workspace, so we need to know which brand system to open." cta="Email me a sign-in link" href="/login" />;
+  if (access === "locked") return <AccessScreen title="Batch review starts with Studio" body="Free gives you the full compile, render and export loop. Studio adds planning, batch approvals, autopilot and publishing when the weekly workload earns it." cta="Compare plans" href="/#pricing" />;
   if (!batch) {
     if (role === "reviewer") {
       return (
@@ -505,6 +509,10 @@ export default function ReviewPage() {
       </div>
     </main>
   );
+}
+
+function AccessScreen({ title, body, cta, href }: { title: string; body: string; cta?: string; href?: string }) {
+  return <main className="min-h-screen bg-ink text-bone px-6 py-20 max-w-2xl mx-auto"><a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a><div className="rail w-14 mt-16" /><h1 className="font-display text-4xl font-bold mt-6">{title}</h1><p className="text-muted mt-4 max-w-xl leading-relaxed">{body}</p>{cta && href && <a className="btn mt-7" href={href}>{cta} →</a>}</main>;
 }
 
 /* ------------------------------------------------------------- components */

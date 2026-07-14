@@ -56,7 +56,7 @@ function Nav() {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <a href="/agents" className="hidden text-sm text-muted hover:text-bone md:inline">For agent builders</a>
-          <a href="/dashboard" className="hidden text-sm text-muted hover:text-bone sm:inline">Log in</a>
+          <a href="/login" className="hidden text-sm text-muted hover:text-bone sm:inline">Log in</a>
           <a href="#top" className="btn !px-3.5 !py-2 !text-xs sm:!px-4 sm:!text-[13px]">Try your brand free</a>
         </div>
       </div>
@@ -418,7 +418,7 @@ function PricingSection() {
       badge: "MOST POPULAR",
       items: ["1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Planner, batch review + autopilot", "Direct publishing + API keys"],
       cta: "Start with Studio",
-      href: "/dashboard",
+      href: "/login?plan=studio",
     },
     {
       name: "Agency",
@@ -427,7 +427,7 @@ function PricingSection() {
       suffix: "/ month",
       items: ["10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats with scoped access", "Multi-brand approvals + client reports"],
       cta: "Start an agency pilot",
-      href: "/dashboard",
+      href: "/login?plan=agency",
     },
   ];
   return (
@@ -529,7 +529,7 @@ function Footer() {
           <a href="/" className="font-display text-xl font-bold">brand<span className="border-b-[3px] border-signal">rail</span></a>
           <p className="mt-3 max-w-[340px] text-sm leading-relaxed text-muted">The brand-locked content engine—from brief to publish, for one brand or many.</p>
         </div>
-        <div><h3 className="eyebrow text-bone">Product</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="#workflow">How it works</a><a className="block hover:text-bone" href="#use-cases">Use cases</a><a className="block hover:text-bone" href="#pricing">Pricing</a><a className="block hover:text-bone" href="/dashboard">Workspace</a></div></div>
+        <div><h3 className="eyebrow text-bone">Product</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="#workflow">How it works</a><a className="block hover:text-bone" href="#use-cases">Use cases</a><a className="block hover:text-bone" href="#pricing">Pricing</a><a className="block hover:text-bone" href="/login">Workspace</a></div></div>
         <div><h3 className="eyebrow text-bone">Builders</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="/agents">For agent builders</a><a className="block hover:text-bone" href="/docs">Documentation</a><a className="block hover:text-bone" href="https://github.com/apwn/brandrail">GitHub</a><a className="block hover:text-bone" href="/review">Review queue</a></div></div>
       </div>
       <div className="mx-auto mt-10 flex max-w-[1180px] flex-col gap-2 border-t border-hairline px-5 pt-5 font-mono text-[11px] text-muted sm:flex-row sm:justify-between sm:px-6">

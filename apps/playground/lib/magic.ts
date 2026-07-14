@@ -25,10 +25,25 @@ export interface MagicPayload {
   anonId: string;
   exp: number;
   jti: string;
+  next?: string;
 }
 
-export function signMagicToken(email: string, anonId: string, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ email: email.trim().toLowerCase(), anonId, exp: now + TTL_MS, jti: randomBytes(16).toString("hex") })).toString("base64url");
+function safeNext(next?: string): string | undefined {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return undefined;
+  try {
+    const url = new URL(next, "https://brandrail.local");
+    if (url.origin !== "https://brandrail.local") return undefined;
+    if (url.pathname !== "/dashboard") return undefined;
+    const plan = url.searchParams.get("checkout");
+    if (plan && plan !== "studio" && plan !== "agency") return undefined;
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return undefined;
+  }
+}
+
+export function signMagicToken(email: string, anonId: string, now = Date.now(), next?: string): string {
+  const body = Buffer.from(JSON.stringify({ email: email.trim().toLowerCase(), anonId, exp: now + TTL_MS, jti: randomBytes(16).toString("hex"), ...(safeNext(next) ? { next: safeNext(next) } : {}) })).toString("base64url");
   const sig = createHmac("sha256", `magic:${magicSecret()}`).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
@@ -45,6 +60,7 @@ export function verifyMagicToken(token: string, now = Date.now()): MagicPayload 
     if (typeof payload.exp !== "number" || payload.exp < now) return null;
     if (typeof payload.email !== "string" || !payload.email.includes("@")) return null;
     if (typeof payload.jti !== "string" || !/^[a-f0-9]{32}$/.test(payload.jti)) return null;
+    if (payload.next && safeNext(payload.next) !== payload.next) return null;
     return payload;
   } catch {
     return null;
@@ -59,7 +75,7 @@ export interface SendResult {
 }
 
 /** Email the magic link. Configured = Resend; unconfigured = console + dev link. */
-export async function sendMagicLink(email: string, link: string): Promise<SendResult> {
+export async function sendMagicLink(email: string, link: string, options?: { subject?: string; intro?: string; cta?: string }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.log(`[brandrail] magic link for ${email}: ${link}`);
@@ -72,10 +88,10 @@ export async function sendMagicLink(email: string, link: string): Promise<SendRe
       body: JSON.stringify({
         from: process.env.MAIL_FROM ?? "Brandrail <sign-in@brandrail.dev>",
         to: [email],
-        subject: "Your Brandrail sign-in link",
+        subject: options?.subject ?? "Your Brandrail sign-in link",
         html: [
-          `<p>Click to sign in to Brandrail — this link works once and expires in 15 minutes.</p>`,
-          `<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#FF4D00;color:#111;font-weight:bold;text-decoration:none">Sign in to Brandrail →</a></p>`,
+          `<p>${options?.intro ?? "Click to sign in to Brandrail — this link works once and expires in 15 minutes."}</p>`,
+          `<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#FF4D00;color:#111;font-weight:bold;text-decoration:none">${options?.cta ?? "Sign in to Brandrail →"}</a></p>`,
           `<p style="color:#888;font-size:12px">If you didn't request this, ignore it — nothing happens without the click.</p>`,
         ].join(""),
       }),

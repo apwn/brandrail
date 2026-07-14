@@ -19,7 +19,7 @@ function allowed(key: string, max: number, windowMs: number): boolean {
 /** Request a sign-in link. The token carries the CURRENT anon session id so
  * the work done before signing in (compiles, renders) survives the login. */
 export async function POST(req: Request) {
-  const { email } = (await req.json().catch(() => ({}))) as { email?: string };
+  const { email, next } = (await req.json().catch(() => ({}))) as { email?: string; next?: string };
   if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return Response.json({ error: "a valid email is required" }, { status: 400 });
   }
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "too many sign-in links requested — try again in 15 minutes" }, { status: 429, headers: { "retry-after": "900" } });
   }
   const anonId = await ensureUserId();
-  const token = signMagicToken(normalized, anonId);
+  const token = signMagicToken(normalized, anonId, Date.now(), next);
   const origin = process.env.PUBLIC_URL ?? new URL(req.url).origin;
   const link = `${origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
   const result = await sendMagicLink(normalized, link);

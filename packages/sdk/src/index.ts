@@ -37,6 +37,12 @@ export interface RenderResponse {
   };
 }
 
+export interface RenderHistoryEntry {
+  id: string;
+  createdAt: string;
+  manifest: RenderResponse["manifest"] & { assets: RenderAssetRef[] };
+}
+
 export class BrandrailError extends Error {
   readonly status: number;
   readonly violations: Violation[];
@@ -147,6 +153,20 @@ export class Brandrail {
     return this.request("/v0/render", {
       method: "POST",
       body: JSON.stringify({ brand, brief, ...opts }),
+    });
+  }
+
+  async listRenders(limit = 24): Promise<RenderHistoryEntry[]> {
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+    const { renders } = await this.request<{ renders: RenderHistoryEntry[] }>(`/v0/renders?limit=${safeLimit}`);
+    return renders;
+  }
+
+  /** Generate one fenced background, pin it into the BrandSpec, and create a new spec version. */
+  generateBackground(brand: string, subject: string): Promise<{ background: string; version: number; photos: number }> {
+    return this.request(`/v0/brands/${encodeURIComponent(brand)}/background`, {
+      method: "POST",
+      body: JSON.stringify({ subject }),
     });
   }
 

@@ -9,6 +9,9 @@ import { MembersCard } from "./members-card";
 import { AutopilotCard } from "./autopilot-card";
 import { QueueCard } from "./queue-card";
 import { BrandActions } from "./brand-actions";
+import { CheckoutIntent } from "./checkout-intent";
+import { WorkspaceSwitcher } from "./workspace-switcher";
+import { redirect } from "next/navigation";
 
 type Usage = {
   user: { id: string; email: string | null; emailVerified?: boolean; plan: "free" | "studio" | "agency"; members?: string[] };
@@ -29,27 +32,21 @@ async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
   }
 }
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
-  const { welcome } = await searchParams;
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string; checkout?: string; upgraded?: string }> }) {
+  const { welcome, checkout, upgraded } = await searchParams;
   const uid = await getUserId();
 
   if (!uid) {
-    return (
-      <main className="mx-auto max-w-3xl px-6 py-20">
-        <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
-        <h1 className="font-display font-bold text-3xl mt-6">Your workspace</h1>
-        <p className="text-muted mt-3">
-          Nothing here yet. <a className="text-signal" href="/">Compile a brand →</a> and it&rsquo;ll show up in your workspace.
-        </p>
-      </main>
-    );
+    redirect("/login");
   }
 
-  const [usage, specs, batches, channels] = await Promise.all([
+  const [usage, specs, batches, channels, renders, workspaces] = await Promise.all([
     load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, features: [] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
-    load<{ specs: Array<{ name: string; version: number }> }>("/v0/specs", uid, { specs: [] }),
+    load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
     load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }),
+    load<{ renders: Array<{ id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string; width: number; height: number }> } }> }>("/v0/renders?limit=12", uid, { renders: [] }),
+    load<{ workspaces: Array<{ id: string; label: string; role: "owner" | "reviewer"; active: boolean }> }>("/v0/me/workspaces", uid, { workspaces: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -67,7 +64,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <a href="/" className="font-display font-bold text-lg tracking-tight">brandrail</a>
           <span className="eyebrow mt-[2px]">WORKSPACE</span>
         </div>
-        <nav className="flex gap-5 eyebrow">
+        <nav className="flex items-center gap-5 eyebrow">
+          {workspaces.workspaces.length > 1 && <WorkspaceSwitcher workspaces={workspaces.workspaces} />}
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
         </nav>
@@ -76,9 +74,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {welcome && (
         <div className="panel border-green/50 mt-8 px-4 py-3 text-sm">
           <span className="font-mono text-green">✓</span>{" "}
-          {welcome === "back" ? "Welcome back — your workspace followed you to this device." : "You're in. This workspace is now yours on any device."}
+          {welcome === "back" ? "Welcome back — your workspace followed you to this device." : welcome === "upgraded" ? "Plan active — the full production workflow is ready." : "You're in. This workspace is now yours on any device."}
         </div>
       )}
+
+      <CheckoutIntent checkout={checkout} upgraded={upgraded} currentPlan={usage.user.plan} />
 
       {!owner && (
         <div className="panel border-green/40 mt-8 px-4 py-3 text-sm">
@@ -92,6 +92,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         hasBrand={specs.specs.length > 0}
         hasChannel={channels.channels.length > 0}
         hasApproved={batches.batches.some((b) => b.counts.approved > 0)}
+        canPublish={has("publishing")}
+        canReview={has("batchReview")}
       />}
 
       {/* account + usage */}
@@ -124,17 +126,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      {owner && has("autopilot") ? <AutopilotCard verified={Boolean(usage.user.emailVerified)} /> : owner ? <LockedFeature title="AUTOPILOT" plan="Studio" /> : null}
-      {has("batchReview") ? <QueueCard /> : <LockedFeature title="BATCH REVIEW" plan="Studio" />}
-      {owner && has("publishing") ? <ChannelsCard /> : owner ? <LockedFeature title="DIRECT PUBLISHING" plan="Studio" /> : null}
-      {owner && has("apiKeys") ? <ApiKeysCard verified={Boolean(usage.user.emailVerified)} /> : owner ? <LockedFeature title="API KEYS" plan="Studio" /> : null}
-      {owner && <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />}
-
       {/* brands */}
       <section className="mt-10">
         <div className="flex items-center justify-between mb-3">
-          <p className="eyebrow text-bone">ACTIVE BRANDS ({specs.specs.length} / {usage.entitlements.brands})</p>
-          {owner && specs.specs.length < usage.entitlements.brands && <a href="/" className="btn-ghost !py-1.5 !px-3 text-xs">+ Compile a brand</a>}
+          <p className="eyebrow text-bone">ACTIVE BRANDS ({specs.specs.filter((s) => s.active !== false).length} / {usage.entitlements.brands})</p>
+          {owner && specs.specs.filter((s) => s.active !== false).length < usage.entitlements.brands && <a href="/" className="btn-ghost !py-1.5 !px-3 text-xs">+ Compile a brand</a>}
         </div>
         {specs.specs.length === 0 ? (
           <p className="text-muted text-sm">No brands yet — <a className="text-signal" href="/">compile your first →</a></p>
@@ -143,8 +139,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             {specs.specs.map((s) => (
               <div key={s.name} className="panel px-4 py-3">
                 <div>
-                  <p className="font-mono text-sm text-bone">{s.name}</p>
-                  <p className="font-mono text-[11px] text-muted">v{s.version}</p>
+                  <a href={`/brands/${encodeURIComponent(s.name)}`} className="font-mono text-sm text-bone hover:text-signal">{s.name} →</a>
+                  <p className="font-mono text-[11px] text-muted">v{s.version}{s.active === false ? " · archived by plan limit" : ""}</p>
                 </div>
                 <BrandActions brand={s.name} canReport={has("reports")} canDelete={owner} />
               </div>
@@ -152,6 +148,42 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </div>
         )}
       </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between mb-3">
+          <p className="eyebrow text-bone">RECENT ASSETS ({renders.renders.length})</p>
+          <a href="/" className="btn-ghost !py-1.5 !px-3 text-xs">+ Create assets</a>
+        </div>
+        {renders.renders.length === 0 ? (
+          <p className="text-muted text-sm">Your finished assets will stay here after the first render.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {renders.renders.map((render) => {
+              const cover = render.manifest.assets[0];
+              return (
+                <article key={render.id} className="panel overflow-hidden">
+                  {cover && <img src={`/api/asset/${encodeURIComponent(render.id)}/${encodeURIComponent(cover.filename)}`} alt={`${render.manifest.brand}: ${render.manifest.brief}`} className="aspect-[1.9/1] w-full object-cover border-b border-hairline" />}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between gap-3"><a href={`/brands/${encodeURIComponent(render.manifest.brand)}`} className="font-mono text-xs text-signal hover:text-bone">{render.manifest.brand}</a><span className="font-mono text-[10px] text-muted">{render.createdAt.slice(0, 10)}</span></div>
+                    <p className="mt-2 line-clamp-2 text-sm text-bone">{render.manifest.brief}</p>
+                    <p className="font-mono text-[10px] text-muted mt-2">{render.manifest.assets.length} files · saved</p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {owner && usage.user.plan === "free" ? <UpgradeRail verified={Boolean(usage.user.emailVerified)} /> : (
+        <>
+          {owner && has("autopilot") && <AutopilotCard verified={Boolean(usage.user.emailVerified)} />}
+          {has("batchReview") ? <QueueCard /> : !owner ? <LockedFeature title="BATCH REVIEW" plan="Studio" /> : null}
+          {owner && has("publishing") && <ChannelsCard />}
+          {owner && has("apiKeys") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} engineUrl={process.env.NEXT_PUBLIC_BRANDRAIL_API_URL ?? "https://api.brandrail.dev"} />}
+          {owner && <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />}
+        </>
+      )}
 
       {/* batches */}
       {has("batchReview") && <section className="mt-10">
@@ -178,6 +210,17 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         )}
       </section>}
     </main>
+  );
+}
+
+function UpgradeRail({ verified }: { verified: boolean }) {
+  return (
+    <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
+      <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
+        <div><p className="eyebrow text-signal">WHEN THE WEEKLY WORKLOAD ARRIVES</p><h2 className="font-display text-2xl font-bold mt-3">Turn the brand system into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free keeps the complete compile, render, restyle and export loop. Studio adds the operational leverage: planning, batch approvals, autopilot, direct publishing and API keys.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ CONNECT AGENTS</span></div></div>
+        <a href={verified ? "/dashboard?checkout=studio" : "/login?plan=studio"} className="btn whitespace-nowrap">Start Studio →</a>
+      </div>
+    </section>
   );
 }
 

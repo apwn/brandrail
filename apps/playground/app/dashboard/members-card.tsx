@@ -8,6 +8,8 @@ export function MembersCard({ plan, members: initial }: { plan: string; members:
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [devLink, setDevLink] = useState<string | null>(null);
 
   if (plan !== "agency") {
     return (
@@ -24,16 +26,19 @@ export function MembersCard({ plan, members: initial }: { plan: string; members:
     if (!value.includes("@")) return setError("enter a valid email");
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: value }),
       });
-      const body = (await res.json()) as { members?: string[]; error?: string };
+      const body = (await res.json()) as { members?: string[]; error?: string; inviteSent?: boolean; devLink?: string; warning?: string };
       if (!res.ok) throw new Error(body.error ?? "invite failed");
       setMembers(body.members ?? members);
       setValue("");
+      setDevLink(body.devLink ?? null);
+      setNotice(body.inviteSent ? "Invitation sent. Their link opens directly into this review workspace." : body.warning ? `Seat added, but email delivery failed: ${body.warning}` : "Seat added. Use the local invitation link below.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -66,6 +71,8 @@ export function MembersCard({ plan, members: initial }: { plan: string; members:
         </button>
       </div>
       {error && <p className="text-signal font-mono text-xs mt-2">{error}</p>}
+      {notice && <p className="text-green font-mono text-xs mt-2">{notice}</p>}
+      {devLink && <a className="btn-ghost !py-2 !px-3 text-xs mt-2" href={devLink}>Open local invite link →</a>}
       {members.length > 0 && (
         <ul className="mt-4 divide-y divide-hairline">
           {members.map((m) => (

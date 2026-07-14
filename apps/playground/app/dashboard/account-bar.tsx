@@ -71,7 +71,7 @@ export function AccountBar({ email, verified, plan, role = "owner" }: { email: s
       <p className="eyebrow text-bone">{email ? "VERIFY YOUR EMAIL" : "SIGN IN / SAVE YOUR WORKSPACE"}</p>
       <p className="text-muted text-sm mt-2 mb-3">
         {email
-          ? `${email} isn't verified yet — verify to unlock downloads, publishing and billing.`
+          ? `${email} isn't verified yet — verify to recover this workspace and enable paid publishing, API keys and billing.`
           : "You're working anonymously. One emailed link signs you in — no password — and keeps your brands on every device."}
       </p>
       <div className="flex gap-2">

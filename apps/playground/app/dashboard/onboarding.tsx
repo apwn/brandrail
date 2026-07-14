@@ -5,17 +5,21 @@ export function OnboardingChecklist({
   hasBrand,
   hasChannel,
   hasApproved,
+  canPublish,
+  canReview,
 }: {
   verified: boolean;
   hasBrand: boolean;
   hasChannel: boolean;
   hasApproved: boolean;
+  canPublish: boolean;
+  canReview: boolean;
 }) {
   const steps = [
     { done: hasBrand, label: "Compile your first brand", hint: "paste a site URL — 60 seconds", href: "/" },
     { done: verified, label: "Verify your email", hint: "one magic link — makes this workspace recoverable", href: "#account" },
-    { done: hasChannel, label: "Connect a channel", hint: "Bluesky or Mastodon work instantly", href: "#channels" },
-    { done: hasApproved, label: "Approve your first post", hint: "review queue → approve → it ships", href: "/review" },
+    ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "Bluesky or Mastodon work instantly", href: "#channels" }] : []),
+    ...(canReview ? [{ done: hasApproved, label: "Approve your first post", hint: "review queue → approve → it ships", href: "/review" }] : []),
   ];
   const remaining = steps.filter((s) => !s.done).length;
   if (remaining === 0) return null;
@@ -23,7 +27,7 @@ export function OnboardingChecklist({
   return (
     <section className="panel p-5 mt-10 border-signal/40">
       <div className="flex items-baseline justify-between">
-        <p className="eyebrow text-bone">GET TO YOUR FIRST SHIPPED POST</p>
+        <p className="eyebrow text-bone">{canPublish ? "GET TO YOUR FIRST SHIPPED POST" : "FINISH YOUR BRAND FOUNDATION"}</p>
         <span className="font-mono text-[11px] text-muted">{steps.length - remaining}/{steps.length}</span>
       </div>
       <ol className="mt-4 grid sm:grid-cols-2 gap-3">

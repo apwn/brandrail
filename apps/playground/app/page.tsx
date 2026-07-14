@@ -774,7 +774,7 @@ function AccountGate({
   const headline = reason === "download" ? "Your assets. Your workspace." : "Keep the studio open.";
   const pitch =
     reason === "download"
-      ? "One verified email unlocks the full-res zip, saves this brand to your workspace, and makes it all recoverable on any device. No password — we email you a sign-in link."
+      ? "One verified email unlocks the one-click ZIP, saves this brand to your workspace, and makes it all recoverable on any device. No password — we email you a sign-in link."
       : "You've felt the studio — two anonymous restyles. A free account saves this brand and lets you keep creating within the free monthly allowance. No password — we email you a sign-in link.";
 
   return (

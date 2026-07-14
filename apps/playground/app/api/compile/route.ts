@@ -1,18 +1,17 @@
-import { engine, rateLimitCompile, clientIp, isVerifiedUser } from "@/lib/engine";
+import { engine, rateLimitCompile, clientIp, getUserAccess } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
 
-/** Compile a brand. Anonymous: 3/day per IP. Verified account: 10/day — the
- * account always GIVES something the anonymous session doesn't have. */
+/** Compile a brand. Anonymous: 3/day per IP. Verified limits follow the plan. */
 export async function POST(req: Request) {
   const uid = await ensureUserId();
-  const verified = await isVerifiedUser(uid);
-  const max = verified ? 10 : 3;
+  const access = await getUserAccess(uid);
+  const max = access.verified ? ({ free: 10, studio: 50, agency: 250 } as const)[access.plan] : 3;
   const limit = rateLimitCompile(clientIp(req), max);
   if (!limit.ok) {
     return Response.json(
       {
-        error: verified
-          ? "That's 10 compiles today — the rail reopens tomorrow. (Self-host for unlimited runs.)"
+        error: access.verified
+          ? `That's ${max} compiles today on ${access.plan} — the rail reopens tomorrow. (Self-host for unlimited runs.)`
           : "That's 3 compiles today. Sign in (free) for 10/day — or self-host for unlimited runs.",
       },
       { status: 429 },

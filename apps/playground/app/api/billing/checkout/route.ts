@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     "/v0/billing/checkout",
     {
       method: "POST",
-      body: JSON.stringify({ plan, successUrl: `${origin}/dashboard?upgraded=1`, cancelUrl: `${origin}/dashboard` }),
+      body: JSON.stringify({ plan, successUrl: `${origin}/dashboard?upgraded=${plan}`, cancelUrl: `${origin}/dashboard?checkout=cancelled` }),
     },
     uid,
   );
