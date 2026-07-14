@@ -5,6 +5,7 @@ export function OnboardingChecklist({
   hasBrand,
   hasChannel,
   hasApproved,
+  hasScheduled,
   canPublish,
   canReview,
 }: {
@@ -12,14 +13,16 @@ export function OnboardingChecklist({
   hasBrand: boolean;
   hasChannel: boolean;
   hasApproved: boolean;
+  hasScheduled: boolean;
   canPublish: boolean;
   canReview: boolean;
 }) {
   const steps = [
     { done: hasBrand, label: "Compile your first brand", hint: "paste a site URL — 60 seconds", href: "/" },
     { done: verified, label: "Verify your email", hint: "one magic link — makes this workspace recoverable", href: "#account" },
-    ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "Bluesky or Mastodon work instantly", href: "#channels" }] : []),
-    ...(canReview ? [{ done: hasApproved, label: "Approve your first post", hint: "review queue → approve → it ships", href: "/review" }] : []),
+    ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "direct or OAuth — credentials stay encrypted", href: "#channels" }] : []),
+    ...(canReview ? [{ done: hasApproved, label: "Approve your first asset", hint: "make the judgment once; the rail remembers", href: "/review" }] : []),
+    ...(canPublish ? [{ done: hasScheduled, label: "Schedule your first post", hint: "place it on the calendar and let the rail ship", href: "/calendar" }] : []),
   ];
   const remaining = steps.filter((s) => !s.done).length;
   if (remaining === 0) return null;

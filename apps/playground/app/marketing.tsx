@@ -79,7 +79,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             Ready to publish.
           </h1>
           <p className="mt-6 max-w-[650px] text-[17px] leading-relaxed text-muted sm:text-lg">
-            Paste any website. Brandrail learns the brand, writes and renders social assets, lets you review them, and publishes to Bluesky or Mastodon—or hands the work to your agent through the API.
+            Paste any website. Brandrail learns the brand, writes and renders social assets, moves them through review, and schedules them across your channels—or hands the whole rail to your agent through the API.
           </p>
           <div className="mt-7 max-w-[650px]">
             <UrlBox id="hero-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} />
@@ -250,12 +250,12 @@ function WorkflowSection() {
     ["01", "Paste any website", "Brandrail reads the live site, real fonts, palette, imagery and existing voice."],
     ["02", "Review the BrandSpec", "Confirm what is allowed, what is banned, and how the brand should compose a page."],
     ["03", "Give it a brief", "A launch, offer, hiring post or weekly theme becomes copy and format-ready creative."],
-    ["04", "Approve and publish", "Edit, approve or regenerate the queue, then hand the approved set to your scheduler or agent."],
+    ["04", "Approve, schedule, learn", "Move approved work onto the calendar, publish to connected channels, and feed performance into the next brief."],
   ];
   return (
     <section id="workflow" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead eyebrow="The workflow" title="From website to review queue in one rail." body="Brandrail does not replace creative direction. It turns the direction you already own into a repeatable production system." />
+        <SectionHead eyebrow="The workflow" title="From website to measured campaign in one rail." body="Brandrail does not replace creative direction. It turns the direction you already own into a repeatable production system." />
         <div className="relative grid gap-8 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           <div className="absolute left-0 right-0 top-3 hidden h-px bg-hairline xl:block" aria-hidden />
           {steps.map(([number, title, body]) => (
@@ -371,12 +371,12 @@ function ComparisonSection() {
     ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
     ["Writes and renders social content", "Separate tools", "—", "✓"],
     ["Multi-brand approval queue", "—", "—", "✓"],
-    ["Direct publish + API handoff", "—", "Distribution", "Bluesky · Mastodon · API"],
+    ["Calendar, publishing + feedback", "—", "Distribution", "✓ + API"],
   ];
   return (
     <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead eyebrow="Where Brandrail fits" title="Design tools create. Schedulers distribute. Brandrail runs the production line between them." body="Keep the tools you already like. Brandrail turns the brand into enforceable rules, creates the assets, and gives you one place to approve them." />
+        <SectionHead eyebrow="Where Brandrail fits" title="Design tools create. Schedulers distribute. Brandrail runs the production line between them." body="Keep the tools you already like. Brandrail turns the brand into enforceable rules, creates the assets, and connects approval, calendar and performance in one workflow." />
         <div className="overflow-x-auto border border-hairline">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead className="bg-panel font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
@@ -416,7 +416,7 @@ function PricingSection() {
       price: "$49",
       suffix: "/ month",
       badge: "MOST POPULAR",
-      items: ["1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Planner, batch review + autopilot", "Direct publishing + API keys"],
+      items: ["1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Planner, campaigns + batch review", "Visual calendar + performance loop", "Direct publishing + API keys"],
       cta: "Start with Studio",
       href: "/login?plan=studio",
     },
@@ -425,7 +425,7 @@ function PricingSection() {
       audience: "For teams managing clients",
       price: "$199",
       suffix: "/ month",
-      items: ["10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats with scoped access", "Multi-brand approvals + client reports"],
+      items: ["10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats with scoped access", "Shareable client approvals + alerts", "Multi-brand campaigns + client reports"],
       cta: "Start an agency pilot",
       href: "/login?plan=agency",
     },
@@ -479,10 +479,10 @@ function PricingSection() {
 const FAQ = [
   ["Is Brandrail for one brand or many?", "Both. Free is for proving one brand. Studio is built for creators, founders and in-house marketers running up to three. Agency adds 25 active brands, reviewer seats and client reporting."],
   ["Does Brandrail replace designers or Canva?", "No. Designers still own the system, campaigns and judgment. Canva and Figma remain useful for bespoke design work; Brandrail removes repeat production and makes the rules your team defines enforceable across routine content."],
-  ["How long does setup take?", "The live URL compile returns an initial BrandSpec in about 60 seconds. You can review uncertain fields, refine the rules and start rendering before connecting a scheduler or inviting a team."],
+  ["How long does setup take?", "The live URL compile returns an initial BrandSpec in about 60 seconds. You can review uncertain fields, refine the rules and start rendering before connecting a channel or inviting a team."],
   ["What happens when the website does not contain the full brand system?", "The compiler marks low-confidence fields for review. Your team can correct colors, voice, imagery and constraints before the spec is used. Brandrail should expose uncertainty, not pretend it has taste it could not observe."],
   ["What exactly is enforced?", "The renderer checks the BrandSpec rules it can measure: typography, color roles, contrast, density, spacing, logo behavior, format dimensions, banned words and other configured limits. Human approval still owns factual accuracy and creative judgment."],
-  ["Do I have to replace my scheduler?", "No. Bluesky and Mastodon publishing are available directly today. For other networks, export the approved assets or hand them to your existing workflow through the API; additional native connections are not advertised until they are live."],
+  ["Do I have to replace my scheduler?", "No. Use Brandrail’s visual calendar or keep your current workflow through the API. Bluesky and Mastodon connect directly; LinkedIn, Instagram, Facebook, X and TikTok become available when the corresponding approved platform app credentials are configured."],
   ["Can developers and agents use it directly?", "Yes. Studio and Agency include workspace API keys for the same portable BrandSpec and deterministic renderer through REST, MCP and CLI. The open engine can also be self-hosted."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable, and the SDK, CLI, MCP server and spec format are open. Your brand system is not trapped inside a proprietary editor."],
 ];

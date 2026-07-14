@@ -11,6 +11,7 @@ import { QueueCard } from "./queue-card";
 import { BrandActions } from "./brand-actions";
 import { CheckoutIntent } from "./checkout-intent";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { ShareBatchButton } from "./share-batch-button";
 import { redirect } from "next/navigation";
 
 type Usage = {
@@ -32,21 +33,22 @@ async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
   }
 }
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string; checkout?: string; upgraded?: string }> }) {
-  const { welcome, checkout, upgraded } = await searchParams;
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string; checkout?: string; upgraded?: string; connected?: string; channelError?: string }> }) {
+  const { welcome, checkout, upgraded, connected, channelError } = await searchParams;
   const uid = await getUserId();
 
   if (!uid) {
     redirect("/login");
   }
 
-  const [usage, specs, batches, channels, renders, workspaces] = await Promise.all([
+  const [usage, specs, batches, channels, renders, workspaces, scheduled] = await Promise.all([
     load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, features: [] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
     load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }),
     load<{ renders: Array<{ id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string; width: number; height: number }> } }> }>("/v0/renders?limit=12", uid, { renders: [] }),
     load<{ workspaces: Array<{ id: string; label: string; role: "owner" | "reviewer"; active: boolean }> }>("/v0/me/workspaces", uid, { workspaces: [] }),
+    load<{ posts: Array<{ status: string }> }>("/v0/scheduled", uid, { posts: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -68,6 +70,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {workspaces.workspaces.length > 1 && <WorkspaceSwitcher workspaces={workspaces.workspaces} />}
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
+          {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
+          {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
+          {owner && has("planner") && <a href="/analytics" className="hover:text-bone">SIGNAL</a>}
         </nav>
       </header>
 
@@ -77,6 +82,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {welcome === "back" ? "Welcome back — your workspace followed you to this device." : welcome === "upgraded" ? "Plan active — the full production workflow is ready." : "You're in. This workspace is now yours on any device."}
         </div>
       )}
+
+      {connected && <div className="panel border-green/50 mt-4 px-4 py-3 text-sm"><span className="font-mono text-green">✓</span> {connected} connected. It is ready in the calendar.</div>}
+      {channelError && <div className="panel border-signal/50 mt-4 px-4 py-3 text-sm text-signal">Channel connection failed: {channelError}</div>}
 
       <CheckoutIntent checkout={checkout} upgraded={upgraded} currentPlan={usage.user.plan} />
 
@@ -92,6 +100,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         hasBrand={specs.specs.length > 0}
         hasChannel={channels.channels.length > 0}
         hasApproved={batches.batches.some((b) => b.counts.approved > 0)}
+        hasScheduled={scheduled.posts.some((post) => post.status !== "cancelled")}
         canPublish={has("publishing")}
         canReview={has("batchReview")}
       />}
@@ -196,15 +205,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         ) : (
           <div className="flex flex-col gap-2">
             {batches.batches.map((b) => (
-              <a key={b.id} href={`/review?batch=${encodeURIComponent(b.id)}`} className="panel px-4 py-3 flex items-center justify-between hover:border-bone transition-colors duration-mech">
+              <div key={b.id} className="panel px-4 py-3 flex items-center justify-between hover:border-bone transition-colors duration-mech">
                 <div>
-                  <p className="text-bone">{b.title}</p>
+                  <a href={`/review?batch=${encodeURIComponent(b.id)}`} className="text-bone hover:text-signal">{b.title} →</a>
                   <p className="font-mono text-[11px] text-muted">{b.createdAt.slice(0, 10)}</p>
+                  {owner && has("team") && <ShareBatchButton batchId={b.id} />}
                 </div>
                 <p className="font-mono text-xs text-muted">
                   <span className="text-signal">{b.counts.approved}</span> approved · {b.counts.pending} pending · {b.counts.flagged} flagged
                 </p>
-              </a>
+              </div>
             ))}
           </div>
         )}

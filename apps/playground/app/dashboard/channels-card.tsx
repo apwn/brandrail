@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 
 type Channel = { id: string; platform: string; handle: string };
+const OAUTH = [
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "meta", label: "Facebook" },
+  { id: "instagram", label: "Instagram" },
+  { id: "x", label: "X" },
+  { id: "tiktok", label: "TikTok" },
+] as const;
 
 /** Connect publishing channels. Bluesky works today (app-password auth); the
  * managed platforms show as "needs OAuth app" until credentials are configured. */
@@ -108,7 +115,7 @@ export function ChannelsCard() {
           ) : (
             <>Instance URL + an access token (your instance → Settings → Development → new application).</>
           )}
-          <> LinkedIn, X, Meta &amp; TikTok need a registered app — coming.</>
+          <> Use the OAuth connections below for LinkedIn, Instagram, Facebook, X and TikTok.</>
         </p>
         <div className="flex flex-wrap gap-2">
           {platform === "mastodon" && (
@@ -119,6 +126,17 @@ export function ChannelsCard() {
           <button className="btn !py-2" onClick={connect} disabled={busy}>{busy ? "Connecting…" : "Connect"}</button>
         </div>
         {error && <p className="text-signal font-mono text-xs mt-2">{error}</p>}
+        <div className="mt-4 border-t border-hairline pt-4">
+          <p className="eyebrow text-bone mb-3">OAUTH CHANNELS</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {OAUTH.map((item) => {
+              const live = Boolean(platforms[item.id]);
+              const connected = channels.some((channel) => channel.platform === item.id);
+              return live ? <a key={item.id} href={`/api/channels/oauth/${item.id}/start`} className="btn-ghost !px-3 !py-2 text-xs">{connected ? `Reconnect ${item.label}` : `Connect ${item.label}`} →</a> : <div key={item.id} className="border border-hairline px-3 py-2 font-mono text-[10px] text-muted">{item.label} · ADD APP KEYS</div>;
+            })}
+          </div>
+          <p className="font-mono text-[10px] text-muted mt-3">OAuth channels become available automatically when their approved platform app credentials are configured.</p>
+        </div>
       </div>
     </section>
   );

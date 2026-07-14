@@ -43,6 +43,27 @@ export interface RenderHistoryEntry {
   manifest: RenderResponse["manifest"] & { assets: RenderAssetRef[] };
 }
 
+export interface ScheduledPost {
+  id: string; channelIds: string[]; text: string; renderId?: string; imageFiles: string[];
+  scheduledAt: string; status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
+  metrics?: { impressions?: number; engagements?: number; fetchedAt?: string };
+}
+export interface Channel { id: string; platform: string; handle: string; service?: string; connectedAt: string }
+
+export interface Campaign {
+  id: string; name: string; objective: string; status: "draft" | "active" | "complete";
+  startAt?: string; endAt?: string; brandIds: string[]; batchIds: string[]; postIds: string[];
+  createdAt: string; updatedAt: string;
+  progress: { batches: number; assets: number; approved: number; posts: number; scheduled: number; published: number; impressions: number; engagements: number };
+}
+
+export interface AnalyticsSummary {
+  totals: { posts: number; scheduled: number; published: number; failed: number; measured: number; impressions: number; engagements: number; engagementRate: number | null };
+  byChannel: Array<{ platform: string; handle: string; posts: number; impressions: number; engagements: number }>;
+  byMonth: Array<{ month: string; posts: number; impressions: number; engagements: number }>;
+  insight: string;
+}
+
 export class BrandrailError extends Error {
   readonly status: number;
   readonly violations: Violation[];
@@ -168,6 +189,38 @@ export class Brandrail {
       method: "POST",
       body: JSON.stringify({ subject }),
     });
+  }
+
+  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string }): Promise<{ scheduled: boolean; post: ScheduledPost; deduplicated?: boolean }> {
+    return this.request("/v0/publish", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  async listChannels(): Promise<Channel[]> {
+    const { channels } = await this.request<{ channels: Channel[] }>("/v0/channels");
+    return channels;
+  }
+
+  async listScheduled(): Promise<ScheduledPost[]> {
+    const { posts } = await this.request<{ posts: ScheduledPost[] }>("/v0/scheduled");
+    return posts;
+  }
+
+  async listCampaigns(): Promise<Campaign[]> {
+    const { campaigns } = await this.request<{ campaigns: Campaign[] }>("/v0/campaigns");
+    return campaigns;
+  }
+
+  async createCampaign(input: { name: string; objective: string; status?: Campaign["status"]; startAt?: string; endAt?: string; brandIds?: string[]; batchIds?: string[]; postIds?: string[] }): Promise<Campaign> {
+    const { campaign } = await this.request<{ campaign: Campaign }>("/v0/campaigns", { method: "POST", body: JSON.stringify(input) });
+    return campaign;
+  }
+
+  analytics(): Promise<AnalyticsSummary> {
+    return this.request("/v0/analytics");
+  }
+
+  refreshAnalytics(): Promise<{ published: number; updated: number }> {
+    return this.request("/v0/analytics/refresh", { method: "POST" });
   }
 
   /** Download a rendered asset by its RenderAssetRef url. */

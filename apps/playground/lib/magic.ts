@@ -106,3 +106,33 @@ export async function sendMagicLink(email: string, link: string, options?: { sub
     return { sent: false, error: (e as Error).message };
   }
 }
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] ?? character);
+}
+
+/** Best-effort operational email. Product actions never fail because the mail
+ * provider is absent or temporarily unavailable. */
+export async function sendWorkspaceNotification(input: { to: string; subject: string; headline: string; detail: string; link: string }): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    console.log(`[brandrail] notification for ${input.to}: ${input.subject} — ${input.link}`);
+    return false;
+  }
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.MAIL_FROM ?? "Brandrail <notifications@brandrail.dev>",
+        to: [input.to],
+        subject: input.subject,
+        html: `<p style="font:12px monospace;letter-spacing:.12em;color:#ff4d00">CLIENT REVIEW</p><h2>${escapeHtml(input.headline)}</h2><p>${escapeHtml(input.detail)}</p><p><a href="${escapeHtml(input.link)}" style="display:inline-block;padding:12px 20px;background:#ff4d00;color:#111;font-weight:bold;text-decoration:none">Open review →</a></p>`,
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}

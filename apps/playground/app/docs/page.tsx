@@ -65,6 +65,11 @@ POST /v0/brands/:brand/background  generate + pin brand imagery
 POST /v0/batches              many briefs → review queue
 POST /v0/plan                 AI planner: brand → proposed briefs
 POST /v0/publish              text + images → connected channels
+GET  /v0/scheduled            calendar posts + delivery state
+GET  /v0/campaigns            campaign workspaces + live progress
+POST /v0/campaigns            objective + linked brands/batches/posts
+GET  /v0/analytics            channel, post and six-month performance
+POST /v0/analytics/refresh    pull fresh metrics from connected networks
 GET  /v0/reports/:brand       white-label HTML report`}</Code>
       <p className="text-muted text-sm mt-3 leading-relaxed">
         Renders that would violate the spec return <code className="text-bone">422</code> with structured violations —
@@ -90,6 +95,10 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
 node packages/cli/dist/index.js compile https://acme.com
 node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
 node packages/cli/dist/index.js spec diff acme@1 acme@2
+node packages/cli/dist/index.js channels
+node packages/cli/dist/index.js schedule "Launch day" --channels ch_123 --at 2026-08-01T15:00:00Z
+node packages/cli/dist/index.js campaign create --name "Q3 launch" --objective "Generate 20 demos"
+node packages/cli/dist/index.js analytics --refresh
 # exit codes: 0 ok · 2 spec violation · 3 low confidence`}</Code>
 
       <H2 id="spec">The BrandSpec</H2>
@@ -111,7 +120,7 @@ node packages/cli/dist/index.js spec diff acme@1 acme@2
         <p className="text-muted text-sm mt-2 leading-relaxed">
           npm packages (<code className="text-bone">@brandrail/mcp</code>, <code className="text-bone">brandrail</code> CLI,{" "}
           <code className="text-bone">@brandrail/sdk</code>) ship with the first public release; until then run them from
-          the <a href="https://github.com/apwn/brandrail" className="text-signal">repo</a>. LinkedIn/X/Meta/TikTok
+          the <a href="https://github.com/apwn/brandrail" className="text-signal">repo</a>. LinkedIn/Instagram/Facebook/X/TikTok
           publishing requires per-platform app registration on your instance; Bluesky and Mastodon work out of the box.
         </p>
       </div>

@@ -214,4 +214,81 @@ spec
     }
   });
 
+program.command("channels").description("list connected publishing channels and their IDs").action(async () => {
+  try {
+    const channels = await client().listChannels();
+    if (isJson()) console.log(JSON.stringify({ ok: true, channels }));
+    else if (!channels.length) console.log("No channels connected. Connect one in the Brandrail workspace.");
+    else for (const channel of channels) console.log(`${channel.id}  ${channel.platform} · ${channel.handle}`);
+  } catch (e) { handleError(e); }
+});
+
+program.command("schedule")
+  .description("publish now or add a post to the calendar")
+  .argument("<text>", "post caption")
+  .requiredOption("--channels <ids>", "comma-separated channel IDs (see: brandrail channels)")
+  .option("--at <iso>", "ISO publish time; omit to publish now")
+  .option("--render <id>", "saved render ID")
+  .option("--images <files>", "comma-separated filenames from the saved render")
+  .option("--idempotency-key <key>", "deduplicate retries")
+  .action(async (text: string, opts: { channels: string; at?: string; render?: string; images?: string; idempotencyKey?: string }) => {
+    try {
+      const channelIds = opts.channels.split(",").map((value) => value.trim()).filter(Boolean);
+      if (!channelIds.length) fail("at least one channel ID is required");
+      if (opts.at && !Number.isFinite(Date.parse(opts.at))) fail("--at must be a valid ISO date");
+      const result = await client().schedule({ text, channelIds, ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.render ? { renderId: opts.render } : {}), ...(opts.images ? { imageFiles: opts.images.split(",").map((value) => value.trim()).filter(Boolean) } : {}), ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}) });
+      if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else console.log(`${result.post.status}  ${result.post.id}  ${result.post.scheduledAt}${result.deduplicated ? "  (deduplicated)" : ""}`);
+    } catch (e) { handleError(e); }
+  });
+
+program.command("calendar").description("list scheduled and published posts").option("--status <status>", "filter by status").action(async (opts: { status?: string }) => {
+  try {
+    const posts = (await client().listScheduled()).filter((post) => !opts.status || post.status === opts.status);
+    if (isJson()) console.log(JSON.stringify({ ok: true, posts }));
+    else if (!posts.length) console.log("No matching calendar posts.");
+    else for (const post of posts) console.log(`${post.scheduledAt}  ${post.status.padEnd(10)}  ${post.id}  ${post.text.slice(0, 72)}`);
+  } catch (e) { handleError(e); }
+});
+
+const campaign = program.command("campaign").description("manage campaign workspaces");
+campaign.command("list").description("list campaigns with live progress").action(async () => {
+  try {
+    const campaigns = await client().listCampaigns();
+    if (isJson()) console.log(JSON.stringify({ ok: true, campaigns }));
+    else if (!campaigns.length) console.log("No campaigns yet.");
+    else for (const row of campaigns) console.log(`${row.id}  ${row.status.padEnd(8)}  ${row.name}  ${row.progress.approved}/${row.progress.assets} approved · ${row.progress.published} live`);
+  } catch (e) { handleError(e); }
+});
+campaign.command("create")
+  .description("create a campaign")
+  .requiredOption("--name <name>", "campaign name")
+  .requiredOption("--objective <text>", "objective and success condition")
+  .option("--brands <names>", "comma-separated brand names")
+  .option("--batches <ids>", "comma-separated batch IDs")
+  .option("--posts <ids>", "comma-separated scheduled post IDs")
+  .action(async (opts: { name: string; objective: string; brands?: string; batches?: string; posts?: string }) => {
+    try {
+      const list = (value?: string) => value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
+      const result = await client().createCampaign({ name: opts.name, objective: opts.objective, brandIds: list(opts.brands), batchIds: list(opts.batches), postIds: list(opts.posts) });
+      if (isJson()) console.log(JSON.stringify({ ok: true, campaign: result }));
+      else console.log(`${result.id}  ${result.name}  created`);
+    } catch (e) { handleError(e); }
+  });
+
+program.command("analytics").description("show the performance feedback loop").option("--refresh", "pull fresh platform metrics first").action(async (opts: { refresh?: boolean }) => {
+  try {
+    const refreshed = opts.refresh ? await client().refreshAnalytics() : undefined;
+    const data = await client().analytics();
+    if (isJson()) console.log(JSON.stringify({ ok: true, refreshed, analytics: data }));
+    else {
+      if (refreshed) console.log(`refreshed  ${refreshed.updated}/${refreshed.published} published posts`);
+      console.log(`published  ${data.totals.published}`);
+      console.log(`reach      ${data.totals.impressions}`);
+      console.log(`engaged    ${data.totals.engagements}`);
+      console.log(`signal     ${data.insight}`);
+    }
+  } catch (e) { handleError(e); }
+});
+
 program.parseAsync().catch((e) => handleError(e));

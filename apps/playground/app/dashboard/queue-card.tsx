@@ -6,7 +6,7 @@ interface QueuedPost {
   id: string;
   text: string;
   scheduledAt: string;
-  status: "scheduled" | "published" | "failed";
+  status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
   results?: Array<{ ok: boolean; url?: string; error?: string }>;
 }
 
@@ -38,7 +38,7 @@ export function QueueCard() {
 
   return (
     <section className="panel p-5 mt-4">
-      <p className="eyebrow text-bone">QUEUE</p>
+      <div className="flex items-center justify-between"><p className="eyebrow text-bone">QUEUE</p><a href="/calendar" className="font-mono text-[10px] text-signal hover:text-bone">OPEN CALENDAR →</a></div>
       {upcoming.length > 0 && (
         <ul className="mt-3 divide-y divide-hairline">
           {upcoming.map((p) => (

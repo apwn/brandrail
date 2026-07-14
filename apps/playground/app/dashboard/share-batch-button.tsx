@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react";
+export function ShareBatchButton({ batchId }: { batchId: string }) { const [state,setState]=useState("Share with client"); async function share(){setState("Creating…");const res=await fetch("/api/share",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({batchId})});const body=await res.json() as {url?:string;error?:string};if(res.ok&&body.url){await navigator.clipboard.writeText(body.url);setState("Link copied ✓");setTimeout(()=>setState("Share with client"),2200);}else setState(body.error??"Could not share");} return <button className="font-mono text-[10px] text-signal hover:text-bone" onClick={(e)=>{e.preventDefault();e.stopPropagation();void share();}}>{state}</button>; }
