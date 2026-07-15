@@ -8,5 +8,5 @@ export async function POST(req: Request) {
 }
 
 export function GET() {
-  return Response.json({ service: "brandrail-mcp", transport: "streamable-http", auth: "Authorization: Bearer <workspace key>" });
+  return new Response(null, { status: 405, headers: { Allow: "POST", "cache-control": "no-store" } });
 }

@@ -29,11 +29,29 @@ interface SlideCopy {
   badge?: string;
   rating?: string;
 }
+interface ArtDirectionCandidate {
+  archetype: string;
+  score: number;
+  semanticScore?: number;
+  visualScore?: number;
+  valid?: boolean;
+  rejectedBy?: string[];
+  reasons: string[];
+}
+interface ArtDirectionDecision {
+  selected: string;
+  intent: string;
+  candidates: ArtDirectionCandidate[];
+  rationale: string;
+}
 interface RenderResponse {
   id: string;
   specVersion: number;
   assets: AssetRef[];
-  manifest: { warnings: string[] };
+  manifest: {
+    warnings: string[];
+    artDirection?: Record<string, ArtDirectionDecision>;
+  };
   plan?: Record<string, string>;
   copy?: Record<string, SlideCopy[]>;
   error?: string;
@@ -41,6 +59,19 @@ interface RenderResponse {
 }
 
 const SUGGESTED_BRIEFS = ["Summer promotion", "We're hiring", "Announce our new product"];
+
+async function readApiJson<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      res.ok
+        ? "The server returned an unreadable response. Please retry."
+        : `The request failed (${res.status}). Please retry in a moment.`,
+    );
+  }
+}
 
 // the studio's template list is the spec's shared catalog — one source of truth
 const ARCHETYPES = Object.keys(ARCHETYPE_INFO);
@@ -101,7 +132,7 @@ export default function Playground() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: url.trim() }),
       });
-      const body = (await res.json()) as CompileResponse;
+      const body = await readApiJson<CompileResponse>(res);
       if (!res.ok) throw new Error(body.error ?? "compile failed");
       setCompiled(body);
       setEdits({});
@@ -142,7 +173,7 @@ export default function Playground() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ brand: spec.meta.name, patch }),
     });
-    const body = (await res.json()) as { spec?: BrandSpec; error?: string; issues?: Array<{ path: string; message: string }> };
+    const body = await readApiJson<{ spec?: BrandSpec; error?: string; issues?: Array<{ path: string; message: string }> }>(res);
     if (!res.ok) {
       throw new Error(body.issues?.[0] ? `${body.issues[0].path}: ${body.issues[0].message}` : (body.error ?? "edit rejected"));
     }
@@ -163,7 +194,7 @@ export default function Playground() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ brand, brief: chosenBrief }),
       });
-      const body = (await res.json()) as RenderResponse;
+      const body = await readApiJson<RenderResponse>(res);
       if (!res.ok) {
         throw new Error(
           body.violations?.length
@@ -190,7 +221,6 @@ export default function Playground() {
       setGate("restyle");
       return;
     }
-    setRestyles((n) => n + 1);
     setError(null);
     setRestyling(format);
     try {
@@ -205,7 +235,7 @@ export default function Playground() {
           ...(copyOverride ? { copy: { [format]: copyOverride } } : {}),
         }),
       });
-      const body = (await res.json()) as RenderResponse;
+      const body = await readApiJson<RenderResponse>(res);
       if (!res.ok) {
         throw new Error(
           body.violations?.length
@@ -226,8 +256,18 @@ export default function Playground() {
           assets: merged,
           plan: { ...(prev.plan ?? {}), [format]: archetype },
           copy: { ...(prev.copy ?? {}), [format]: body.copy?.[format] ?? prev.copy?.[format] ?? [] },
+          manifest: {
+            ...prev.manifest,
+            artDirection: {
+              ...(prev.manifest.artDirection ?? {}),
+              ...(body.manifest.artDirection?.[format]
+                ? { [format]: body.manifest.artDirection[format] }
+                : {}),
+            },
+          },
         };
       });
+      if (!verified) setRestyles((n) => n + 1);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -601,6 +641,7 @@ function ResultGrid({
             format={format}
             render={render}
             archetype={render.plan?.[format] ?? ""}
+            direction={render.manifest.artDirection?.[format]}
             copy={render.copy?.[format] ?? []}
             busy={restyling === format}
             onRestyle={onRestyle}
@@ -617,7 +658,7 @@ function ResultGrid({
       <div className="relative mt-10 overflow-hidden border border-signal/60 bg-panel p-6 sm:p-8">
         <div className="surface-grid absolute inset-0 opacity-20" aria-hidden />
         <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-          <div><p className="eyebrow text-signal">DON&rsquo;T REBUILD THIS NEXT WEEK</p><h3 className="mt-3 font-display text-2xl font-bold">Give this BrandSpec to your agent.</h3><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Connect ChatGPT, Claude, Codex or Cursor. Ask for the campaign outcome; Brandrail keeps the same identity, pauses for your approval and records every action.</p><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-bone"><span>✓ 1 FREE CONNECTION</span><span>✓ 14 MCP TOOLS</span><span>✓ HUMAN APPROVAL</span></div></div>
+          <div><p className="eyebrow text-signal">DON&rsquo;T REBUILD THIS NEXT WEEK</p><h3 className="mt-3 font-display text-2xl font-bold">Give this BrandSpec to your agent.</h3><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Connect a compatible agent. Ask for the campaign outcome; Brandrail keeps the identity, returns inspectable assets, pauses for approval and records every action.</p><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-bone"><span>✓ 1 FREE CONNECTION</span><span>✓ 29 MCP TOOLS</span><span>✓ SCOPED AUTHORITY</span></div></div>
           <a className="btn whitespace-nowrap" href={unlocked ? "/dashboard#agent" : "/login?agent=1"}>Connect your agent →</a>
         </div>
       </div>
@@ -631,6 +672,7 @@ function StudioCard({
   format,
   render,
   archetype,
+  direction,
   copy,
   busy,
   onRestyle,
@@ -638,6 +680,7 @@ function StudioCard({
   format: string;
   render: RenderResponse;
   archetype: string;
+  direction?: ArtDirectionDecision;
   copy: SlideCopy[];
   busy: boolean;
   onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
@@ -676,7 +719,10 @@ function StudioCard({
         ))}
       </div>
       <div className="flex items-center justify-between px-3 py-2 border-t border-hairline">
-        <span className="font-mono text-[11px] text-muted">{format} · {archetype}</span>
+        <span className="font-mono text-[11px] text-muted">
+          {format} · {archetype}
+          {direction?.intent && direction.intent !== "manual" ? ` · auto:${direction.intent}` : ""}
+        </span>
         <button
           className="font-mono text-[11px] text-muted hover:text-signal transition-colors duration-mech"
           onClick={() => setOpen((v) => !v)}
@@ -684,6 +730,11 @@ function StudioCard({
           {open ? "close ✕" : "edit ▸"}
         </button>
       </div>
+      {direction?.rationale && (
+        <p className="border-t border-hairline px-3 py-2 font-mono text-[10px] leading-relaxed text-muted">
+          {direction.rationale}
+        </p>
+      )}
       {open && (
         <div className="px-3 pb-3 pt-1 border-t border-hairline flex flex-col gap-3">
           <label className="eyebrow block">template</label>
@@ -703,6 +754,28 @@ function StudioCard({
               );
             })}
           </select>
+          {direction && direction.candidates.length > 1 && (
+            <div>
+              <p className="eyebrow mb-2">auto-ranked</p>
+              <div className="flex flex-wrap gap-1.5">
+                {direction.candidates.map((candidate) => (
+                  <button
+                    key={candidate.archetype}
+                    type="button"
+                    disabled={candidate.valid === false}
+                    className={`border px-2 py-1 font-mono text-[10px] disabled:cursor-not-allowed disabled:opacity-40 ${arch === candidate.archetype ? "border-signal text-signal" : "border-hairline text-muted hover:text-bone"}`}
+                    onClick={() => setArch(candidate.archetype)}
+                    title={[...candidate.reasons, ...(candidate.rejectedBy ?? [])].join("; ")}
+                  >
+                    {candidate.archetype}{" "}
+                    {candidate.valid === false
+                      ? "rejected"
+                      : `${candidate.score}${candidate.visualScore !== undefined ? ` · ${candidate.visualScore}v` : ""}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {!isCarousel && draft[0] && (
             <div className="flex flex-col gap-2">
               <label className="eyebrow block">copy</label>

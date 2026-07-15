@@ -42,7 +42,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     redirect("/login");
   }
 
-  const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit] = await Promise.all([
+  const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit, runs] = await Promise.all([
     load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
@@ -52,6 +52,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     load<{ posts: Array<{ status: string }> }>("/v0/scheduled", uid, { posts: [] }),
     load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
     load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
+    load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -113,6 +114,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       />}
 
       {owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} />}
+      {owner && has("agentAccess") && runs.runs.length > 0 && <section className="mt-4 border border-hairline bg-panel p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-4"><div><p className="eyebrow text-signal">DURABLE AGENT RUNS</p><h2 className="font-display text-xl font-bold mt-2">Work that survives the chat.</h2></div><span className="font-mono text-[10px] text-muted">LATEST {runs.runs.length}</span></div>
+        <div className="mt-4 divide-y divide-hairline">
+          {runs.runs.map((run) => <article key={run.id} className="grid gap-3 py-3 sm:grid-cols-[1fr_120px_110px] sm:items-center"><div><p className="text-sm text-bone">{run.objective}</p><p className="font-mono text-[10px] text-muted mt-1">{run.brand ?? "brand pending"} · {run.id}</p></div><div><p className={`font-mono text-[10px] ${run.status === "failed" ? "text-signal" : run.status === "completed" ? "text-green" : "text-bone"}`}>{run.status.replace("_", " ").toUpperCase()}</p><p className="font-mono text-[9px] text-muted mt-1">{run.currentStep}</p></div><div><div className="h-1 bg-hairline"><div className="h-full bg-signal" style={{ width: `${Math.max(2, run.progress)}%` }} /></div><p className="font-mono text-[9px] text-muted mt-1 text-right">{run.progress}%</p></div></article>)}
+        </div>
+      </section>}
       {owner && has("webhooks") && <WebhooksCard />}
 
       {/* account + usage */}

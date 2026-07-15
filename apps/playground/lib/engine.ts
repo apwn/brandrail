@@ -25,6 +25,36 @@ export async function engine(path: string, init: RequestInit = {}, userId?: stri
   });
 }
 
+/** Call the engine without leaking transport failures or non-JSON upstream
+ * responses into a browser route. Product routes should always return an
+ * actionable JSON error, even while the engine is restarting or times out. */
+export async function engineJson(
+  path: string,
+  init: RequestInit = {},
+  userId?: string,
+): Promise<{ status: number; data: unknown }> {
+  try {
+    const res = await engine(path, init, userId);
+    const data = await res.json().catch(() => ({
+      error: res.ok
+        ? "The brand engine returned an unreadable response. Please retry."
+        : "The brand engine could not complete this request. Please retry.",
+    }));
+    return { status: res.status, data };
+  } catch (error) {
+    const timedOut = error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
+    return {
+      status: 503,
+      data: {
+        error: timedOut
+          ? "The brand engine timed out. Try a simpler public page or retry in a moment."
+          : "The brand engine is temporarily unavailable. Your allowance was not used—please retry in a moment.",
+      },
+    };
+  }
+}
+
 /** Pass a self-serve workspace key through to the engine. Used by the hosted
  * stateless MCP endpoint; unlike `engine`, this must never substitute the
  * service credential or a browser-session identity. */
@@ -32,7 +62,7 @@ export async function agentEngine(path: string, apiKey: string, init: RequestIni
   if (!/^brk_[a-f0-9]{40}$/.test(apiKey)) return Response.json({ error: "invalid API key" }, { status: 401 });
   return fetch(`${ENGINE_URL}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", "x-api-key": apiKey, ...(init.headers ?? {}) },
+    headers: { "content-type": "application/json", "x-api-key": apiKey, "x-brandrail-client": "hosted-mcp/0.3", ...(init.headers ?? {}) },
     signal: init.signal ?? AbortSignal.timeout(120_000),
   });
 }
@@ -54,6 +84,14 @@ export function rateLimitCompile(ip: string, max = 3): { ok: boolean; remaining:
   if (entry.count >= max) return { ok: false, remaining: 0 };
   entry.count += 1;
   return { ok: true, remaining: max - entry.count };
+}
+
+/** Return a reserved compile when the upstream request produced no value. */
+export function refundCompile(ip: string): void {
+  const entry = compileHits.get(ip);
+  if (!entry) return;
+  entry.count = Math.max(0, entry.count - 1);
+  if (entry.count === 0) compileHits.delete(ip);
 }
 
 export function clientIp(req: Request): string {

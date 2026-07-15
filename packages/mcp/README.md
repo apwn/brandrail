@@ -1,26 +1,34 @@
 # @brandrail/mcp
 
-The Brandrail MCP server. Gives any MCP-capable agent the full controlled content lifecycle:
+The Brandrail MCP server. Gives compatible agents the full controlled content lifecycle through the same 29 tools locally and remotely:
 
 | Tool | What it does | Comes back |
 |---|---|---|
 | `compile_brand(url)` | website → stored BrandSpec | ~150-token summary + low-confidence fields |
 | `list_templates()` | the 10 brand-locked templates + what each is best for | readable list (~250 tokens) |
 | `render_assets(brand, brief, formats?, archetype?)` | brief → finished brand-locked PNGs on disk | file paths (~100 tokens) |
-| `get_spec(brand, version?)` | fetch the full spec | canonical JSON (~600–1200 tokens) |
-| `diff_spec(brand, from, to)` | semantic diff between versions | readable diff (~50–200 tokens) |
+| `get_brand(brand, version?)` | fetch the full spec | canonical JSON (~600–1200 tokens) |
+| `diff_brand_spec(brand, from, to)` | semantic diff between versions | readable diff (~50–200 tokens) |
 | `list_brands()` | inspect workspace brands | names + versions |
 | `plan_campaign(objective, …)` | dry-run before mutation | blockers + execution steps |
+| `start_campaign_run(…)` | create reconnect-safe campaign work | durable run ID + progress |
+| `list_agent_runs()` / `get_agent_run(id)` | resume after reconnects | status + next safe step |
+| `provide_agent_input` / `retry_agent_run` / `cancel_agent_run` | control durable work | explicit state transition |
+| `list_renders()` / `get_render(id)` | retrieve render history | manifests + asset references |
 | `list_channels()` | inspect connected destinations | scoped channel IDs |
 | `create_review_batch(items)` | render and pause for a human | stateful review batch |
 | `get_review_status(batchId)` | resume after approval | approved IDs + flagged notes |
+| `add_review_comment(batchId, …)` | attach feedback without approving | comment thread |
 | `list_campaigns()` | inspect campaign progress | live production metrics |
+| `create_campaign()` / `update_campaign()` | manage campaign containers | linked work + performance state |
 | `schedule_post(…)` | dry-run/schedule/publish safely | delivery state |
+| `reschedule_post()` / `cancel_post()` | control queued delivery | updated calendar state |
 | `list_calendar()` | inspect content delivery | scheduled + published posts |
 | `get_analytics()` | close the feedback loop | reach + engagement insight |
+| `get_usage()` | inspect plan and allowances | entitlements + remaining usage |
 | `get_audit_log()` | inspect mutations | actor + route + status |
 
-`render_assets` auto-picks a fitting mix of templates across the 5 formats; pass `archetype` (from `list_templates`) to force one.
+`render_assets` ranks content-compatible templates across the requested formats, composes and BrandSpec-gates the finalists, then returns semantic/visual scores, rejected alternatives, the selected intent, and rationale in `manifest.artDirection`; pass `archetype` (from `list_templates`) to override the ranking.
 
 Spec violations fail loudly with structured errors — the agent never receives a degraded render.
 
@@ -28,7 +36,7 @@ Publishing is also fail-closed: an agent must supply an approved batch item or `
 
 ## Hosted remote MCP
 
-The hosted app exposes a stateless Streamable HTTP endpoint at `https://playground.brandrail.dev/api/mcp`. Authenticate with `Authorization: Bearer brk_…`. Mint one free connection in the workspace control room.
+The hosted app exposes a Streamable HTTP endpoint at `https://playground.brandrail.dev/api/mcp`. Authenticate with an expiring, scoped `Authorization: Bearer brk_…` credential minted in the workspace control room. Rendered PNGs are returned as MCP resource links plus an inline preview, and durable run state survives client disconnects.
 
 ## Claude Desktop / Claude Code
 

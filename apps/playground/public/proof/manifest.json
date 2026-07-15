@@ -1,0 +1,170 @@
+{
+  "brand": "acme",
+  "specVersion": 3,
+  "brief": "Acme platform launch: faster rendering without brand drift",
+  "formats": [
+    "ig-carousel",
+    "og-image",
+    "x-graphic"
+  ],
+  "archetype": "hero-statement",
+  "plan": {
+    "ig-carousel": "hero-statement",
+    "og-image": "announcement",
+    "x-graphic": "hero-statement"
+  },
+  "artDirection": {
+    "ig-carousel": {
+      "selected": "hero-statement",
+      "intent": "series",
+      "candidates": [
+        {
+          "archetype": "hero-statement",
+          "score": 93,
+          "semanticScore": 100,
+          "reasons": [
+            "multi-slide series rhythm",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 75,
+          "valid": true
+        }
+      ],
+      "rationale": "hero-statement preserves the carousel's opener, points, and closing CTA rhythm."
+    },
+    "og-image": {
+      "selected": "announcement",
+      "intent": "announcement",
+      "candidates": [
+        {
+          "archetype": "announcement",
+          "score": 94,
+          "semanticScore": 100,
+          "reasons": [
+            "format default",
+            "launch, release, event, or date language",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 80,
+          "valid": true
+        },
+        {
+          "archetype": "cta-card",
+          "score": 41,
+          "semanticScore": 26,
+          "reasons": [
+            "supporting CTA supplied",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 78,
+          "valid": true
+        },
+        {
+          "archetype": "hero-statement",
+          "score": 28,
+          "semanticScore": 8,
+          "reasons": [
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 80,
+          "valid": true
+        }
+      ],
+      "rationale": "announcement ranked first after composition: format default; launch, release, event, or date language; feed-scale focal type; disciplined accent usage."
+    },
+    "x-graphic": {
+      "selected": "hero-statement",
+      "intent": "statement",
+      "candidates": [
+        {
+          "archetype": "hero-statement",
+          "score": 73,
+          "semanticScore": 70,
+          "reasons": [
+            "format default",
+            "single dominant statement",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 82,
+          "valid": true
+        },
+        {
+          "archetype": "cta-card",
+          "score": 42,
+          "semanticScore": 26,
+          "reasons": [
+            "supporting CTA supplied",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 84,
+          "valid": true
+        }
+      ],
+      "rationale": "hero-statement ranked first after composition: format default; single dominant statement; feed-scale focal type; disciplined accent usage."
+    }
+  },
+  "violations": [],
+  "warnings": [],
+  "assets": [
+    {
+      "format": "ig-carousel",
+      "slide": 0,
+      "slideCount": 4,
+      "width": 1080,
+      "height": 1350,
+      "archetype": "hero-statement",
+      "filename": "acme-ig-carousel-1.png"
+    },
+    {
+      "format": "ig-carousel",
+      "slide": 1,
+      "slideCount": 4,
+      "width": 1080,
+      "height": 1350,
+      "archetype": "hero-statement",
+      "filename": "acme-ig-carousel-2.png"
+    },
+    {
+      "format": "ig-carousel",
+      "slide": 2,
+      "slideCount": 4,
+      "width": 1080,
+      "height": 1350,
+      "archetype": "hero-statement",
+      "filename": "acme-ig-carousel-3.png"
+    },
+    {
+      "format": "ig-carousel",
+      "slide": 3,
+      "slideCount": 4,
+      "width": 1080,
+      "height": 1350,
+      "archetype": "cta-card",
+      "filename": "acme-ig-carousel-4.png"
+    },
+    {
+      "format": "og-image",
+      "slide": 0,
+      "slideCount": 1,
+      "width": 1200,
+      "height": 630,
+      "archetype": "announcement",
+      "filename": "acme-og-image.png"
+    },
+    {
+      "format": "x-graphic",
+      "slide": 0,
+      "slideCount": 1,
+      "width": 1600,
+      "height": 900,
+      "archetype": "hero-statement",
+      "filename": "acme-x-graphic.png"
+    }
+  ]
+}

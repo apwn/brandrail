@@ -15,9 +15,9 @@ describe("Brandrail MCP server", () => {
       expect(result.tools.map((tool) => tool.name)).toEqual([
         "compile_brand",
         "render_assets",
-        "get_spec",
+        "get_brand",
         "list_templates",
-        "diff_spec",
+        "diff_brand_spec",
         "list_brands",
         "plan_campaign",
         "list_channels",
@@ -28,6 +28,20 @@ describe("Brandrail MCP server", () => {
         "list_calendar",
         "get_analytics",
         "get_audit_log",
+        "start_campaign_run",
+        "list_agent_runs",
+        "get_agent_run",
+        "provide_agent_input",
+        "retry_agent_run",
+        "cancel_agent_run",
+        "list_renders",
+        "get_render",
+        "create_campaign",
+        "update_campaign",
+        "add_review_comment",
+        "reschedule_post",
+        "cancel_post",
+        "get_usage",
       ]);
     } finally {
       await client.close();

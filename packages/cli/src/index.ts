@@ -114,9 +114,12 @@ program
           files.push(file);
         }
         if (isJson()) {
-          console.log(JSON.stringify({ ok: true, id: res.id, specVersion: res.specVersion, files, warnings: res.manifest.warnings }));
+          console.log(JSON.stringify({ ok: true, id: res.id, specVersion: res.specVersion, files, artDirection: res.manifest.artDirection, warnings: res.manifest.warnings }));
         } else {
           console.log(`${files.length} assets · ${opts.brand} v${res.specVersion} · 0 violations`);
+          for (const [format, decision] of Object.entries(res.manifest.artDirection ?? {})) {
+            if (decision) console.log(`auto  ${format} → ${decision.selected} (${decision.intent})`);
+          }
           for (const f of files) console.log(`  ${f}`);
           for (const w of res.manifest.warnings) console.log(`warn  ${w}`);
         }
@@ -268,6 +271,47 @@ agent.command("plan")
     } catch (e) { handleError(e); }
   });
 
+agent.command("start")
+  .description("create a durable campaign run")
+  .argument("<objective>", "campaign objective")
+  .option("--brand <name>", "BrandSpec name")
+  .option("--channels <ids>", "comma-separated channel IDs")
+  .option("--assets <count>", "estimated finished assets", "5")
+  .option("--publish-at <iso>", "optional target publish time")
+  .option("--yes", "start immediately instead of pausing for plan confirmation")
+  .action(async (objective: string, opts: { brand?: string; channels?: string; assets: string; publishAt?: string; yes?: boolean }) => {
+    try {
+      const run = await client().startAgentRun({ objective, ...(opts.brand ? { brand: opts.brand } : {}), ...(opts.channels ? { channels: opts.channels.split(",").map((value) => value.trim()).filter(Boolean) } : {}), assetCount: Number(opts.assets), ...(opts.publishAt ? { publishAt: opts.publishAt } : {}), start: Boolean(opts.yes) });
+      if (isJson()) console.log(JSON.stringify({ ok: true, run }));
+      else console.log(`${run.id}  ${run.status}  ${run.currentStep}  ${run.progress}%`);
+    } catch (e) { handleError(e); }
+  });
+
+agent.command("list").description("list durable campaign runs").option("--limit <count>", "maximum runs", "25").action(async (opts: { limit: string }) => {
+  try {
+    const runs = await client().listAgentRuns(Number(opts.limit));
+    if (isJson()) console.log(JSON.stringify({ ok: true, runs }));
+    else if (!runs.length) console.log("No agent runs yet.");
+    else for (const run of runs) console.log(`${run.id}  ${run.status.padEnd(14)}  ${String(run.progress).padStart(3)}%  ${run.objective}`);
+  } catch (e) { handleError(e); }
+});
+
+agent.command("status").description("show one durable run").argument("<runId>").action(async (runId: string) => {
+  try { const run = await client().getAgentRun(runId); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}  ${run.progress}%\n${run.objective}`); } catch (e) { handleError(e); }
+});
+
+agent.command("input").description("resume a run waiting for structured human input").argument("<runId>").requiredOption("--data <json>", "JSON object").action(async (runId: string, opts: { data: string }) => {
+  try { const value = JSON.parse(opts.data) as unknown; if (!value || Array.isArray(value) || typeof value !== "object") fail("--data must be a JSON object"); const run = await client().provideAgentInput(runId, value as Record<string, unknown>); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}`); } catch (e) { handleError(e); }
+});
+
+agent.command("retry").description("retry a failed or cancelled run").argument("<runId>").action(async (runId: string) => {
+  try { const run = await client().retryAgentRun(runId); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}`); } catch (e) { handleError(e); }
+});
+
+agent.command("cancel").description("cancel an active run").argument("<runId>").action(async (runId: string) => {
+  try { const run = await client().cancelAgentRun(runId); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  cancelled`); } catch (e) { handleError(e); }
+});
+
 const review = program.command("review").description("resume human-in-the-loop work");
 review.command("status").argument("<batchId>").description("show approval state and next action").action(async (batchId: string) => {
   try {
@@ -281,6 +325,10 @@ review.command("status").argument("<batchId>").description("show approval state 
   } catch (e) { handleError(e); }
 });
 
+review.command("comment").argument("<batchId>").description("add feedback without changing approval state").requiredOption("--author <name>").requiredOption("--text <text>").option("--item <itemId>").action(async (batchId: string, opts: { author: string; text: string; item?: string }) => {
+  try { const result = await client().addReviewComment(batchId, { author: opts.author, text: opts.text, ...(opts.item ? { itemId: opts.item } : {}) }); if (isJson()) console.log(JSON.stringify({ ok: true, ...result })); else console.log("comment added"); } catch (e) { handleError(e); }
+});
+
 program.command("calendar").description("list scheduled and published posts").option("--status <status>", "filter by status").action(async (opts: { status?: string }) => {
   try {
     const posts = (await client().listScheduled()).filter((post) => !opts.status || post.status === opts.status);
@@ -288,6 +336,18 @@ program.command("calendar").description("list scheduled and published posts").op
     else if (!posts.length) console.log("No matching calendar posts.");
     else for (const post of posts) console.log(`${post.scheduledAt}  ${post.status.padEnd(10)}  ${post.id}  ${post.text.slice(0, 72)}`);
   } catch (e) { handleError(e); }
+});
+
+program.command("reschedule").description("edit a post that is still scheduled").argument("<postId>").option("--at <iso>").option("--text <text>").action(async (postId: string, opts: { at?: string; text?: string }) => {
+  try { const post = await client().reschedulePost(postId, { ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.text ? { text: opts.text } : {}) }); if (isJson()) console.log(JSON.stringify({ ok: true, post })); else console.log(`${post.id}  ${post.status}  ${post.scheduledAt}`); } catch (e) { handleError(e); }
+});
+
+program.command("cancel-post").description("cancel a post that has not started publishing").argument("<postId>").action(async (postId: string) => {
+  try { const result = await client().cancelPost(postId); if (isJson()) console.log(JSON.stringify(result)); else console.log(`${result.post.id}  cancelled`); } catch (e) { handleError(e); }
+});
+
+program.command("usage").description("show plan entitlements and metered usage").action(async () => {
+  try { const usage = await client().usage(); if (isJson()) console.log(JSON.stringify({ ok: true, usage })); else console.log(JSON.stringify(usage, null, 2)); } catch (e) { handleError(e); }
 });
 
 const campaign = program.command("campaign").description("manage campaign workspaces");

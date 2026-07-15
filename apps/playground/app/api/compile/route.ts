@@ -1,12 +1,27 @@
-import { engine, rateLimitCompile, clientIp, getUserAccess } from "@/lib/engine";
+import { engineJson, rateLimitCompile, refundCompile, clientIp, getUserAccess } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
 
 /** Compile a brand. Anonymous: 3/day per IP. Verified limits follow the plan. */
 export async function POST(req: Request) {
+  const body = await req.json().catch(() => null);
+  if (!body?.url || typeof body.url !== "string") {
+    return Response.json({ error: "A public website URL is required." }, { status: 400 });
+  }
+  let url: URL;
+  try {
+    url = new URL(body.url.trim());
+  } catch {
+    return Response.json({ error: "Enter a complete URL, including https://" }, { status: 400 });
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    return Response.json({ error: "Use a public http(s) website URL without embedded credentials." }, { status: 400 });
+  }
+
   const uid = await ensureUserId();
   const access = await getUserAccess(uid);
   const max = access.verified ? ({ free: 10, studio: 50, agency: 250 } as const)[access.plan] : 3;
-  const limit = rateLimitCompile(clientIp(req), max);
+  const ip = clientIp(req);
+  const limit = rateLimitCompile(ip, max);
   if (!limit.ok) {
     return Response.json(
       {
@@ -17,10 +32,11 @@ export async function POST(req: Request) {
       { status: 429 },
     );
   }
-  const body = await req.json().catch(() => null);
-  if (!body?.url || typeof body.url !== "string") {
-    return Response.json({ error: "url required" }, { status: 400 });
-  }
-  const res = await engine("/v0/compile", { method: "POST", body: JSON.stringify({ url: body.url }) }, uid);
-  return Response.json(await res.json(), { status: res.status });
+  const result = await engineJson(
+    "/v0/compile",
+    { method: "POST", body: JSON.stringify({ url: url.toString() }) },
+    uid,
+  );
+  if (result.status >= 400) refundCompile(ip);
+  return Response.json(result.data, { status: result.status });
 }

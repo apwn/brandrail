@@ -7,7 +7,18 @@ interface KeyRow {
   prefix: string;
   label: string;
   createdAt: string;
+  scopes: string[];
+  expiresAt: string | null;
+  lastUsedAt: string | null;
 }
+
+const SCOPE_GROUPS = [
+  { id: "create", label: "Create", scopes: ["brands:read", "brands:write", "assets:read", "assets:render"] },
+  { id: "operate", label: "Operate", scopes: ["reviews:read", "reviews:write", "campaigns:read", "campaigns:write", "calendar:read", "publish:schedule"] },
+  { id: "measure", label: "Measure", scopes: ["analytics:read", "audit:read"] },
+  { id: "publish", label: "Publish now", scopes: ["publish:immediate"], warning: true },
+] as const;
+const SAFE_SCOPES = SCOPE_GROUPS.filter((group) => group.id !== "publish").flatMap((group) => [...group.scopes]);
 
 /** Self-serve API keys — the agent on-ramp. Mint a key, paste the MCP snippet
  * into your agent, done. The full key is shown exactly once. */
@@ -20,6 +31,9 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
   const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [check, setCheck] = useState<"idle" | "running" | "ok" | "failed">("idle");
+  const [scopes, setScopes] = useState<string[]>(SAFE_SCOPES);
+  const [expiresInDays, setExpiresInDays] = useState("90");
+  const [toolCount, setToolCount] = useState(0);
 
   async function load() {
     const res = await fetch("/api/keys");
@@ -37,7 +51,7 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
       const res = await fetch("/api/keys", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ label: label || "my agent" }),
+        body: JSON.stringify({ label: label || "my agent", scopes, ...(expiresInDays ? { expiresInDays: Number(expiresInDays) } : {}) }),
       });
       const body = (await res.json()) as { key?: string; error?: string };
       if (!res.ok || !body.key) throw new Error(body.error ?? "couldn't create the key");
@@ -73,7 +87,9 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
         body: JSON.stringify({ jsonrpc: "2.0", id: "dashboard-check", method: "tools/list" }),
       });
       const body = await res.json() as { result?: { tools?: Array<{ name: string }> } };
-      setCheck(res.ok && body.result?.tools?.length === 14 ? "ok" : "failed");
+      const count = body.result?.tools?.length ?? 0;
+      setToolCount(count);
+      setCheck(res.ok && count >= 29 ? "ok" : "failed");
     } catch {
       setCheck("failed");
     }
@@ -91,7 +107,7 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><p className="eyebrow text-signal">AGENT CONNECTION · {keys.length}/{keyLimit}</p>
         <h2 className="font-display text-2xl font-bold mt-2">Give your agent a brand it cannot break.</h2>
-        <p className="text-muted text-sm mt-2 max-w-2xl leading-relaxed">Connect ChatGPT, Claude, Codex, Cursor or any MCP client to the same BrandSpec, renderer, approvals, calendar and audit rail. Free includes one durable connection.</p></div>
+        <p className="text-muted text-sm mt-2 max-w-2xl leading-relaxed">Connect an MCP client to the same BrandSpec, renderer, durable runs, approvals, calendar and audit rail. Every connection gets only the permissions you choose.</p></div>
         <span className={`font-mono text-[10px] border px-2.5 py-1.5 ${keys.length ? "border-green/40 text-green" : "border-hairline text-muted"}`}>{keys.length ? "● CONNECTED" : "○ NOT CONNECTED"}</span>
       </div>
 
@@ -108,7 +124,7 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
                   {copied === "key" ? "copied ✓" : "copy key"}
                 </button>
               </div>
-              <p className="font-mono text-[11px] text-muted mt-3 mb-1">Remote MCP config · works from any MCP client:</p>
+              <p className="font-mono text-[11px] text-muted mt-3 mb-1">Remote Streamable HTTP MCP config:</p>
               <div className="flex items-start gap-2">
                 <code className="font-mono text-[11px] text-muted break-all flex-1">{snippet(minted)}</code>
                 <button className="btn-ghost !py-1 !px-2 text-xs whitespace-nowrap" onClick={() => copy(snippet(minted), "snippet")}>
@@ -116,17 +132,30 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
-                <button className="btn-ghost !px-3 !py-1.5 text-xs" onClick={testConnection} disabled={check === "running"}>{check === "running" ? "Checking…" : check === "ok" ? "14 tools reachable ✓" : "Test hosted connection"}</button>
-                {check === "failed" && <span className="font-mono text-[10px] text-signal">Connection failed. Revoke this key and try again.</span>}
-                {check === "ok" && <span className="font-mono text-[10px] text-green">Authenticated · workspace scoped · ready for your agent</span>}
+                <button className="btn-ghost !px-3 !py-1.5 text-xs" onClick={testConnection} disabled={check === "running"}>{check === "running" ? "Checking…" : check === "ok" ? `${toolCount} tools + resources reachable ✓` : "Test hosted connection"}</button>
+                {check === "failed" && <span className="font-mono text-[10px] text-signal">Connection check failed. Confirm the endpoint and credential, then retry.</span>}
+                {check === "ok" && <span className="font-mono text-[10px] text-green">Authenticated · scoped · protocol current · ready</span>}
               </div>
             </div>
           )}
 
           {keys.length > 0 && !minted && <p className="mt-4 border-l-2 border-hairline pl-3 font-mono text-[10px] leading-relaxed text-muted">This connection is active, but its credential is write-only and cannot be shown again. If you lost the configuration, revoke it below and create a replacement.</p>}
 
-          <div className="grid gap-3 mt-5 md:grid-cols-[1fr_auto]">
+          <div className="mt-5 border border-hairline bg-ink/35 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="eyebrow text-bone">CONNECTION PERMISSIONS</p><span className="font-mono text-[10px] text-muted">least privilege · editable by replacement</span></div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {SCOPE_GROUPS.map((group) => {
+                const enabled = group.scopes.every((scope) => scopes.includes(scope));
+                return <label key={group.id} className={`cursor-pointer border p-3 ${enabled ? group.id === "publish" ? "border-signal bg-signal/5" : "border-green/50 bg-green/5" : "border-hairline"}`}>
+                  <span className="flex items-center gap-2 text-xs text-bone"><input type="checkbox" checked={enabled} onChange={() => setScopes((current) => enabled ? current.filter((scope) => !group.scopes.includes(scope as never)) : [...new Set([...current, ...group.scopes])])} />{group.label}</span>
+                  <span className="mt-1 block font-mono text-[9px] leading-relaxed text-muted">{group.id === "publish" ? "Can publish immediately after explicit confirmation." : `${group.scopes.length} scoped capabilities`}</span>
+                </label>;
+              })}
+            </div>
+          </div>
+          <div className="grid gap-3 mt-3 md:grid-cols-[1fr_150px_auto]">
             <input className="field !py-2" placeholder="connection name (e.g. Claude Desktop)" value={label} onChange={(e) => setLabel(e.target.value)} />
+            <select className="field !py-2" value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value)} aria-label="Credential expiry"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="">No expiry</option></select>
             <button className="btn !py-2 whitespace-nowrap" onClick={mint} disabled={busy || keys.length >= keyLimit}>
               {busy ? "Connecting…" : keys.length >= keyLimit ? "Connection limit reached" : "+ Connect an agent"}
             </button>
@@ -136,10 +165,10 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
           {keys.length > 0 && (
             <ul className="mt-4 divide-y divide-hairline">
               {keys.map((k) => (
-                <li key={k.id} className="py-2 flex items-center justify-between gap-3">
+                <li key={k.id} className="py-3 grid items-center gap-2 sm:grid-cols-[110px_1fr_auto_auto]">
                   <span className="font-mono text-xs text-bone">{k.prefix}…</span>
-                  <span className="text-muted text-xs flex-1">{k.label}</span>
-                  <span className="font-mono text-[11px] text-muted">{k.createdAt.slice(0, 10)}</span>
+                  <span><span className="text-muted text-xs block">{k.label}</span><span className="font-mono text-[9px] text-muted">{k.scopes.length} scopes{k.scopes.includes("publish:immediate") ? " · publish now" : " · approval-safe"}</span></span>
+                  <span className="font-mono text-[10px] text-muted text-right">{k.lastUsedAt ? `used ${k.lastUsedAt.slice(0, 10)}` : "never used"}<br />{k.expiresAt ? `expires ${k.expiresAt.slice(0, 10)}` : "no expiry"}</span>
                   <button className="font-mono text-[11px] text-muted hover:text-signal" onClick={() => revoke(k.id)}>revoke</button>
                 </li>
               ))}

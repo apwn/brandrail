@@ -1,0 +1,116 @@
+[
+  {
+    "filename": "range-fieldnote.png",
+    "brand": "fieldnote",
+    "displayName": "Fieldnote",
+    "format": "x-graphic",
+    "archetype": "cta-card",
+    "artDirection": {
+      "selected": "cta-card",
+      "intent": "action",
+      "candidates": [
+        {
+          "archetype": "cta-card",
+          "score": 60,
+          "semanticScore": 56,
+          "reasons": [
+            "clear action supplied",
+            "feed-scale focal type"
+          ],
+          "visualScore": 70,
+          "valid": true
+        },
+        {
+          "archetype": "hero-statement",
+          "score": 54,
+          "semanticScore": 42,
+          "reasons": [
+            "format default",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 85,
+          "valid": true
+        }
+      ],
+      "rationale": "cta-card ranked first after composition: clear action supplied; feed-scale focal type."
+    },
+    "warnings": []
+  },
+  {
+    "filename": "range-relay.png",
+    "brand": "relay-ops",
+    "displayName": "RELAY/OPS",
+    "format": "x-graphic",
+    "archetype": "split-stat",
+    "artDirection": {
+      "selected": "split-stat",
+      "intent": "stat",
+      "candidates": [
+        {
+          "archetype": "split-stat",
+          "score": 87,
+          "semanticScore": 96,
+          "reasons": [
+            "compact supplied statistic",
+            "feed-scale focal type"
+          ],
+          "visualScore": 63,
+          "valid": true
+        },
+        {
+          "archetype": "hero-statement",
+          "score": 49,
+          "semanticScore": 42,
+          "reasons": [
+            "format default",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 66,
+          "valid": true
+        }
+      ],
+      "rationale": "split-stat ranked first after composition: compact supplied statistic; feed-scale focal type."
+    },
+    "warnings": []
+  },
+  {
+    "filename": "range-morrow.png",
+    "brand": "morrow-studio",
+    "displayName": "Morrow Studio",
+    "format": "x-graphic",
+    "archetype": "quote",
+    "artDirection": {
+      "selected": "quote",
+      "intent": "quote",
+      "candidates": [
+        {
+          "archetype": "quote",
+          "score": 82,
+          "semanticScore": 86,
+          "reasons": [
+            "explicit quote with attribution",
+            "feed-scale focal type"
+          ],
+          "visualScore": 70,
+          "valid": true
+        },
+        {
+          "archetype": "hero-statement",
+          "score": 52,
+          "semanticScore": 42,
+          "reasons": [
+            "format default",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 77,
+          "valid": true
+        }
+      ],
+      "rationale": "quote ranked first after composition: explicit quote with attribution; feed-scale focal type."
+    },
+    "warnings": []
+  }
+]

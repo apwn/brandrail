@@ -43,7 +43,7 @@ node packages/cli/dist/index.js render "Summer promotion" --brand acme --out ./a
 claude mcp add brandrail -e BRANDRAIL_API_URL=https://api.brandrail.dev -- node packages/mcp/dist/index.js
 ```
 
-Then ask your agent: *"compile acme.com and render a summer promotion."* Five tools: `compile_brand`, `render_assets`, `get_spec`, `list_templates`, `diff_spec` — token-cheap outputs, structured errors, no slop. See [`packages/mcp/README.md`](packages/mcp/README.md).
+Then ask your agent: *"compile acme.com and render a summer promotion."* The MCP server exposes the same 29-tool lifecycle locally and remotely: BrandSpecs, visible render output, durable runs, review pauses, scoped publishing, calendar, analytics and audit. See [`packages/mcp/README.md`](packages/mcp/README.md).
 
 **Programmatic:**
 

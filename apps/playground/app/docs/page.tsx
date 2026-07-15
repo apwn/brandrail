@@ -58,7 +58,7 @@ curl -X POST https://api.brandrail.dev/v0/render \\
 GET  /v0/specs                your brands
 GET  /v0/specs/:brand         one spec (?version=N for history)
 PATCH /v0/specs/:brand        edit → new version
-POST /v0/render               {brand, brief, formats?, archetype?} → assets
+POST /v0/render               {brand, brief, formats?, archetype?} → assets + ranked artDirection
 POST /v0/agent/plan           dry-run objective → blockers + execution steps
 GET  /v0/renders              saved render history
 GET  /v0/renders/:id          manifest + asset URLs
@@ -82,8 +82,9 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
 
       <H2 id="mcp">MCP server</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
-        The hosted MCP endpoint exposes the full lifecycle: brands, dry-run planning, deterministic rendering,
-        campaigns, review pauses, channels, scheduling, calendar, analytics and audit.
+        The hosted Streamable HTTP MCP endpoint exposes 29 lifecycle tools plus inspectable PNG resources:
+        brands, durable runs, dry-run planning, deterministic rendering, campaigns, review pauses, scoped publishing,
+        calendar, analytics, usage and audit. Credentials are expiring and least-privilege; immediate publishing is opt-in.
       </p>
       <Code>{`{
   "mcpServers": {
@@ -103,10 +104,14 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
 node packages/cli/dist/index.js compile https://acme.com
 node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
 node packages/cli/dist/index.js agent plan "Launch campaign" --brand acme --json
+node packages/cli/dist/index.js agent start "Launch campaign" --brand acme --json
+node packages/cli/dist/index.js agent list --json
 node packages/cli/dist/index.js review status batch_123 --json
 node packages/cli/dist/index.js spec diff acme@1 acme@2
 node packages/cli/dist/index.js channels
 node packages/cli/dist/index.js schedule "Launch day" --channels ch_123 --at 2026-08-01T15:00:00Z --dry-run
+node packages/cli/dist/index.js reschedule sp_123 --at 2026-08-02T15:00:00Z
+node packages/cli/dist/index.js usage --json
 node packages/cli/dist/index.js campaign create --name "Q3 launch" --objective "Generate 20 demos"
 node packages/cli/dist/index.js analytics --refresh
 # exit codes: 0 ok · 2 spec violation · 3 low confidence`}</Code>

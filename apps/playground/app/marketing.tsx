@@ -33,7 +33,7 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
 function Announcement() {
   return (
     <div className="border-b border-hairline bg-panel px-4 py-2.5 text-center font-mono text-xs text-muted">
-      <span className="text-bone">NEW · Hosted MCP for ChatGPT, Claude, Codex and Cursor.</span> One free agent connection, with human approval built in.{" "}
+      <span className="text-bone">NEW · Hosted Streamable HTTP MCP.</span> One free, scoped agent connection with durable runs and human approval built in.{" "}
       <a className="text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone" href="/agents">
         See the agent rail →
       </a>
@@ -79,7 +79,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             Your agent can write.<br /><span className="text-signal">Brandrail makes it publish on-brand.</span>
           </h1>
           <p className="mt-6 max-w-[650px] text-[17px] leading-relaxed text-muted sm:text-lg">
-            Connect ChatGPT, Claude, Codex or Cursor to an enforceable brand system. One prompt becomes a planned, rendered, reviewed and scheduled campaign—without letting the agent freestyle your identity.
+            Connect the agent you already use to an enforceable brand system. One prompt becomes a planned, rendered, reviewed and scheduled campaign—without letting the agent freestyle your identity.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a>
@@ -171,7 +171,7 @@ function AgentWorkflowSection() {
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead eyebrow="Agent-native by design" title={<>One prompt can run the campaign.<br />It still cannot bypass your judgment.</>} body="Brandrail is not a chatbot glued onto a scheduler. The agent is the operator; BrandSpec constraints, approval state, execution plans and the audit trail are the control system." />
         <div className="grid gap-px border border-hairline bg-hairline md:grid-cols-2 lg:grid-cols-3">{stages.map(([number, title, body]) => <article key={number} className="bg-ink p-5 sm:p-6"><div className="flex items-center justify-between"><span className="font-mono text-xs text-signal">{number}</span><span className="h-2 w-2 bg-green" /></div><h3 className="mt-6 font-display text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{body}</p></article>)}</div>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border border-signal/40 bg-panel p-5"><div><p className="font-display text-lg font-bold">Already use Claude, ChatGPT, Codex or Cursor?</p><p className="mt-1 text-sm text-muted">Connect it in one minute, then ask it to list your brands.</p></div><a href="/login?agent=1" className="btn">Connect free →</a></div>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border border-signal/40 bg-panel p-5"><div><p className="font-display text-lg font-bold">Already use an MCP-enabled agent?</p><p className="mt-1 text-sm text-muted">Connect it in one minute, then ask it to list your brands.</p></div><a href="/login?agent=1" className="btn">Connect free →</a></div>
       </div>
     </section>
   );
@@ -214,10 +214,17 @@ function SectionHead({ eyebrow, title, body, light = false }: { eyebrow: string;
 }
 
 function OutputSection() {
-  const outputs = [
-    { src: "/proof/carousel.png", label: "Instagram carousel", detail: "Slide 1 of 4 · 1080×1350" },
-    { src: "/proof/og-image.png", label: "Link preview", detail: "Open Graph · 1200×630" },
-    { src: "/proof/x-graphic.png", label: "Social graphic", detail: "Landscape · 1600×900" },
+  const carousel = [
+    "/proof/carousel.png",
+    "/proof/carousel-2.png",
+    "/proof/carousel-3.png",
+    "/proof/carousel-4.png",
+  ];
+  const checks = [
+    ["01", "INPUT", "1 campaign brief"],
+    ["02", "SYSTEM", "Acme BrandSpec · v3"],
+    ["03", "OUTPUT", "6 finished canvases"],
+    ["04", "GATE", "0 rule violations"],
   ];
   return (
     <section id="examples" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
@@ -228,26 +235,109 @@ function OutputSection() {
           title={<>Not a mockup. Not a prompt lottery.<br />Finished assets from one brand system.</>}
           body="These examples were rendered by the same engine behind the URL demo. Typography, palette, spacing and format rules are pulled from one BrandSpec and checked before the asset is returned."
         />
-        <div className="grid gap-5 md:grid-cols-3">
-          {outputs.map((output, index) => (
-            <figure key={output.src} className="group border border-[#C9C4BA] bg-[#FBFAF7] p-3 shadow-[6px_6px_0_#D8D3C9]">
-              <div className="overflow-hidden border border-[#D8D3C9] bg-ink">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={output.src} alt={`${output.label} generated by Brandrail`} className="aspect-[4/3] w-full bg-white object-contain p-2 transition-transform duration-300 group-hover:scale-[1.015]" />
-              </div>
-              <figcaption className="flex items-start justify-between gap-3 px-1 pb-1 pt-3">
+        <div className="border border-[#BEB8AD] bg-[#E9E4DA] shadow-[9px_9px_0_#D0CABF]">
+          <div className="grid border-b border-[#BEB8AD] sm:grid-cols-2 lg:grid-cols-4">
+            {checks.map(([number, label, value], index) => (
+              <div key={label} className={`flex items-center gap-3 px-4 py-3.5 ${index < checks.length - 1 ? "border-b border-[#CFC9BE] lg:border-b-0 lg:border-r" : ""} ${index === 2 ? "sm:border-b-0" : ""} ${index === 0 || index === 2 ? "sm:border-r" : ""}`}>
+                <span className="font-mono text-[10px] text-[#A83200]">{number}</span>
                 <div>
-                  <b className="block font-display text-sm">{output.label}</b>
-                  <span className="font-mono text-[10px] text-[#6A655D]">{output.detail}</span>
+                  <span className="block font-mono text-[8px] uppercase tracking-[0.16em] text-[#777168]">{label}</span>
+                  <b className="block font-display text-[12px] font-semibold">{value}</b>
                 </div>
-                <span className="font-mono text-xs text-[#A83200]">0{index + 1}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-px bg-[#BEB8AD] lg:grid-cols-[1.38fr_1fr]">
+            <figure className="bg-[#F6F3ED] p-3 sm:p-4">
+              <figcaption className="mb-3 flex items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-[0.12em]">
+                <span>Instagram carousel · 1080×1350</span>
+                <span className="text-[#A83200]">01—04</span>
               </figcaption>
+              <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-2 sm:grid-cols-[minmax(0,1fr)_138px] sm:gap-3">
+                <div className="overflow-hidden border border-[#CFC9BE] bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={carousel[0]} alt="Opening slide from an Instagram carousel generated by Brandrail" loading="lazy" decoding="async" className="aspect-[4/5] h-full w-full object-cover" />
+                </div>
+                <div className="grid gap-2 sm:gap-3">
+                  {carousel.slice(1).map((src, index) => (
+                    <div key={src} className="relative overflow-hidden border border-[#CFC9BE] bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Generated carousel slide ${index + 2} of 4`} loading="lazy" decoding="async" className="aspect-[4/5] h-full w-full object-cover" />
+                      <span className="absolute bottom-1.5 right-1.5 bg-ink px-1.5 py-0.5 font-mono text-[8px] text-bone">0{index + 2}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </figure>
-          ))}
+
+            <div className="grid gap-px bg-[#BEB8AD] sm:grid-cols-2 lg:grid-cols-1">
+              {[
+                { src: "/proof/og-image.png", label: "Link preview", detail: "Open Graph · 1200×630", number: "05" },
+                { src: "/proof/x-graphic.png", label: "Social graphic", detail: "Landscape · 1600×900", number: "06" },
+              ].map((output) => (
+                <figure key={output.src} className="bg-[#F6F3ED] p-3 sm:p-4">
+                  <figcaption className="mb-3 flex items-start justify-between gap-4">
+                    <div>
+                      <b className="block font-display text-[13px]">{output.label}</b>
+                      <span className="font-mono text-[9px] text-[#6A655D]">{output.detail}</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-[#A83200]">{output.number}</span>
+                  </figcaption>
+                  <div className="overflow-hidden border border-[#CFC9BE] bg-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={output.src} alt={`${output.label} generated by Brandrail`} loading="lazy" decoding="async" className="aspect-[40/21] w-full object-cover" />
+                  </div>
+                </figure>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-[#BEB8AD] bg-[#F6F3ED] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-[760px] text-sm leading-relaxed text-[#514D47]">
+              One approved direction, adapted—not stretched—across the feed. Every canvas above is a production render from the same brief and BrandSpec.
+            </p>
+            <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.13em] text-[#247A4A]">✓ pre-raster gate passed</span>
+          </div>
         </div>
-        <p className="mt-6 max-w-[720px] text-sm leading-relaxed text-[#5A554E]">
-          Product evidence, not a stock gallery. These assets came from the engine behind the live URL demo; named customer stories will be added as the first public pilots complete.
+        <p className="mt-6 max-w-[760px] text-sm leading-relaxed text-[#5A554E]">
+          Product evidence, not a stock gallery. Named customer stories will be added as the first public pilots complete; until then, the page labels generated proof as generated proof.
         </p>
+
+        <div className="mt-16 border-t border-[#C9C4BA] pt-12">
+          <div className="grid gap-6 lg:grid-cols-[.78fr_1.22fr] lg:items-end">
+            <div>
+              <span className="eyebrow !text-[#A83200]">Not one house style</span>
+              <h3 className="mt-3 font-display text-[clamp(28px,3vw,38px)] font-bold leading-[1.08] tracking-[-0.035em]">The renderer should disappear behind the brand.</h3>
+            </div>
+            <p className="max-w-[650px] text-[16px] leading-relaxed text-[#514D47] lg:justify-self-end">
+              Same engine. Same landscape format. Three fictional BrandSpecs with different palette, typography, casing, alignment and composition rules—rendered without hand-styling the final canvases.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              { src: "/proof/range-fieldnote.png", name: "Fieldnote", mode: "Quiet editorial", detail: "Inter · warm neutral · left" },
+              { src: "/proof/range-relay.png", name: "RELAY/OPS", mode: "Operational", detail: "Space Grotesk · dark · upper" },
+              { src: "/proof/range-morrow.png", name: "Morrow Studio", mode: "Studio principle", detail: "Mixed type · lavender · center" },
+            ].map((brand, index) => (
+              <figure key={brand.src} className="border border-[#C9C4BA] bg-[#F6F3ED] p-2.5 shadow-[4px_4px_0_#D8D3C9]">
+                <div className="overflow-hidden border border-[#D8D3C9] bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={brand.src} alt={`${brand.name} fictional BrandSpec proof render`} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />
+                </div>
+                <figcaption className="flex items-start justify-between gap-3 px-1 pb-1 pt-3">
+                  <div>
+                    <b className="block font-display text-[13px]">{brand.name}</b>
+                    <span className="block text-[11px] text-[#5A554E]">{brand.mode}</span>
+                    <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-[#777168]">{brand.detail}</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-[#A83200]">B{index + 1}</span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.12em] text-[#777168]">Synthetic proof brands · production renderer · no customer claims</p>
+        </div>
       </div>
     </section>
   );
@@ -256,7 +346,7 @@ function OutputSection() {
 function WorkflowSection() {
   const steps = [
     ["01", "Compile the brand once", "Brandrail reads the live site, pins real fonts and imagery, and turns the observed identity into constraints."],
-    ["02", "Connect the agent you use", "A hosted MCP connection gives ChatGPT, Claude, Codex or Cursor workspace-scoped lifecycle tools."],
+    ["02", "Connect the agent you use", "A hosted Streamable HTTP MCP connection gives a compatible client scoped lifecycle tools and inspectable resources."],
     ["03", "Ask for the outcome", "The agent dry-runs the objective, then plans and renders inside the BrandSpec instead of prompt-lottery styling."],
     ["04", "Approve the irreversible step", "Review exact assets, resume the run, schedule approved work, and feed results into the next plan."],
   ];
@@ -377,7 +467,7 @@ function ComparisonSection() {
   const rows = [
     ["Compiles a brand system from a URL", "—", "—", "✓"],
     ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
-    ["Agent operates the full lifecycle", "—", "Partial actions", "14 MCP tools"],
+    ["Agent operates the full lifecycle", "—", "Partial actions", "29 MCP tools + resources"],
     ["Resumable human approval", "Manual", "Basic approval", "Stateful + safe"],
     ["Dry-run + mutation audit trail", "—", "—", "✓"],
     ["Calendar, publishing + feedback", "—", "Distribution", "Closed loop"],
@@ -492,7 +582,7 @@ const FAQ = [
   ["What happens when the website does not contain the full brand system?", "The compiler marks low-confidence fields for review. Your team can correct colors, voice, imagery and constraints before the spec is used. Brandrail should expose uncertainty, not pretend it has taste it could not observe."],
   ["What exactly is enforced?", "The renderer checks the BrandSpec rules it can measure: typography, color roles, contrast, density, spacing, logo behavior, format dimensions, banned words and other configured limits. Human approval still owns factual accuracy and creative judgment."],
   ["Do I have to replace my scheduler?", "No. Use Brandrail’s visual calendar or keep your current workflow through the API. Bluesky and Mastodon connect directly; LinkedIn, Instagram, Facebook, X and TikTok become available when the corresponding approved platform app credentials are configured."],
-  ["Which agents can connect?", "Any client that supports remote MCP or HTTP tools, including ChatGPT, Claude, Codex, Cursor and custom orchestrators. The same workspace key also works with the CLI, SDK and REST API."],
+  ["Which agents can connect?", "Clients that support remote Streamable HTTP MCP can connect to the hosted endpoint. Stdio clients can use the local MCP package. The same scoped credential also works with the CLI, SDK and REST API."],
   ["Can an agent publish without me?", "Not silently. Agent publishing requires an approved batch item or an explicit confirmation flag after you approve the exact action. Dry-runs validate the plan first, idempotency prevents duplicate retries, and every mutation is recorded."],
   ["What can the free agent connection do?", "Free includes one workspace key, one active BrandSpec and 50 finished assets each month. It can compile, inspect, render, dry-run and read the audit trail. Studio unlocks campaign planning, approvals, webhooks, channels, publishing and analytics."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable, and the SDK, CLI, MCP server and spec format are open. Your brand system is not trapped inside a proprietary editor."],
@@ -526,7 +616,7 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
         <span className="eyebrow text-signal">The agent is ready. Give it rails.</span>
         <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">Connect the AI you already use to the brand you already own.</h2>
         <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with one free hosted connection, one real BrandSpec and a workflow that keeps you in control of every irreversible step.</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a><a href="/agents" className="btn-ghost min-h-12">Explore all 14 tools</a></div>
+        <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a><a href="/agents" className="btn-ghost min-h-12">Explore all 29 tools</a></div>
         <div className="mx-auto mt-10 max-w-[650px] border-t border-hairline pt-6 text-left"><p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-muted">Or compile your website first</p><UrlBox id="final-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
       </div>
     </section>

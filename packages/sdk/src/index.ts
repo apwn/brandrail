@@ -22,6 +22,25 @@ export interface RenderAssetRef {
   archetype: LayoutArchetype;
   /** relative to the API base */
   url: string;
+  /** Optional short-lived public delivery URL returned by hosted engines. */
+  downloadUrl?: string | null;
+}
+
+export interface ArtDirectionCandidate {
+  archetype: LayoutArchetype;
+  score: number;
+  semanticScore?: number;
+  visualScore?: number;
+  valid?: boolean;
+  rejectedBy?: string[];
+  reasons: string[];
+}
+
+export interface ArtDirectionDecision {
+  selected: LayoutArchetype;
+  intent: string;
+  candidates: ArtDirectionCandidate[];
+  rationale: string;
 }
 
 export interface RenderResponse {
@@ -33,6 +52,8 @@ export interface RenderResponse {
     brief: string;
     formats: FormatId[];
     archetype: LayoutArchetype;
+    plan?: Partial<Record<FormatId, LayoutArchetype>>;
+    artDirection?: Partial<Record<FormatId, ArtDirectionDecision>>;
     warnings: string[];
   };
 }
@@ -78,6 +99,19 @@ export interface ReviewStatus {
   approved: Array<{ itemId: string; renderId: string; brand: string; brief: string; status: string }>;
   flagged: Array<{ itemId: string; brand: string; brief: string; note: string | null }>;
   comments: Array<{ id: string; itemId?: string; author: string; text: string; createdAt: string }>;
+}
+
+export interface AgentRun {
+  id: string; objective: string; brand?: string; channels: string[]; assetCount: number; publishAt?: string;
+  status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled";
+  progress: number; currentStep: string; plan?: ExecutionPlan; input?: Record<string, unknown>; error?: string;
+  createdBy: string; createdAt: string; updatedAt: string;
+}
+
+export interface UsageSummary {
+  user: { plan: "free" | "studio" | "agency"; emailVerified?: boolean };
+  usage: Record<string, unknown>;
+  entitlements: Record<string, unknown>;
 }
 
 export class BrandrailError extends Error {
@@ -185,6 +219,7 @@ export class Brandrail {
       archetype?: LayoutArchetype;
       version?: number;
       copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string }>>;
+      runId?: string;
     } = {},
   ): Promise<RenderResponse> {
     return this.request("/v0/render", {
@@ -207,7 +242,7 @@ export class Brandrail {
     });
   }
 
-  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string; dryRun?: boolean; confirm?: boolean; approval?: { batchId: string; itemId: string } }): Promise<{ dryRun: true; ready: boolean; action: string; channels: string[]; renderId: string | null } | { scheduled: boolean; post: ScheduledPost; deduplicated?: boolean; dryRun?: false }> {
+  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string; runId?: string; dryRun?: boolean; confirm?: boolean; approval?: { batchId: string; itemId: string } }): Promise<{ dryRun: true; ready: boolean; action: string; channels: string[]; renderId: string | null } | { scheduled: boolean; post: ScheduledPost; deduplicated?: boolean; dryRun?: false }> {
     return this.request("/v0/publish", { method: "POST", body: JSON.stringify(input) });
   }
 
@@ -215,12 +250,47 @@ export class Brandrail {
     return this.request("/v0/agent/plan", { method: "POST", body: JSON.stringify(input) });
   }
 
-  reviewStatus(batchId: string): Promise<ReviewStatus> {
-    return this.request(`/v0/batches/${encodeURIComponent(batchId)}/status`);
+  async startAgentRun(input: { objective: string; brand?: string; channels?: string[]; assetCount?: number; publishAt?: string; start?: boolean }): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>("/v0/agent/runs", { method: "POST", body: JSON.stringify(input) });
+    return run;
   }
 
-  createReviewBatch(input: { title?: string; items: Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }): Promise<{ id: string; title: string; items: unknown[] }> {
+  async listAgentRuns(limit = 25): Promise<AgentRun[]> {
+    const safe = Math.min(100, Math.max(1, Math.floor(limit)));
+    const { runs } = await this.request<{ runs: AgentRun[] }>(`/v0/agent/runs?limit=${safe}`);
+    return runs;
+  }
+
+  async getAgentRun(id: string): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}`);
+    return run;
+  }
+
+  async provideAgentInput(id: string, input: Record<string, unknown>): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/input`, { method: "POST", body: JSON.stringify({ input }) });
+    return run;
+  }
+
+  async retryAgentRun(id: string): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/retry`, { method: "POST", body: "{}" });
+    return run;
+  }
+
+  async cancelAgentRun(id: string): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: "{}" });
+    return run;
+  }
+
+  reviewStatus(batchId: string, runId?: string): Promise<ReviewStatus> {
+    return this.request(`/v0/batches/${encodeURIComponent(batchId)}/status${runId ? `?runId=${encodeURIComponent(runId)}` : ""}`);
+  }
+
+  createReviewBatch(input: { title?: string; runId?: string; items: Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }): Promise<{ id: string; title: string; items: unknown[] }> {
     return this.request("/v0/batches", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  addReviewComment(batchId: string, input: { author: string; text: string; itemId?: string }): Promise<{ comment: unknown; comments: unknown[] }> {
+    return this.request(`/v0/batches/${encodeURIComponent(batchId)}/comments`, { method: "POST", body: JSON.stringify(input) });
   }
 
   async audit(limit = 50): Promise<Array<{ id: string; action: string; actor: string; actorId: string; path: string; method: string; status: number; createdAt: string }>> {
@@ -239,6 +309,15 @@ export class Brandrail {
     return posts;
   }
 
+  async reschedulePost(id: string, input: { scheduledAt?: string; text?: string }): Promise<ScheduledPost> {
+    const { post } = await this.request<{ post: ScheduledPost }>(`/v0/scheduled/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+    return post;
+  }
+
+  cancelPost(id: string): Promise<{ ok: boolean; post: ScheduledPost }> {
+    return this.request(`/v0/scheduled/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
   async listCampaigns(): Promise<Campaign[]> {
     const { campaigns } = await this.request<{ campaigns: Campaign[] }>("/v0/campaigns");
     return campaigns;
@@ -247,6 +326,19 @@ export class Brandrail {
   async createCampaign(input: { name: string; objective: string; status?: Campaign["status"]; startAt?: string; endAt?: string; brandIds?: string[]; batchIds?: string[]; postIds?: string[] }): Promise<Campaign> {
     const { campaign } = await this.request<{ campaign: Campaign }>("/v0/campaigns", { method: "POST", body: JSON.stringify(input) });
     return campaign;
+  }
+
+  async updateCampaign(id: string, input: Partial<Omit<Campaign, "id" | "createdAt" | "updatedAt" | "progress">>): Promise<Campaign> {
+    const { campaign } = await this.request<{ campaign: Campaign }>(`/v0/campaigns/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+    return campaign;
+  }
+
+  async getRender(id: string): Promise<{ id: string; manifest: RenderHistoryEntry["manifest"] }> {
+    return this.request(`/v0/renders/${encodeURIComponent(id)}`);
+  }
+
+  usage(): Promise<UsageSummary> {
+    return this.request("/v0/me/usage");
   }
 
   analytics(): Promise<AnalyticsSummary> {
