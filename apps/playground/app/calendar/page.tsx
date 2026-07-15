@@ -24,7 +24,7 @@ export default async function CalendarPage() {
 }
 
 export type Channel = { id: string; platform: string; handle: string };
-export type ScheduledPost = { id: string; channelIds: string[]; text: string; renderId?: string; imageFiles: string[]; scheduledAt: string; status: "scheduled" | "publishing" | "published" | "failed" | "cancelled"; results?: Array<{ ok: boolean; url?: string; error?: string }> };
+export type ScheduledPost = { id: string; channelIds: string[]; text: string; renderId?: string; imageFiles: string[]; scheduledAt: string; status: "scheduled" | "publishing" | "published" | "failed" | "cancelled"; source?: "human-approved" | "manual" | "agent-confirmed" | "autopilot"; approval?: { batchId: string; itemId: string }; results?: Array<{ ok: boolean; url?: string; error?: string }> };
 export type SavedRender = { id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string }> } };
 
 function LockedCalendar() {
