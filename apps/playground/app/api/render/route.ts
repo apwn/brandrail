@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       ...(body.archetype ? { archetype: body.archetype } : {}),
       ...(body.copy ? { copy: body.copy } : {}),
       ...(body.replaceRenderId ? { replaceRenderId: body.replaceRenderId } : {}),
+      ...(body.runId ? { runId: body.runId } : {}),
     }),
   }, uid);
   if (reservedAnonymousRestyle && result.status >= 400) {

@@ -316,7 +316,7 @@ agent.command("status").description("show one durable run").argument("<runId>").
       if (run.error) console.log(`error    ${run.error}`);
       if (run.currentStep === "confirm_plan") console.log(`next     brandrail agent input ${run.id} --data '{"approved":true}'`);
       else if (run.currentStep === "render" && run.brand) console.log(`next     brandrail render <brief> --brand ${run.brand} --run ${run.id}`);
-      else if (run.currentStep === "review_or_confirm" && run.brand && run.renderIds?.[0]) console.log(`next     brandrail review create <brief> --brand ${run.brand} --render ${run.renderIds[0]} --run ${run.id}`);
+      else if (run.currentStep === "review_or_confirm" && run.brand && run.renderIds?.[0]) console.log(`next     brandrail review create <brief> --brand ${run.brand} --render ${run.renderIds[0]} --run ${run.id}\n         or brandrail agent complete ${run.id} for an asset-only job`);
       else if (["human_review", "resolve_review_flags"].includes(run.currentStep) && run.batchId) console.log(`next     brandrail review status ${run.batchId} --run ${run.id}`);
       else if (run.currentStep === "publish") console.log(`next     brandrail schedule <caption> --channels <ids> --run ${run.id} --confirm`);
       else if (run.currentStep === "scheduled") console.log("next     wait for delivery, then run this status command again");
@@ -324,12 +324,16 @@ agent.command("status").description("show one durable run").argument("<runId>").
   } catch (e) { handleError(e); }
 });
 
-agent.command("input").description("resume a run waiting for structured human input").argument("<runId>").requiredOption("--data <json>", "JSON object").action(async (runId: string, opts: { data: string }) => {
+agent.command("input").description("approve a run waiting at plan confirmation").argument("<runId>").requiredOption("--data <json>", "JSON object").action(async (runId: string, opts: { data: string }) => {
   try { const value = JSON.parse(opts.data) as unknown; if (!value || Array.isArray(value) || typeof value !== "object") fail("--data must be a JSON object"); const run = await client().provideAgentInput(runId, value as Record<string, unknown>); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}`); } catch (e) { handleError(e); }
 });
 
 agent.command("retry").description("retry a failed or cancelled run").argument("<runId>").action(async (runId: string) => {
   try { const run = await client().retryAgentRun(runId); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}`); } catch (e) { handleError(e); }
+});
+
+agent.command("complete").description("finish an asset-only run without publishing").argument("<runId>").action(async (runId: string) => {
+  try { const run = await client().completeAgentRun(runId); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  completed  100%`); } catch (e) { handleError(e); }
 });
 
 agent.command("cancel").description("cancel an active run").argument("<runId>").action(async (runId: string) => {

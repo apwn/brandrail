@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const uid = await ensureUserId();
   const res = await engine("/v0/batches", {
     method: "POST",
-    body: JSON.stringify({ title: body.title, items: body.items }),
+    body: JSON.stringify({ title: body.title, items: body.items, ...(body.runId ? { runId: body.runId } : {}) }),
     signal: AbortSignal.timeout(300_000), // a batch renders many items
   }, uid);
   return Response.json(await res.json(), { status: res.status });

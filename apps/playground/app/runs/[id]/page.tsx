@@ -54,7 +54,7 @@ function nextAction(run: AgentRun) {
   if (run.status === "failed") return "The run stopped safely. Read the failure, correct the underlying connection or input, then retry without creating a second run.";
   if (run.status === "cancelled") return "This run is cancelled. Existing assets remain intact; retry only if you want the same objective to continue.";
   if (run.currentStep === "confirm_plan") return "A human must approve the dry plan before any production work begins.";
-  if (run.currentStep === "render") return "The run is ready for an attached MCP, SDK, or CLI agent to produce brand-locked assets.";
+  if (run.currentStep === "render") return "The plan is approved. Produce the brand-locked set here, or let an attached MCP, SDK, or CLI agent advance it.";
   if (run.currentStep === "review_or_confirm") return "The finished render is ready to be attached to a review batch without regenerating it.";
   if (["human_review", "resolve_review_flags"].includes(run.currentStep)) return "The agent is paused. A human must approve, edit, or flag the work in the review queue.";
   if (run.currentStep === "publish") return "Review is clear. The attached agent may schedule the approved asset using the run ID and approval reference.";
@@ -70,7 +70,7 @@ export default async function AgentRunPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const [runResponse, usage] = await Promise.all([
     engine(`/v0/agent/runs/${encodeURIComponent(id)}`, {}, uid).catch(() => null),
-    read<{ role: "owner" | "reviewer" }>("/v0/me/usage", uid),
+    read<{ role: "owner" | "reviewer"; entitlements: { features: string[] } }>("/v0/me/usage", uid),
   ]);
   if (usage?.role !== "owner") redirect("/dashboard");
   if (!runResponse || runResponse.status === 404) notFound();
@@ -124,7 +124,7 @@ export default async function AgentRunPage({ params }: { params: Promise<{ id: s
 
         <div className="mt-7 flex flex-col justify-between gap-4 border-t border-hairline pt-5 sm:flex-row sm:items-center">
           <div className="font-mono text-[10px] text-muted"><p>{run.brand ?? "Brand pending"} · {run.assetCount} planned assets · {run.channels.length || 0} channels</p><p className="mt-1">Updated {new Date(run.updatedAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</p></div>
-          <AgentRunActions runId={run.id} status={run.status} currentStep={run.currentStep} batchId={run.batchId} reviewReady={reviewReady} />
+          <AgentRunActions runId={run.id} status={run.status} currentStep={run.currentStep} batchId={run.batchId} reviewReady={reviewReady} canReview={usage.entitlements.features.includes("batchReview")} />
         </div>
       </section>
 

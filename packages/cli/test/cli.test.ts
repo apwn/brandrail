@@ -26,4 +26,10 @@ describe("brandrail CLI", () => {
       expect(result.stdout).toContain("--run <runId>");
     }
   });
+
+  it("supports explicitly completing an asset-only run", () => {
+    const result = spawnSync(process.execPath, [bin, "agent", "complete", "--help"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("finish an asset-only run without publishing");
+  });
 });

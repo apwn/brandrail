@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
+import { RunComposer } from "./run-composer";
 
 type Run = {
   id: string;
@@ -17,13 +18,15 @@ export const metadata = { title: "Agent runs · Brandrail" };
 export default async function AgentRunsPage() {
   const uid = await getUserId();
   if (!uid) redirect("/login");
-  const [usageResponse, runsResponse] = await Promise.all([
+  const [usageResponse, runsResponse, specsResponse] = await Promise.all([
     engine("/v0/me/usage", {}, uid).catch(() => null),
     engine("/v0/agent/runs?limit=100", {}, uid).catch(() => null),
+    engine("/v0/specs", {}, uid).catch(() => null),
   ]);
   const usage = usageResponse?.ok ? await usageResponse.json() as { role: "owner" | "reviewer" } : null;
   if (usage?.role !== "owner") redirect("/dashboard");
   const runs = runsResponse?.ok ? (await runsResponse.json() as { runs: Run[] }).runs : [];
+  const brands = specsResponse?.ok ? (await specsResponse.json() as { specs: Array<{ name: string; active?: boolean }> }).specs.filter((spec) => spec.active !== false).map((spec) => spec.name) : [];
   const active = runs.filter((run) => ["planning", "working", "input_required"].includes(run.status)).length;
   const waiting = runs.filter((run) => run.status === "input_required").length;
   const failed = runs.filter((run) => run.status === "failed").length;
@@ -43,6 +46,8 @@ export default async function AgentRunsPage() {
           <Stat value={failed} label="FAILED" signal={failed > 0} />
         </div>
       </section>
+
+      <RunComposer brands={brands} openByDefault={runs.length === 0} />
 
       <section className="mt-8 border border-hairline bg-panel">
         {runs.length === 0 ? <div className="p-8"><p className="font-display text-xl font-bold">No durable runs yet.</p><p className="mt-2 max-w-lg text-sm text-muted">Start one through MCP, the SDK, or <span className="font-mono text-bone">brandrail agent start</span>. It will appear here as soon as the plan is created.</p><a href="/agents" className="mt-5 inline-block font-mono text-[10px] text-signal hover:text-bone">OPEN AGENT SETUP →</a></div> : <div className="divide-y divide-hairline">

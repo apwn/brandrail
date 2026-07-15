@@ -82,7 +82,7 @@ GET  /v0/reports/:brand       white-label HTML report`}</Code>
 
       <H2 id="mcp">MCP server</H2>
       <p className="text-muted text-sm mt-3 leading-relaxed">
-        The hosted Streamable HTTP MCP endpoint exposes 29 lifecycle tools plus inspectable PNG resources:
+        The hosted Streamable HTTP MCP endpoint exposes 30 lifecycle tools plus inspectable PNG resources:
         brands, durable runs, dry-run planning, deterministic rendering, campaigns, review pauses, scoped publishing,
         calendar, analytics, usage and audit. Credentials are expiring and least-privilege; immediate publishing is opt-in.
       </p>
@@ -106,6 +106,7 @@ node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
 node packages/cli/dist/index.js agent plan "Launch campaign" --brand acme --json
 node packages/cli/dist/index.js agent start "Launch campaign" --brand acme --json
 node packages/cli/dist/index.js agent list --json
+node packages/cli/dist/index.js agent complete run_123 --json
 node packages/cli/dist/index.js review status batch_123 --json
 node packages/cli/dist/index.js spec diff acme@1 acme@2
 node packages/cli/dist/index.js channels

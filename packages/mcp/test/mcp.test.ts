@@ -33,6 +33,7 @@ describe("Brandrail MCP server", () => {
         "get_agent_run",
         "provide_agent_input",
         "retry_agent_run",
+        "complete_agent_run",
         "cancel_agent_run",
         "list_renders",
         "get_render",

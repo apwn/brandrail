@@ -1,6 +1,6 @@
 # @brandrail/mcp
 
-The Brandrail MCP server. Gives compatible agents the full controlled content lifecycle through the same 29 tools locally and remotely:
+The Brandrail MCP server. Gives compatible agents the full controlled content lifecycle through the same 30 tools locally and remotely:
 
 | Tool | What it does | Comes back |
 |---|---|---|
@@ -13,7 +13,7 @@ The Brandrail MCP server. Gives compatible agents the full controlled content li
 | `plan_campaign(objective, …)` | dry-run before mutation | blockers + execution steps |
 | `start_campaign_run(…)` | create reconnect-safe campaign work | durable run ID + progress |
 | `list_agent_runs()` / `get_agent_run(id)` | resume after reconnects | status + next safe step |
-| `provide_agent_input` / `retry_agent_run` / `cancel_agent_run` | control durable work | explicit state transition |
+| `provide_agent_input` / `complete_agent_run` / `retry_agent_run` / `cancel_agent_run` | control durable work | explicit state transition |
 | `list_renders()` / `get_render(id)` | retrieve render history | manifests + asset references |
 | `list_channels()` | inspect connected destinations | scoped channel IDs |
 | `create_review_batch(items)` | render and pause for a human | stateful review batch |

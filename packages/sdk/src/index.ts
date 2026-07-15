@@ -277,6 +277,11 @@ export class Brandrail {
     return run;
   }
 
+  async completeAgentRun(id: string): Promise<AgentRun> {
+    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/complete`, { method: "POST", body: "{}" });
+    return run;
+  }
+
   async cancelAgentRun(id: string): Promise<AgentRun> {
     const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: "{}" });
     return run;

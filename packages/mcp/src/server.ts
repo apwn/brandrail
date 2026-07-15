@@ -324,7 +324,7 @@ export function buildServer(): McpServer {
 
   server.registerTool(
     "provide_agent_input",
-    { description: "Provide structured human input to a run in input_required state.", inputSchema: { runId: z.string(), input: z.record(z.string(), z.unknown()) } },
+    { description: "Provide structured human confirmation to a run waiting at confirm_plan. Human review pauses resume through get_review_status instead.", inputSchema: { runId: z.string(), input: z.record(z.string(), z.unknown()) } },
     async ({ runId, input }) => { try { const data = await api.provideAgentInput(runId, input); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
@@ -332,6 +332,12 @@ export function buildServer(): McpServer {
     "retry_agent_run",
     { description: "Retry a failed or cancelled run without creating duplicate campaign state.", inputSchema: { runId: z.string() } },
     async ({ runId }) => { try { const data = await api.retryAgentRun(runId); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "complete_agent_run",
+    { description: "Finish an asset-only run after the user accepts its output. This never publishes anything.", inputSchema: { runId: z.string() } },
+    async ({ runId }) => { try { const data = await api.completeAgentRun(runId); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(
