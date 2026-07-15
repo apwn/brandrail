@@ -3,6 +3,8 @@
 export function OnboardingChecklist({
   verified,
   hasBrand,
+  hasRender,
+  firstBrand,
   hasAgent,
   hasAgentRun,
   hasChannel,
@@ -13,6 +15,8 @@ export function OnboardingChecklist({
 }: {
   verified: boolean;
   hasBrand: boolean;
+  hasRender: boolean;
+  firstBrand?: string;
   hasAgent: boolean;
   hasAgentRun: boolean;
   hasChannel: boolean;
@@ -24,6 +28,7 @@ export function OnboardingChecklist({
   const steps = [
     { done: verified, label: "Verify your email", hint: "one magic link — makes this workspace recoverable", href: "#account" },
     { done: hasBrand, label: "Compile your first brand", hint: "give the agent enforceable context", href: "/" },
+    { done: hasRender, label: "Create your first asset", hint: "see the BrandSpec become finished channel-ready output", href: firstBrand ? `/?brand=${encodeURIComponent(firstBrand)}` : "/" },
     { done: hasAgent, label: "Connect your agent", hint: "one hosted MCP connection", href: "#agent" },
     { done: hasAgentRun, label: "Run your first dry plan", hint: "ask the agent what it would do before it mutates", href: "#agent" },
     ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "direct or OAuth — credentials stay encrypted", href: "#channels" }] : []),
@@ -36,7 +41,7 @@ export function OnboardingChecklist({
   return (
     <section className="panel p-5 mt-10 border-signal/40">
       <div className="flex items-baseline justify-between">
-        <p className="eyebrow text-bone">{canPublish ? "FROM AGENT CONNECTION TO FIRST SHIPPED POST" : "ACTIVATE YOUR AGENT WORKSPACE"}</p>
+        <p className="eyebrow text-bone">{canPublish ? "FROM BRAND SYSTEM TO FIRST SHIPPED POST" : "ACTIVATE YOUR BRAND SYSTEM"}</p>
         <span className="font-mono text-[11px] text-muted">{steps.length - remaining}/{steps.length}</span>
       </div>
       <ol className="mt-4 grid sm:grid-cols-2 gap-3">

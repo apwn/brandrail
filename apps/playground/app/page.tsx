@@ -5,7 +5,7 @@ import type { BrandSpec } from "@brandrail/spec";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
 import { MarketingLanding } from "./marketing";
 
-type Step = "landing" | "compiling" | "sheet" | "rendering" | "result";
+type Step = "landing" | "loading" | "compiling" | "sheet" | "rendering" | "result";
 
 interface CompileResponse {
   spec: BrandSpec;
@@ -81,6 +81,7 @@ export default function Playground() {
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
+  const [existingBrand, setExistingBrand] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [brief, setBrief] = useState("");
   const [render, setRender] = useState<RenderResponse | null>(null);
@@ -111,6 +112,37 @@ export default function Playground() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  // Existing brands enter the studio directly. This turns workspace and
+  // history CTAs into a continuation of the same product flow instead of
+  // sending users back through URL compilation.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const brand = params.get("brand")?.trim();
+    if (!brand) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    setBrief(params.get("brief")?.trim() ?? "");
+    setError(null);
+    setStep("loading");
+    void (async () => {
+      try {
+        const res = await fetch(`/api/spec?brand=${encodeURIComponent(brand)}`, { cache: "no-store", signal: controller.signal });
+        const body = await readApiJson<BrandSpec | { error?: string }>(res);
+        if (!res.ok || !("meta" in body)) throw new Error("error" in body ? body.error ?? "brand not found" : "brand not found");
+        if (cancelled) return;
+        setCompiled({ spec: body, confidence: {}, warnings: [] });
+        setExistingBrand(true);
+        setEdits({});
+        setStep("sheet");
+      } catch (e) {
+        if (cancelled || (e as Error).name === "AbortError") return;
+        setError((e as Error).message);
+        setStep("landing");
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
+  }, []);
+
   const spec = compiled?.spec ?? null;
   const lowConfidence = useMemo(
     () =>
@@ -135,6 +167,7 @@ export default function Playground() {
       const body = await readApiJson<CompileResponse>(res);
       if (!res.ok) throw new Error(body.error ?? "compile failed");
       setCompiled(body);
+      setExistingBrand(false);
       setEdits({});
       setStep("sheet");
     } catch (e) {
@@ -325,11 +358,19 @@ export default function Playground() {
           ]}
         />
       )}
+      {step === "loading" && (
+        <Working
+          label="LOADING BRAND SYSTEM"
+          steps={["opening the active BrandSpec", "checking assets and visual language", "preparing the creation studio"]}
+        />
+      )}
       {(step === "sheet" || step === "rendering") && spec && (
         <>
-          <BrandSheet spec={spec} lowConfidence={lowConfidence} edits={edits} setEdits={setEdits} warnings={compiled?.warnings ?? []} />
+          {existingBrand
+            ? <ActiveBrandSummary spec={spec} />
+            : <BrandSheet spec={spec} lowConfidence={lowConfidence} edits={edits} setEdits={setEdits} warnings={compiled?.warnings ?? []} />}
           {step === "sheet" ? (
-            <BriefBar onRender={doRender} />
+            <BriefBar existingBrand={existingBrand} initialValue={brief} onRender={doRender} />
           ) : (
             <Working
               label="RENDERING"
@@ -378,6 +419,24 @@ export default function Playground() {
 
 function assetUrl(renderId: string, filename: string): string {
   return `/api/asset/${encodeURIComponent(renderId)}/${encodeURIComponent(filename)}`;
+}
+
+function ActiveBrandSummary({ spec }: { spec: BrandSpec }) {
+  const visual = spec.identity.visualLanguage;
+  return (
+    <section className="mb-8 border border-hairline bg-panel p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-5">
+        <div>
+          <p className="eyebrow text-green">✓ ACTIVE BRAND SYSTEM</p>
+          <h1 className="font-display text-3xl font-bold mt-2">{spec.meta.displayName ?? spec.meta.name}</h1>
+          <p className="font-mono text-[11px] text-muted mt-2">
+            BrandSpec v{spec.meta.version} · {visual.family} · {visual.background} · {spec.imagery.photos.length} brand photo{spec.imagery.photos.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <a href={`/brands/${encodeURIComponent(spec.meta.name)}`} className="btn-ghost">Edit brand system →</a>
+      </div>
+    </section>
+  );
 }
 
 /** Pinned brand assets are stored as content-addressed `blob://<hash>` refs;
@@ -570,11 +629,11 @@ function BrandSheet({
   );
 }
 
-function BriefBar({ onRender }: { onRender: (brief: string) => void }) {
-  const [value, setValue] = useState("");
+function BriefBar({ existingBrand, initialValue, onRender }: { existingBrand?: boolean; initialValue?: string; onRender: (brief: string) => void }) {
+  const [value, setValue] = useState(initialValue ?? "");
   return (
     <section>
-      <p className="eyebrow mb-4">03 / WHAT SHOULD IT SAY?</p>
+      <p className="eyebrow mb-4">{existingBrand ? "01 / WHAT SHOULD WE CREATE?" : "03 / WHAT SHOULD IT SAY?"}</p>
       <form
         className="flex max-w-xl gap-3"
         onSubmit={(e) => {

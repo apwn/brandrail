@@ -61,6 +61,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const genPct = Math.min(100, Math.round((genUsed / (usage.genLimit || 1)) * 100));
   const owner = usage.role === "owner";
   const has = (feature: string) => usage.entitlements.features.includes(feature);
+  const firstBrand = specs.specs.find((item) => item.active !== false)?.name;
+  const createHref = firstBrand ? `/?brand=${encodeURIComponent(firstBrand)}` : "/";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -104,6 +106,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {owner && <OnboardingChecklist
         verified={Boolean(usage.user.emailVerified)}
         hasBrand={specs.specs.length > 0}
+        hasRender={renders.renders.length > 0}
+        firstBrand={firstBrand}
         hasAgent={keys.keys.length > 0}
         hasAgentRun={audit.events.some((event) => event.actor === "agent" && event.status < 400 && ["/v0/agent/plan", "/v0/render", "/v0/compile"].includes(event.path))}
         hasChannel={channels.channels.length > 0}
@@ -178,7 +182,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <section className="mt-10">
         <div className="flex items-center justify-between mb-3">
           <p className="eyebrow text-bone">RECENT ASSETS ({renders.renders.length})</p>
-          <a href="/" className="btn-ghost !py-1.5 !px-3 text-xs">+ Create assets</a>
+          <a href={createHref} className="btn-ghost !py-1.5 !px-3 text-xs">+ Create assets</a>
         </div>
         {renders.renders.length === 0 ? (
           <p className="text-muted text-sm">Your finished assets will stay here after the first render.</p>
@@ -192,7 +196,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-3"><a href={`/brands/${encodeURIComponent(render.manifest.brand)}`} className="font-mono text-xs text-signal hover:text-bone">{render.manifest.brand}</a><span className="font-mono text-[10px] text-muted">{render.createdAt.slice(0, 10)}</span></div>
                     <p className="mt-2 line-clamp-2 text-sm text-bone">{render.manifest.brief}</p>
-                    <p className="font-mono text-[10px] text-muted mt-2">{render.manifest.assets.length} files · saved</p>
+                    <div className="mt-3 flex items-center justify-between gap-3"><p className="font-mono text-[10px] text-muted">{render.manifest.assets.length} files · saved</p><a href={`/?brand=${encodeURIComponent(render.manifest.brand)}&brief=${encodeURIComponent(render.manifest.brief)}`} className="eyebrow text-signal hover:text-bone">CREATE AGAIN →</a></div>
                   </div>
                 </article>
               );
