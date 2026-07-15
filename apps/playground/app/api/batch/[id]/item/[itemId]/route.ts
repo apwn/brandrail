@@ -1,5 +1,6 @@
 import { engine } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 /** Apply a review action to one item: approve / edit / regenerate / flag. */
 export async function PATCH(
@@ -7,7 +8,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; itemId: string }> },
 ) {
   const { id, itemId } = await params;
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJsonBody(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const uid = await ensureUserId();
   const res = await engine(
     `/v0/batches/${encodeURIComponent(id)}/items/${encodeURIComponent(itemId)}`,

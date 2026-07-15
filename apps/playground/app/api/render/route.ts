@@ -1,10 +1,13 @@
 import { engineJson, isVerifiedUser } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 const anonymousRestyles = new Map<string, number>();
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
+  const parsed = await readJsonBody<Record<string, unknown>>(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   if (!body?.brand || !body?.brief) {
     return Response.json({ error: "brand and brief required" }, { status: 400 });
   }

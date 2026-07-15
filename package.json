@@ -17,6 +17,9 @@
     "typescript": "^5.7.2"
   },
   "pnpm": {
+    "overrides": {
+      "postcss": "8.5.16"
+    },
     "onlyBuiltDependencies": [
       "esbuild",
       "@resvg/resvg-js",

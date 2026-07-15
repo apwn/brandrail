@@ -1,10 +1,13 @@
 import { engine, isVerifiedUser } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 /** Publishing is a "take" action — it ships content to the world as this user,
  * so it requires a verified account (the see-free / take-gated line). */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJsonBody(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const uid = await ensureUserId();
   if (!(await isVerifiedUser(uid))) {
     return Response.json(

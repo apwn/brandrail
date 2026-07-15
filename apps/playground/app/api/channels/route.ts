@@ -1,5 +1,6 @@
 import { engine, isVerifiedUser } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 /** List connected channels (+ trust setting). */
 export async function GET() {
@@ -12,7 +13,9 @@ export async function GET() {
  * Storing posting credentials is a "take" action — verified accounts only,
  * so creds never hang off a loseable anonymous cookie. */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJsonBody(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const uid = await ensureUserId();
   if (!(await isVerifiedUser(uid))) {
     return Response.json(

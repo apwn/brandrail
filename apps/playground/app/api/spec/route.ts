@@ -1,5 +1,6 @@
 import { engine } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 /** Download a portable BrandSpec JSON file. */
 export async function GET(req: Request) {
@@ -20,7 +21,9 @@ export async function GET(req: Request) {
 
 /** Inline brand-sheet edits: PATCH the spec (bumps version server-side). */
 export async function PATCH(req: Request) {
-  const body = await req.json().catch(() => null);
+  const parsed = await readJsonBody<{ brand?: string; patch?: Record<string, unknown> }>(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   if (!body?.brand || !body?.patch) {
     return Response.json({ error: "brand and patch required" }, { status: 400 });
   }
@@ -33,7 +36,9 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { brand } = (await req.json().catch(() => ({}))) as { brand?: string };
+  const parsed = await readJsonBody<{ brand?: string }>(req, 16_000);
+  if (!parsed.ok) return parsed.response;
+  const { brand } = parsed.data;
   if (!brand) return Response.json({ error: "brand required" }, { status: 400 });
   const uid = await ensureUserId();
   const res = await engine(`/v0/specs/${encodeURIComponent(brand)}`, { method: "DELETE" }, uid);

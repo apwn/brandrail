@@ -1,11 +1,12 @@
 import { engine } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { publicOrigin } from "@/lib/origin";
 
 export async function GET(req: Request, { params }: { params: Promise<{ platform: string }> }) {
   const uid = await ensureUserId();
   const { platform } = await params;
   const url = new URL(req.url);
-  const origin = process.env.PUBLIC_URL ?? url.origin;
+  const origin = publicOrigin(req);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const platformError = url.searchParams.get("error_description") ?? url.searchParams.get("error");

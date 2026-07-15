@@ -1,5 +1,6 @@
 import { engineJson } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 const ACTIONS = new Set(["input", "retry", "cancel", "sync-review", "execute-render", "create-review", "complete"]);
 
@@ -7,7 +8,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const uid = await ensureUserId();
   const { id, action } = await params;
   if (!ACTIONS.has(action)) return Response.json({ error: "unknown run action" }, { status: 404 });
-  const body = action === "input" || action === "sync-review" ? await request.json().catch(() => ({})) as { batchId?: string } : {};
+  let body: { batchId?: string; [key: string]: unknown } = {};
+  if (action === "input" || action === "sync-review") {
+    const parsed = await readJsonBody<typeof body>(request, 64_000);
+    if (!parsed.ok) return parsed.response;
+    body = parsed.data;
+  }
   if (action === "sync-review") {
     if (!body.batchId) return Response.json({ error: "review batch is required" }, { status: 400 });
     const result = await engineJson(`/v0/batches/${encodeURIComponent(body.batchId)}/status?runId=${encodeURIComponent(id)}`, {}, uid);

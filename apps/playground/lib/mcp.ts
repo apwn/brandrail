@@ -1,4 +1,6 @@
 import { agentEngine } from "@/lib/engine";
+import { publicOrigin } from "@/lib/origin";
+import { readJsonBody } from "@/lib/request";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
 
 type JsonSchema = Record<string, unknown>;
@@ -179,13 +181,13 @@ async function toolCall(apiKey: string, name: string, args: Record<string, unkno
 function originAllowed(req: Request): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return true;
-  const own = new URL(req.url).origin;
+  const own = publicOrigin(req);
   const configured = (process.env.MCP_ALLOWED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean);
   return origin === own || configured.includes(origin);
 }
 
 export function mcpResourceMetadataUrl(req: Request): string {
-  return new URL("/.well-known/oauth-protected-resource/api/mcp", req.url).toString();
+  return new URL("/.well-known/oauth-protected-resource/api/mcp", publicOrigin(req)).toString();
 }
 
 export async function handleMcp(req: Request): Promise<Response> {
@@ -196,7 +198,9 @@ export async function handleMcp(req: Request): Promise<Response> {
   }
   const apiKey = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? req.headers.get("x-api-key") ?? "";
   if (!apiKey) return Response.json({ error: "Authentication required" }, { status: 401, headers: { ...responseHeaders(), "WWW-Authenticate": `Bearer resource_metadata=\"${mcpResourceMetadataUrl(req)}\"` } });
-  const message = (await req.json().catch(() => null)) as RpcMessage | null;
+  const parsed = await readJsonBody<RpcMessage>(req);
+  if (!parsed.ok) return parsed.response;
+  const message = parsed.data;
   if (!message?.method) return Response.json(rpcError(message?.id, -32600, "Invalid MCP request"), { status: 400, headers: responseHeaders() });
 
   const requestedHeader = req.headers.get("mcp-protocol-version");

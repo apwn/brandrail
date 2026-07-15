@@ -1,9 +1,12 @@
 import { engine } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
+import { readJsonBody } from "@/lib/request";
 
 /** Create a review batch (many briefs across one or more clients). */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
+  const parsed = await readJsonBody<{ title?: string; items?: unknown[]; runId?: string }>(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   if (!Array.isArray(body?.items) || body.items.length === 0) {
     return Response.json({ error: "items required" }, { status: 400 });
   }
