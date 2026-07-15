@@ -19,6 +19,7 @@ type Item = {
   copy: Copy;
   assets: Array<{ format: string; filename: string }>;
   reviewMs?: number;
+  deliveries?: Array<{ postId: string; channelId: string }>;
 };
 type Batch = { id: string; title: string; items: Item[] };
 
@@ -89,6 +90,15 @@ export default function ReviewPage() {
   const setItem = useCallback((updated: Item) => {
     setBatch((b) => (b ? { ...b, items: b.items.map((it) => (it.id === updated.id ? updated : it)) } : b));
   }, []);
+
+  const batchId = batch?.id;
+  const refreshBatch = useCallback(async () => {
+    if (!batchId) return;
+    const response = await fetch(`/api/batch/${encodeURIComponent(batchId)}`);
+    if (!response.ok) return;
+    const updated = await response.json() as Batch;
+    if (updated?.items) setBatch(updated);
+  }, [batchId]);
 
   const nextPending = useCallback(
     (from: number) => {
@@ -372,7 +382,7 @@ export default function ReviewPage() {
             Export ↓
           </button>
           {role === "owner" && <button className="btn !py-1.5 !px-3 text-xs" onClick={() => setDeliveryOpen(true)} disabled={busy || approvedItems.length === 0}>
-            Schedule approved ({approvedItems.length}) →
+            Manage delivery ({approvedItems.length}) →
           </button>}
         </div>
       </header>
@@ -385,8 +395,9 @@ export default function ReviewPage() {
               <p className="eyebrow px-4 mb-2">{brand}</p>
               {its.map((it) => {
                 const idx = items.indexOf(it);
-                const dot =
-                  it.status === "approved" || it.status === "edited"
+                const dot = it.deliveries?.length
+                  ? "bg-green"
+                  : it.status === "approved" || it.status === "edited"
                     ? "bg-signal"
                     : it.status === "flagged"
                       ? "bg-bone"
@@ -420,9 +431,10 @@ export default function ReviewPage() {
                   <h2 className="text-xl font-semibold mt-1">{current.brief}</h2>
                 </div>
                 {current.renderId ? (
-                  <span className="font-mono text-[11px] px-2 py-1 rounded border border-signal text-signal whitespace-nowrap">
-                    brand-locked ✓ {current.violations} violations
-                  </span>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {current.deliveries?.length ? <a href="/calendar" className="whitespace-nowrap rounded border border-green px-2 py-1 font-mono text-[11px] text-green">calendar ✓ {current.deliveries.length}</a> : null}
+                    <span className="whitespace-nowrap rounded border border-signal px-2 py-1 font-mono text-[11px] text-signal">brand-locked ✓ {current.violations} violations</span>
+                  </div>
                 ) : (
                   <span className="font-mono text-[11px] px-2 py-1 rounded border border-bone text-bone">could not render</span>
                 )}
@@ -482,6 +494,7 @@ export default function ReviewPage() {
           batchTitle={batch.title}
           items={approvedItems}
           onClose={() => setDeliveryOpen(false)}
+          onScheduled={() => void refreshBatch()}
         />
       )}
     </main>

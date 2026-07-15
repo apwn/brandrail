@@ -10,6 +10,7 @@ type DeliveryItem = {
   renderId: string;
   copy: { formats: Record<string, Slide[]> };
   assets: Array<{ format: string; filename: string }>;
+  deliveries?: Array<{ postId: string; channelId: string }>;
 };
 type Channel = { id: string; platform: string; handle: string };
 
@@ -55,11 +56,13 @@ export function DeliveryDialog({
   batchTitle,
   items,
   onClose,
+  onScheduled,
 }: {
   batchId: string;
   batchTitle: string;
   items: DeliveryItem[];
   onClose: () => void;
+  onScheduled: () => void;
 }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -105,7 +108,10 @@ export function DeliveryDialog({
     () => channels.filter((channel) => selectedIds.includes(channel.id)),
     [channels, selectedIds],
   );
-  const postCount = items.length * selectedChannels.length;
+  const postCount = useMemo(
+    () => items.reduce((count, item) => count + selectedChannels.filter((channel) => !item.deliveries?.some((delivery) => delivery.channelId === channel.id)).length, 0),
+    [items, selectedChannels],
+  );
 
   async function schedule() {
     const firstSlot = new Date(startAt);
@@ -125,6 +131,7 @@ export function DeliveryDialog({
       const slot = new Date(firstSlot);
       slot.setDate(slot.getDate() + itemIndex * gapDays);
       for (const channel of selectedChannels) {
+        if (item.deliveries?.some((delivery) => delivery.channelId === channel.id)) continue;
         try {
           const response = await fetch("/api/publish", {
             method: "POST",
@@ -136,7 +143,7 @@ export function DeliveryDialog({
               imageFiles: filesFor(item, channel.platform),
               scheduledAt: slot.toISOString(),
               approval: { batchId, itemId: item.id },
-              idempotencyKey: `review:${batchId}:${item.id}:${channel.id}:${slot.toISOString()}`,
+              idempotencyKey: `review:${batchId}:${item.id}:${channel.id}`,
             }),
           });
           if (response.ok) scheduled++;
@@ -148,6 +155,7 @@ export function DeliveryDialog({
     }
     setResult({ scheduled, failed });
     setState("done");
+    if (scheduled > 0) onScheduled();
   }
 
   return (
@@ -195,6 +203,7 @@ export function DeliveryDialog({
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {channels.map((channel) => {
                   const selected = selectedIds.includes(channel.id);
+                  const delivered = items.filter((item) => item.deliveries?.some((delivery) => delivery.channelId === channel.id)).length;
                   return (
                     <label key={channel.id} className={`cursor-pointer border p-3 text-sm ${selected ? "border-signal bg-signal/5 text-bone" : "border-hairline text-muted"}`}>
                       <input
@@ -206,7 +215,7 @@ export function DeliveryDialog({
                       />
                       <span className="font-mono text-[10px] uppercase text-signal">{channel.platform}</span>
                       <span className="ml-2">{channel.handle}</span>
-                      <span className="mt-1 block font-mono text-[9px] text-muted">{FORMAT_BY_PLATFORM[channel.platform] ?? "og-image"}</span>
+                      <span className="mt-1 block font-mono text-[9px] text-muted">{FORMAT_BY_PLATFORM[channel.platform] ?? "og-image"}{delivered ? ` · ${delivered}/${items.length} already scheduled` : ""}</span>
                     </label>
                   );
                 })}
@@ -239,9 +248,13 @@ export function DeliveryDialog({
             </div>
 
             {error && <p className="mt-3 font-mono text-xs text-signal" role="alert">ERR {error}</p>}
-            <button className="btn mt-5 w-full" onClick={() => void schedule()} disabled={state === "scheduling" || postCount === 0}>
-              {state === "scheduling" ? `Scheduling ${postCount} items…` : `Add ${postCount} to calendar →`}
-            </button>
+            {postCount > 0 ? (
+              <button className="btn mt-5 w-full" onClick={() => void schedule()} disabled={state === "scheduling"}>
+                {state === "scheduling" ? `Scheduling ${postCount} items…` : `Add ${postCount} new ${postCount === 1 ? "item" : "items"} to calendar →`}
+              </button>
+            ) : (
+              <a className="btn mt-5 flex w-full justify-center" href="/calendar">Everything selected is scheduled · open calendar →</a>
+            )}
           </>
         )}
       </div>
