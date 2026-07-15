@@ -36,6 +36,15 @@ export const acmeInput: BrandSpecInput = {
       allowedOn: ["ink", "paper"],
       distort: false,
     },
+    visualLanguage: {
+      family: "modular",
+      corners: "sharp",
+      borders: "none",
+      background: "split",
+      imageTreatment: "full-bleed",
+      logoTreatment: "auto",
+      colorBalance: "balanced",
+    },
     spacing: { unit: 8, grid: "12col" },
   },
   composition: {

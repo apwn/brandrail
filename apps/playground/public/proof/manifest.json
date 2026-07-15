@@ -7,31 +7,38 @@
     "og-image",
     "x-graphic"
   ],
-  "archetype": "hero-statement",
+  "archetype": "announcement",
   "plan": {
-    "ig-carousel": "hero-statement",
+    "ig-carousel": "announcement",
     "og-image": "announcement",
-    "x-graphic": "hero-statement"
+    "x-graphic": "cta-card"
   },
   "artDirection": {
     "ig-carousel": {
-      "selected": "hero-statement",
+      "selected": "announcement",
       "intent": "series",
       "candidates": [
         {
-          "archetype": "hero-statement",
+          "archetype": "announcement",
           "score": 93,
           "semanticScore": 100,
           "reasons": [
-            "multi-slide series rhythm",
+            "per-slide campaign rhythm",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
           "visualScore": 75,
           "valid": true
         }
       ],
-      "rationale": "hero-statement preserves the carousel's opener, points, and closing CTA rhythm."
+      "slidePlan": [
+        "announcement",
+        "hero-statement",
+        "hero-statement",
+        "cta-card"
+      ],
+      "rationale": "Carousel rhythm: announcement → hero-statement → hero-statement → cta-card."
     },
     "og-image": {
       "selected": "announcement",
@@ -39,13 +46,15 @@
       "candidates": [
         {
           "archetype": "announcement",
-          "score": 94,
-          "semanticScore": 100,
+          "score": 73,
+          "semanticScore": 70,
           "reasons": [
             "format default",
             "launch, release, event, or date language",
+            "campaign variety considered",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
           "visualScore": 80,
           "valid": true
@@ -57,42 +66,19 @@
           "reasons": [
             "supporting CTA supplied",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
           "visualScore": 78,
           "valid": true
-        },
-        {
-          "archetype": "hero-statement",
-          "score": 28,
-          "semanticScore": 8,
-          "reasons": [
-            "feed-scale focal type",
-            "disciplined accent usage"
-          ],
-          "visualScore": 80,
-          "valid": true
         }
       ],
-      "rationale": "announcement ranked first after composition: format default; launch, release, event, or date language; feed-scale focal type; disciplined accent usage."
+      "rationale": "announcement ranked first after composition: format default; launch, release, event, or date language; campaign variety considered; feed-scale focal type; disciplined accent usage; secondary type remains legible at feed scale."
     },
     "x-graphic": {
-      "selected": "hero-statement",
+      "selected": "cta-card",
       "intent": "statement",
       "candidates": [
-        {
-          "archetype": "hero-statement",
-          "score": 73,
-          "semanticScore": 70,
-          "reasons": [
-            "format default",
-            "single dominant statement",
-            "feed-scale focal type",
-            "disciplined accent usage"
-          ],
-          "visualScore": 82,
-          "valid": true
-        },
         {
           "archetype": "cta-card",
           "score": 42,
@@ -104,9 +90,23 @@
           ],
           "visualScore": 84,
           "valid": true
+        },
+        {
+          "archetype": "hero-statement",
+          "score": 31,
+          "semanticScore": 10,
+          "reasons": [
+            "format default",
+            "single dominant statement",
+            "campaign variety considered",
+            "feed-scale focal type",
+            "disciplined accent usage"
+          ],
+          "visualScore": 84,
+          "valid": true
         }
       ],
-      "rationale": "hero-statement ranked first after composition: format default; single dominant statement; feed-scale focal type; disciplined accent usage."
+      "rationale": "cta-card ranked first after composition: supporting CTA supplied; feed-scale focal type; disciplined accent usage."
     }
   },
   "violations": [],
@@ -118,7 +118,7 @@
       "slideCount": 4,
       "width": 1080,
       "height": 1350,
-      "archetype": "hero-statement",
+      "archetype": "announcement",
       "filename": "acme-ig-carousel-1.png"
     },
     {
@@ -163,7 +163,7 @@
       "slideCount": 1,
       "width": 1600,
       "height": 900,
-      "archetype": "hero-statement",
+      "archetype": "cta-card",
       "filename": "acme-x-graphic.png"
     }
   ]

@@ -22,7 +22,35 @@ describe("validate", () => {
     expect(spec.composition.densityMaxElementsPerZone).toBe(3);
     expect(spec.voice.ctaStyle).toBe("imperative-short");
     expect(spec.identity.colors.usage.minContrast).toBe(4.5);
+    expect(spec.identity.visualLanguage).toMatchObject({
+      family: "editorial",
+      corners: "sharp",
+      background: "flat",
+      imageTreatment: "full-bleed",
+    });
     expect(spec.$schema).toBe("https://brandrail.dev/spec/v0.1.json");
+  });
+
+  it("accepts media metadata while preserving legacy string photo refs", () => {
+    const input = structuredClone(acmeInput);
+    input.imagery = {
+      ...input.imagery!,
+      photos: [
+        "https://cdn.example.com/team.jpg",
+        {
+          ref: "https://cdn.example.com/product.jpg",
+          alt: "Campaign analytics dashboard",
+          context: "Product feature section",
+          tags: ["analytics", "dashboard"],
+        },
+      ],
+    };
+    const spec = parse(input);
+    expect(spec.imagery.photos[0]).toBe("https://cdn.example.com/team.jpg");
+    expect(spec.imagery.photos[1]).toMatchObject({
+      alt: "Campaign analytics dashboard",
+      tags: ["analytics", "dashboard"],
+    });
   });
 
   it("rejects illegible ink/paper combinations", () => {

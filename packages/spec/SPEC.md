@@ -22,7 +22,7 @@ A BrandSpec is a JSON object with exactly these top-level members, in canonical 
 |---|---|---|
 | `$schema` | yes | MUST be the canonical schema URL above |
 | `meta` | yes | Name, version, lineage, provenance |
-| `identity` | yes | Colors, typography, logo, spacing — the mechanical layer |
+| `identity` | yes | Colors, typography, logo, spacing and visual language — the mechanical layer |
 | `composition` | no* | Layout constraints: density, archetypes, whitespace, alignment |
 | `imagery` | no* | Photography/illustration/icon rules, generative fences |
 | `voice` | no* | Tone, banned/required vocabulary, emoji/hashtag/CTA policy |
@@ -77,13 +77,22 @@ Additional named roles MAY be added (catchall); all values MUST be 6-digit hex, 
 
 `unit` (px, default 8) and `grid` (`12col` | `8col` | `4col`). All template padding, gaps and offsets MUST be integer multiples of `unit`.
 
+### Visual language
+
+`identity.visualLanguage` describes the brand's reusable visual grammar rather
+than one specific layout: `family` (editorial, modular, image-led), corner and
+border character, background strategy, image treatment, logo treatment and
+color balance. All fields are optional with conservative defaults, so older
+v0.1 specs remain valid. Renderers SHOULD use these tokens to choose between
+deterministic variants without inventing decorative styles.
+
 ## 5. `composition`, `imagery`
 
 - `densityMaxElementsPerZone` — hard cap on distinct visual elements per layout zone.
-- `layoutArchetypes` — the closed set of layouts this brand permits, drawn from: `hero-statement`, `split-stat`, `quote`, `list-3`, `cta-card`. Requesting a non-listed archetype is a violation (`archetype-not-allowed`).
+- `layoutArchetypes` — the closed set of layouts this brand permits, drawn from: `hero-statement`, `split-stat`, `quote`, `list-3`, `cta-card`, `promo-card`, `feature-grid`, `testimonial`, `announcement`, `before-after`. Requesting a non-listed archetype is a violation (`archetype-not-allowed`).
 - `whitespaceMinPct` — minimum share of the canvas free of content.
 - `alignment` — `left` | `center` | `mixed`.
-- `imagery.photos` — the brand's own photography (asset references, max 12), typically harvested from the brand's website at compile time. This is the **only** imagery a renderer may place, and photos occupy dedicated zones: text MUST NOT render over a photo (contrast against arbitrary pixels cannot be enforced). Renderers MUST honor `imagery.photography.allowed: false` by ignoring this list.
+- `imagery.photos` — the brand's own photography (max 12), either an asset reference or `{ ref, alt, context, tags }`. Metadata lets deterministic renderers choose a relevant image instead of matching only geometry. This is the **only** imagery a renderer may place, and photos occupy dedicated zones: text MUST NOT render over a photo (contrast against arbitrary pixels cannot be enforced). Renderers MUST honor `imagery.photography.allowed: false` by ignoring this list.
 - `imagery.aiFences` — where generative fill is permitted. In v0.1 `subjects` MUST be `false`: generated backgrounds may be fenced in; generated subjects are never allowed.
 
 ## 6. `voice` and `judgment`

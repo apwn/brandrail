@@ -105,6 +105,23 @@ export const TypographySchema = z.object({
     .default({}),
 });
 
+/**
+ * Optional visual grammar that lets two brands with similar colors and type
+ * still produce materially different compositions. Every field has a safe
+ * default so existing v0.1 BrandSpecs remain valid and byte-stable.
+ */
+export const VisualLanguageSchema = z
+  .object({
+    family: z.enum(["editorial", "modular", "image-led"]).default("editorial"),
+    corners: z.enum(["sharp", "soft", "pill"]).default("sharp"),
+    borders: z.enum(["none", "hairline", "strong"]).default("none"),
+    background: z.enum(["flat", "tinted", "split", "framed"]).default("flat"),
+    imageTreatment: z.enum(["full-bleed", "contained", "masked", "monochrome"]).default("full-bleed"),
+    logoTreatment: z.enum(["auto", "primary", "mark", "wordmark"]).default("auto"),
+    colorBalance: z.enum(["restrained", "balanced", "bold"]).default("restrained"),
+  })
+  .default({});
+
 export const LogoSchema = z.object({
   // Both assets optional: the compiler may not find a logo, and templates must
   // degrade to a wordmark rather than fail. // DECISION: missing logo is a
@@ -125,6 +142,7 @@ export const IdentitySchema = z.object({
   colors: ColorsSchema,
   typography: TypographySchema,
   logo: LogoSchema.default({}),
+  visualLanguage: VisualLanguageSchema,
   spacing: z
     .object({
       unit: z.number().int().min(2).max(32).default(8),
@@ -132,6 +150,17 @@ export const IdentitySchema = z.object({
     })
     .default({}),
 });
+
+export const PhotoAssetSchema = z.union([
+  AssetRef,
+  z.object({
+    ref: AssetRef,
+    /** Human or compiler supplied meaning used for deterministic selection. */
+    alt: z.string().max(240).default(""),
+    context: z.string().max(500).default(""),
+    tags: z.array(z.string().min(1).max(48)).max(12).default([]),
+  }),
+]);
 
 export const CompositionSchema = z
   .object({
@@ -159,7 +188,7 @@ export const ImagerySchema = z
       .default({}),
     /** the brand's own photography, harvested at compile time — the only
      * imagery templates may place; text never renders over a photo */
-    photos: z.array(AssetRef).max(12).default([]),
+    photos: z.array(PhotoAssetSchema).max(12).default([]),
     aiFences: z
       .object({
         backgrounds: z.boolean().default(false),
@@ -209,6 +238,8 @@ export type BrandSpec = z.infer<typeof BrandSpecSchema>;
 export type BrandSpecInput = z.input<typeof BrandSpecSchema>;
 export type Meta = z.infer<typeof MetaSchema>;
 export type Identity = z.infer<typeof IdentitySchema>;
+export type VisualLanguage = z.infer<typeof VisualLanguageSchema>;
+export type PhotoAsset = z.infer<typeof PhotoAssetSchema>;
 export type Composition = z.infer<typeof CompositionSchema>;
 export type Imagery = z.infer<typeof ImagerySchema>;
 export type Voice = z.infer<typeof VoiceSchema>;

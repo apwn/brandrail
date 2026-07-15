@@ -22,14 +22,13 @@
         },
         {
           "archetype": "hero-statement",
-          "score": 54,
+          "score": 51,
           "semanticScore": 42,
           "reasons": [
             "format default",
-            "feed-scale focal type",
-            "disciplined accent usage"
+            "feed-scale focal type"
           ],
-          "visualScore": 85,
+          "visualScore": 73,
           "valid": true
         }
       ],
@@ -49,13 +48,15 @@
       "candidates": [
         {
           "archetype": "split-stat",
-          "score": 87,
+          "score": 90,
           "semanticScore": 96,
           "reasons": [
             "compact supplied statistic",
-            "feed-scale focal type"
+            "feed-scale focal type",
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
-          "visualScore": 63,
+          "visualScore": 76,
           "valid": true
         },
         {
@@ -65,13 +66,14 @@
           "reasons": [
             "format default",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
           "visualScore": 66,
           "valid": true
         }
       ],
-      "rationale": "split-stat ranked first after composition: compact supplied statistic; feed-scale focal type."
+      "rationale": "split-stat ranked first after composition: compact supplied statistic; feed-scale focal type; disciplined accent usage; secondary type remains legible at feed scale."
     },
     "warnings": []
   },
@@ -91,25 +93,26 @@
           "semanticScore": 86,
           "reasons": [
             "explicit quote with attribution",
-            "feed-scale focal type"
+            "feed-scale focal type",
+            "secondary type remains legible at feed scale"
           ],
           "visualScore": 70,
           "valid": true
         },
         {
           "archetype": "hero-statement",
-          "score": 52,
+          "score": 51,
           "semanticScore": 42,
           "reasons": [
             "format default",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "secondary type remains legible at feed scale"
           ],
-          "visualScore": 77,
+          "visualScore": 74,
           "valid": true
         }
       ],
-      "rationale": "quote ranked first after composition: explicit quote with attribution; feed-scale focal type."
+      "rationale": "quote ranked first after composition: explicit quote with attribution; feed-scale focal type; secondary type remains legible at feed scale."
     },
     "warnings": []
   }

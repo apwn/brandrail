@@ -11,6 +11,7 @@ describe("stringify (canonical serialization)", () => {
       meta: shuffled.meta,
       identity: {
         spacing: shuffled.identity.spacing,
+        visualLanguage: shuffled.identity.visualLanguage,
         logo: shuffled.identity.logo,
         colors: {
           usage: shuffled.identity.colors.usage,

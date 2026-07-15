@@ -383,7 +383,8 @@ function assetUrl(renderId: string, filename: string): string {
 /** Pinned brand assets are stored as content-addressed `blob://<hash>` refs;
  * route them through the blob proxy so the browser can display them. http/data
  * refs (un-pinned) pass through unchanged. */
-function photoSrc(ref: string): string {
+function photoSrc(asset: BrandSpec["imagery"]["photos"][number] | string): string {
+  const ref = typeof asset === "string" ? asset : asset.ref;
   const hash = /^blob:\/\/([a-f0-9]{64})$/.exec(ref)?.[1];
   return hash ? `/api/blob/${hash}` : ref;
 }
@@ -523,9 +524,9 @@ function BrandSheet({
             <div className="flex flex-wrap gap-2">
               {spec.imagery.photos.map((photo, i) =>
                 isPhotoRemoved(edits, i) ? null : (
-                  <div key={photo.slice(0, 80) + i} className="relative group">
+                  <div key={(typeof photo === "string" ? photo : photo.ref).slice(0, 80) + i} className="relative group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoSrc(photo)} alt={`brand photo ${i + 1}`} loading="lazy" className="h-14 w-14 rounded border border-hairline object-cover" />
+                    <img src={photoSrc(photo)} alt={typeof photo === "string" ? `brand photo ${i + 1}` : photo.alt || `brand photo ${i + 1}`} loading="lazy" className="h-14 w-14 rounded border border-hairline object-cover" />
                     <button
                       aria-label={`remove photo ${i + 1}`}
                       className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded bg-ink border border-hairline text-muted hover:text-signal hover:border-signal font-mono text-[9px] leading-none transition-colors duration-mech"
