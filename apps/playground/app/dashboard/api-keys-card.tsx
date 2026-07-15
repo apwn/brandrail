@@ -16,9 +16,10 @@ const SCOPE_GROUPS = [
   { id: "create", label: "Create", scopes: ["brands:read", "brands:write", "assets:read", "assets:render"] },
   { id: "operate", label: "Operate", scopes: ["reviews:read", "reviews:write", "campaigns:read", "campaigns:write", "calendar:read", "publish:schedule"] },
   { id: "measure", label: "Measure", scopes: ["analytics:read", "audit:read"] },
+  { id: "webhooks", label: "Manage hooks", scopes: ["webhooks:read", "webhooks:write"], warning: true },
   { id: "publish", label: "Publish now", scopes: ["publish:immediate"], warning: true },
 ] as const;
-const SAFE_SCOPES = SCOPE_GROUPS.filter((group) => group.id !== "publish").flatMap((group) => [...group.scopes]);
+const SAFE_SCOPES = SCOPE_GROUPS.flatMap((group) => [...group.scopes]).filter((scope) => scope !== "publish:immediate" && scope !== "webhooks:write");
 
 /** Self-serve API keys — the agent on-ramp. Mint a key, paste the MCP snippet
  * into your agent, done. The full key is shown exactly once. */
@@ -146,9 +147,10 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {SCOPE_GROUPS.map((group) => {
                 const enabled = group.scopes.every((scope) => scopes.includes(scope));
-                return <label key={group.id} className={`cursor-pointer border p-3 ${enabled ? group.id === "publish" ? "border-signal bg-signal/5" : "border-green/50 bg-green/5" : "border-hairline"}`}>
+                const warning = "warning" in group && group.warning;
+                return <label key={group.id} className={`cursor-pointer border p-3 ${enabled ? warning ? "border-signal bg-signal/5" : "border-green/50 bg-green/5" : "border-hairline"}`}>
                   <span className="flex items-center gap-2 text-xs text-bone"><input type="checkbox" checked={enabled} onChange={() => setScopes((current) => enabled ? current.filter((scope) => !group.scopes.includes(scope as never)) : [...new Set([...current, ...group.scopes])])} />{group.label}</span>
-                  <span className="mt-1 block font-mono text-[9px] leading-relaxed text-muted">{group.id === "publish" ? "Can publish immediately after explicit confirmation." : `${group.scopes.length} scoped capabilities`}</span>
+                  <span className="mt-1 block font-mono text-[9px] leading-relaxed text-muted">{group.id === "publish" ? "Can publish immediately after explicit confirmation." : group.id === "webhooks" ? "Can create callbacks and retry failed events." : `${group.scopes.length} scoped capabilities`}</span>
                 </label>;
               })}
             </div>
