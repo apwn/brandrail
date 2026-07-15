@@ -25,6 +25,7 @@ export async function POST(req: Request) {
       ...(body.formats ? { formats: body.formats } : {}),
       ...(body.archetype ? { archetype: body.archetype } : {}),
       ...(body.copy ? { copy: body.copy } : {}),
+      ...(body.replaceRenderId ? { replaceRenderId: body.replaceRenderId } : {}),
     }),
   }, uid);
   if (reservedAnonymousRestyle && result.status >= 400) {

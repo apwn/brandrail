@@ -57,6 +57,12 @@ interface RenderResponse {
   error?: string;
   violations?: Array<{ code: string; message: string }>;
 }
+interface AccountState {
+  email: string | null;
+  verified: boolean;
+  plan: string;
+  features: string[];
+}
 
 const SUGGESTED_BRIEFS = ["Summer promotion", "We're hiring", "Announce our new product"];
 
@@ -89,17 +95,28 @@ export default function Playground() {
   // the value gate: previews are free; TAKING (zip, heavy restyling) needs a
   // verified account. `gate` records what the visitor was trying to do.
   const [gate, setGate] = useState<null | "download" | "restyle">(null);
-  const [account, setAccount] = useState<{ email: string | null; verified: boolean } | null>(null);
+  const [account, setAccount] = useState<AccountState | null>(null);
   const [restyles, setRestyles] = useState(0);
   const [zipping, setZipping] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
 
   const verified = Boolean(account?.verified);
+  const canReview = Boolean(account?.features.includes("batchReview"));
 
   async function refreshAccount() {
     try {
       const res = await fetch("/api/auth/session");
-      const data = (await res.json()) as { user: { email: string | null; emailVerified?: boolean } | null };
-      setAccount(data.user ? { email: data.user.email, verified: Boolean(data.user.emailVerified) } : null);
+      const data = (await res.json()) as {
+        user: { email: string | null; emailVerified?: boolean; plan?: string } | null;
+        entitlements?: { features?: string[] };
+      };
+      setAccount(data.user ? {
+        email: data.user.email,
+        verified: Boolean(data.user.emailVerified),
+        plan: data.user.plan ?? "free",
+        features: data.entitlements?.features ?? [],
+      } : null);
     } catch {
       /* stay anonymous */
     }
@@ -265,6 +282,7 @@ export default function Playground() {
           brief,
           formats: [format],
           archetype,
+          replaceRenderId: render.id,
           ...(copyOverride ? { copy: { [format]: copyOverride } } : {}),
         }),
       });
@@ -330,6 +348,34 @@ export default function Playground() {
     }
   }
 
+  async function sendToReview() {
+    if (!render || !spec || reviewing) return;
+    setReviewing(true);
+    setHandoffError(null);
+    try {
+      const res = await fetch("/api/batch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: `${spec.meta.displayName ?? spec.meta.name} · ${brief}`.slice(0, 120),
+          items: [{
+            brand: spec.meta.name,
+            version: render.specVersion,
+            brief,
+            renderId: render.id,
+            copy: render.copy ?? {},
+          }],
+        }),
+      });
+      const body = await readApiJson<{ id?: string; error?: string }>(res);
+      if (!res.ok || !body.id) throw new Error(body.error ?? "couldn't create the review handoff");
+      window.location.assign(`/review?batch=${encodeURIComponent(body.id)}`);
+    } catch (e) {
+      setHandoffError((e as Error).message);
+      setReviewing(false);
+    }
+  }
+
   // the marketing front door is full-bleed; the tool view is the narrow column
   if (step === "landing") {
     return <MarketingLanding url={url} setUrl={setUrl} onSubmit={doCompile} error={error} />;
@@ -391,10 +437,14 @@ export default function Playground() {
           brand={spec.meta.name}
           brief={brief}
           unlocked={verified}
+          canReview={canReview}
           zipping={zipping}
+          reviewing={reviewing}
+          handoffError={handoffError}
           restyling={restyling}
           onRestyle={restyleFormat}
           onDownload={() => (verified ? void downloadZip() : setGate("download"))}
+          onReview={() => void sendToReview()}
           onAgain={() => setStep("sheet")}
         />
       )}
@@ -662,20 +712,28 @@ function ResultGrid({
   brand,
   brief,
   unlocked,
+  canReview,
   zipping,
+  reviewing,
+  handoffError,
   restyling,
   onRestyle,
   onDownload,
+  onReview,
   onAgain,
 }: {
   render: RenderResponse;
   brand: string;
   brief: string;
   unlocked: boolean;
+  canReview: boolean;
   zipping: boolean;
+  reviewing: boolean;
+  handoffError: string | null;
   restyling: string | null;
   onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
   onDownload: () => void;
+  onReview: () => void;
   onAgain: () => void;
 }) {
   const formats = [...new Set(render.assets.map((a) => a.format))];
@@ -683,9 +741,9 @@ function ResultGrid({
     <section>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
-          <p className="eyebrow mb-2">04 / YOUR NEXT 5 POSTS · STUDIO</p>
+          <p className="eyebrow mb-2">04 / FINISHED CAMPAIGN SET · STUDIO</p>
           <h2 className="font-display font-bold text-2xl tracking-tight">&ldquo;{brief}&rdquo; — {brand}</h2>
-          <p className="text-muted text-sm mt-1">Swap the template or edit the words on any post — it re-renders on brand.</p>
+          <p className="text-muted text-sm mt-1">One idea, adapted to every channel format. Swap a template or edit the words without breaking the set.</p>
         </div>
         <div className="flex gap-3">
           <button className="btn-ghost" onClick={onAgain}>← another brief</button>
@@ -715,6 +773,40 @@ function ResultGrid({
           ))}
         </div>
       )}
+      <div className="mt-10 border border-hairline bg-bone text-ink">
+        <div className="grid gap-px bg-hairline md:grid-cols-3">
+          {[
+            ["01", "RENDERED", `${formats.length} formats · exact asset set`, true],
+            ["02", "APPROVAL", canReview ? "Ready for a human decision" : "Studio adds the review gate", canReview],
+            ["03", "DELIVERY", canReview ? "Schedule after approval" : "Publish when the workload earns it", false],
+          ].map(([number, label, detail, complete]) => (
+            <div key={String(number)} className="bg-bone p-4">
+              <div className="flex items-center justify-between font-mono text-[9px] tracking-[.16em]">
+                <span>{number} / {label}</span>
+                <span className={complete ? "text-green" : "text-[#7D776E]"}>{complete ? "● READY" : "○ NEXT"}</span>
+              </div>
+              <p className="mt-3 text-sm font-semibold">{detail}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div>
+            <p className="eyebrow text-signal">PRODUCTION HANDOFF</p>
+            <h3 className="mt-2 font-display text-xl font-bold">Approve this exact set. Then schedule it.</h3>
+            <p className="mt-1 max-w-2xl text-sm text-[#625D55]">
+              No duplicate generation and no changed creative. The review trail stays attached to render <span className="font-mono text-[11px]">{render.id.slice(-10)}</span>.
+            </p>
+            {handoffError && <p className="mt-2 font-mono text-[11px] text-signal">ERR {handoffError}</p>}
+          </div>
+          {canReview ? (
+            <button className="btn whitespace-nowrap" onClick={onReview} disabled={reviewing}>
+              {reviewing ? "opening review…" : "Send to approval →"}
+            </button>
+          ) : (
+            <a className="btn whitespace-nowrap" href="/#pricing">Add review + publishing →</a>
+          )}
+        </div>
+      </div>
       <div className="relative mt-10 overflow-hidden border border-signal/60 bg-panel p-6 sm:p-8">
         <div className="surface-grid absolute inset-0 opacity-20" aria-hidden />
         <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
