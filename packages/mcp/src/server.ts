@@ -231,11 +231,11 @@ export function buildServer(): McpServer {
       inputSchema: {
         title: z.string().optional(),
         runId: z.string().optional(),
-        items: z.array(z.object({ brand: z.string(), brief: z.string(), archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional() })).min(1).max(50),
+        items: z.array(z.object({ brand: z.string(), version: z.number().int().positive().optional(), brief: z.string(), archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional(), renderId: z.string().optional() })).min(1).max(50),
       },
     },
     async ({ title, runId, items }) => {
-      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.createReviewBatch({ title, runId, items: items as Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }), null, 2) }] }; }
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.createReviewBatch({ title, runId, items: items as Array<{ brand: string; version?: number; brief: string; archetype?: LayoutArchetype; renderId?: string }> }), null, 2) }] }; }
       catch (e) { return err(e); }
     },
   );

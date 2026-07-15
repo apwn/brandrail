@@ -43,6 +43,12 @@ describe("Brandrail MCP server", () => {
         "cancel_post",
         "get_usage",
       ]);
+      const tools = new Map(result.tools.map((tool) => [tool.name, tool.inputSchema as { properties?: Record<string, { items?: { properties?: Record<string, unknown> } }> }]));
+      expect(tools.get("render_assets")?.properties).toHaveProperty("runId");
+      expect(tools.get("schedule_post")?.properties).toHaveProperty("runId");
+      expect(tools.get("create_review_batch")?.properties?.items?.items?.properties).toHaveProperty("renderId");
+      expect(tools.get("create_review_batch")?.properties).toHaveProperty("runId");
+      expect(tools.get("get_review_status")?.properties).toHaveProperty("runId");
     } finally {
       await client.close();
     }

@@ -65,7 +65,7 @@ export interface RenderHistoryEntry {
 }
 
 export interface ScheduledPost {
-  id: string; channelIds: string[]; text: string; renderId?: string; imageFiles: string[];
+  id: string; runId?: string; channelIds: string[]; text: string; renderId?: string; imageFiles: string[];
   scheduledAt: string; status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
   metrics?: { impressions?: number; engagements?: number; fetchedAt?: string };
 }
@@ -104,7 +104,8 @@ export interface ReviewStatus {
 export interface AgentRun {
   id: string; objective: string; brand?: string; channels: string[]; assetCount: number; publishAt?: string;
   status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled";
-  progress: number; currentStep: string; plan?: ExecutionPlan; input?: Record<string, unknown>; error?: string;
+  progress: number; currentStep: string; plan?: ExecutionPlan; input?: Record<string, unknown>;
+  renderIds?: string[]; batchId?: string; postIds?: string[]; error?: string;
   createdBy: string; createdAt: string; updatedAt: string;
 }
 
@@ -285,7 +286,7 @@ export class Brandrail {
     return this.request(`/v0/batches/${encodeURIComponent(batchId)}/status${runId ? `?runId=${encodeURIComponent(runId)}` : ""}`);
   }
 
-  createReviewBatch(input: { title?: string; runId?: string; items: Array<{ brand: string; brief: string; archetype?: LayoutArchetype }> }): Promise<{ id: string; title: string; items: unknown[] }> {
+  createReviewBatch(input: { title?: string; runId?: string; items: Array<{ brand: string; version?: number; brief: string; archetype?: LayoutArchetype; renderId?: string; copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string }>> }> }): Promise<{ id: string; title: string; items: unknown[] }> {
     return this.request("/v0/batches", { method: "POST", body: JSON.stringify(input) });
   }
 

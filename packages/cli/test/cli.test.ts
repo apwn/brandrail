@@ -18,4 +18,12 @@ describe("brandrail CLI", () => {
     expect(body.ok).toBe(true);
     expect(Object.keys(body.templates)).toContain("hero-statement");
   });
+
+  it("exposes run lineage across render, review, and delivery commands", () => {
+    for (const args of [["render", "--help"], ["schedule", "--help"], ["review", "create", "--help"], ["review", "status", "--help"]]) {
+      const result = spawnSync(process.execPath, [bin, ...args], { encoding: "utf8" });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("--run <runId>");
+    }
+  });
 });
