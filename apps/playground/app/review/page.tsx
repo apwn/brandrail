@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DeliveryDialog } from "./delivery-dialog";
 
 /* ------------------------------------------------------------------ types */
 type Slide = Record<string, string>;
@@ -50,6 +51,7 @@ export default function ReviewPage() {
   const [cursor, setCursor] = useState(0);
   const [editing, setEditing] = useState<Copy["formats"] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [role, setRole] = useState<"owner" | "reviewer">("owner");
   const [access, setAccess] = useState<"loading" | "allowed" | "locked" | "signedout">("loading");
   const shownAt = useRef<number>(0);
@@ -237,43 +239,9 @@ export default function ReviewPage() {
     }
   }, [batch]);
 
-  /** publish the approved set to the user's connected channels — the hook copy
-   * + the og-image render of each piece. The last mile of the rails. */
-  const publishApproved = useCallback(async () => {
-    if (!batch) return;
-    const approved = batch.items.filter((i) => (i.status === "approved" || i.status === "edited") && i.renderId);
-    if (approved.length === 0) return;
-    const chans = (await fetch("/api/channels").then((r) => r.json()).catch(() => ({ channels: [] }))) as { channels: Array<{ id: string }> };
-    if (!chans.channels?.length) {
-      setError("Connect a channel first — Workspace → Channels.");
-      return;
-    }
-    const channelIds = chans.channels.map((c) => c.id);
-    setBusy(true);
-    setError(null);
-    let ok = 0;
-    let failed = 0;
-    try {
-      for (const it of approved) {
-        const slide = Object.values(it.copy?.formats ?? {})[0]?.[0];
-        const text = [slide?.hook, slide?.body].filter(Boolean).join(" — ") || it.brief;
-        const og = it.assets.find((a) => a.format === "og-image") ?? it.assets[0];
-        const res = await fetch("/api/publish", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, channelIds, renderId: it.renderId, imageFiles: og ? [og.filename] : [], idempotencyKey: `review:${batch.id}:${it.id}:${it.renderId}` }),
-        });
-        res.ok ? ok++ : failed++;
-      }
-      setError(`Published ${ok}/${approved.length}${failed ? ` · ${failed} failed (check channel creds)` : " ✓"}`);
-    } finally {
-      setBusy(false);
-    }
-  }, [batch]);
-
   /* keyboard triage */
   useEffect(() => {
-    if (!batch) return;
+    if (!batch || deliveryOpen) return;
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return; // don't hijack the editor
@@ -290,7 +258,7 @@ export default function ReviewPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [batch, editing, current, items.length, review, approveAllPending]);
+  }, [batch, deliveryOpen, editing, current, items.length, review, approveAllPending]);
 
   /* metrics */
   const reviewed = items.filter((i) => i.status !== "pending").length;
@@ -299,6 +267,7 @@ export default function ReviewPage() {
     .map((i) => i.reviewMs!)
     .sort((a, b) => a - b);
   const median = approveTimes.length ? approveTimes[Math.floor(approveTimes.length / 2)]! : 0;
+  const approvedItems = items.filter((item) => (item.status === "approved" || item.status === "edited") && item.renderId);
 
   const grouped = useMemo(() => {
     const g = new Map<string, Item[]>();
@@ -388,12 +357,12 @@ export default function ReviewPage() {
   return (
     <main className="min-h-screen bg-ink text-bone flex flex-col">
       {/* header: progress + the R8 KPIs */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-hairline">
+      <header className="flex flex-col gap-4 border-b border-hairline px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-4">
           <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
           <span className="text-bone font-semibold">{batch.title}</span>
         </div>
-        <div className="flex items-center gap-6 font-mono text-sm">
+        <div className="flex flex-wrap items-center gap-3 font-mono text-sm xl:justify-end">
           <span className="text-muted">{reviewed}/{items.length} reviewed</span>
           <span className="text-muted">median <span className="text-bone">{(median / 1000).toFixed(1)}s</span> / approve</span>
           <button className="btn-ghost !py-1.5 !px-3 text-xs" onClick={approveAllPending} disabled={busy}>
@@ -402,17 +371,17 @@ export default function ReviewPage() {
           <button className="btn-ghost !py-1.5 !px-3 text-xs" onClick={exportApproved} disabled={busy}>
             Export ↓
           </button>
-          {role === "owner" && <button className="btn !py-1.5 !px-3 text-xs" onClick={publishApproved} disabled={busy}>
-            Publish approved →
+          {role === "owner" && <button className="btn !py-1.5 !px-3 text-xs" onClick={() => setDeliveryOpen(true)} disabled={busy || approvedItems.length === 0}>
+            Schedule approved ({approvedItems.length}) →
           </button>}
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* left rail: grouped by client */}
-        <aside className="w-56 shrink-0 border-r border-hairline overflow-y-auto py-4">
+        <aside className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-hairline py-3 lg:block lg:w-56 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:py-4">
           {grouped.map(([brand, its]) => (
-            <div key={brand} className="mb-4">
+            <div key={brand} className="mb-2 min-w-48 lg:mb-4 lg:min-w-0">
               <p className="eyebrow px-4 mb-2">{brand}</p>
               {its.map((it) => {
                 const idx = items.indexOf(it);
@@ -462,7 +431,7 @@ export default function ReviewPage() {
               {current.note && <p className="text-muted text-sm mt-2 font-mono">{current.note}</p>}
 
               {current.renderId && hero && (
-                <div className="mt-5 grid grid-cols-[2fr_1fr] gap-4">
+                <div className="mt-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
                   {/* hero format */}
                   <div className="panel p-3">
                     <p className="eyebrow mb-2">{hero.format}</p>
@@ -495,7 +464,7 @@ export default function ReviewPage() {
                   busy={busy}
                 />
               ) : (
-                <div className="mt-6 flex items-center gap-2 font-mono text-sm">
+                <div className="mt-6 flex flex-wrap items-center gap-2 font-mono text-sm">
                   <ActionButton k="A" label="Approve" onClick={() => review("approve")} disabled={busy || !current.renderId} primary />
                   <ActionButton k="E" label="Edit copy" onClick={() => current.renderId && setEditing(structuredClone(current.copy.formats))} disabled={busy || !current.renderId} />
                   <ActionButton k="R" label="Regenerate" onClick={() => review("regenerate")} disabled={busy} />
@@ -507,6 +476,14 @@ export default function ReviewPage() {
           )}
         </section>
       </div>
+      {deliveryOpen && (
+        <DeliveryDialog
+          batchId={batch.id}
+          batchTitle={batch.title}
+          items={approvedItems}
+          onClose={() => setDeliveryOpen(false)}
+        />
+      )}
     </main>
   );
 }
