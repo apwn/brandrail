@@ -24,7 +24,8 @@ const FORMAT_LABELS: Record<FormatId, string> = {
 };
 
 const fieldClass = "mt-1 w-full border border-hairline bg-ink p-2 text-xs";
-const smallFieldClass = "w-full border border-hairline bg-ink px-2 py-1.5 font-mono text-[10px]";
+const smallFieldClass = "mt-1 w-full min-w-0 border border-hairline bg-ink px-2.5 py-2 font-mono text-[11px] text-bone outline-none transition-colors focus:border-signal";
+const compactButtonClass = "btn-ghost !px-3 !py-2 !text-xs";
 const HISTORY_LIMIT = 50;
 
 interface TemplateWorkspaceProps {
@@ -156,7 +157,7 @@ function CanvasPreview({
   return (
     <div
       ref={surface}
-      className="relative mx-auto w-full overflow-hidden border border-hairline bg-bone text-ink shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
+      className="relative mx-auto w-full overflow-hidden border border-[#8d887f] bg-bone text-ink shadow-[0_18px_60px_rgba(0,0,0,0.32)]"
       style={{ aspectRatio: `${definition.width}/${definition.height}` }}
       aria-label={`${definition.label} visual template canvas`}
     >
@@ -184,14 +185,14 @@ function CanvasPreview({
             onPointerCancel={pointerUp}
             onKeyDown={(event) => keyDown(event, layer)}
             aria-label={`Select, move and resize ${layerLabel(layer)}`}
-            className={`absolute cursor-move overflow-hidden border text-left outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-signal ${selected ? "z-20 border-signal ring-2 ring-signal/40" : "border-ink/25 hover:border-signal/70"}`}
+            className={`absolute cursor-move overflow-hidden border text-left outline-none transition-[border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-signal ${selected ? "z-20 border-2 border-signal shadow-[0_0_0_1px_rgba(255,77,0,.35)]" : "border-ink/25 hover:border-signal/80"}`}
           >
             {layer.type === "shape" && <span className="block h-full w-full bg-[#ebe5da] opacity-80" />}
             {layer.type === "image" && <span className="flex h-full items-center justify-center bg-ink/10 font-mono text-[8px] uppercase">{layer.slot} image</span>}
             {layer.type === "logo" && <span className="flex h-full items-center px-1 font-display text-[8px] font-bold">BRAND</span>}
             {layer.type === "data" && <span className="flex h-full items-end gap-1 p-1">{[35, 70, 52, 86].map((height) => <i key={height} className="block flex-1 bg-green not-italic" style={{ height: `${height}%` }} />)}</span>}
             {layer.type === "text" && <span className={`flex h-full items-center px-1 text-[8px] ${layer.slot === "hook" ? "font-display font-bold" : "font-body"}`}>{layer.slot} · {layer.maxChars}</span>}
-            {selected && <span data-resize="true" className="absolute bottom-0 right-0 flex h-5 w-5 cursor-nwse-resize items-center justify-center bg-signal font-mono text-[10px] font-bold text-ink" aria-hidden>↘</span>}
+            {selected && <><span className="pointer-events-none absolute left-0 top-0 max-w-[calc(100%-20px)] truncate bg-signal px-1.5 py-1 font-mono text-[7px] font-bold uppercase tracking-[.08em] text-ink">{layerLabel(layer)}</span><span data-resize="true" className="absolute bottom-0 right-0 flex h-5 w-5 cursor-nwse-resize items-center justify-center bg-signal font-mono text-[10px] font-bold text-ink" aria-hidden>↘</span></>}
           </button>
         );
       })}
@@ -200,15 +201,29 @@ function CanvasPreview({
 }
 
 function GeometryEditor({ layer, onChange }: { layer: CustomTemplateLayer; onChange: (box: TemplateBox) => void }) {
-  const labels: Array<{ key: keyof TemplateBox; label: string }> = [
-    { key: "x", label: "X" },
-    { key: "y", label: "Y" },
-    { key: "width", label: "Width" },
-    { key: "height", label: "Height" },
+  const groups: Array<{ label: string; fields: Array<{ key: keyof TemplateBox; label: string }> }> = [
+    { label: "Position", fields: [{ key: "x", label: "X" }, { key: "y", label: "Y" }] },
+    { label: "Size", fields: [{ key: "width", label: "W" }, { key: "height", label: "H" }] },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {labels.map(({ key, label }) => <label key={key} className="font-mono text-[9px] uppercase text-muted">{label} %<input type="number" min={0} max={100} step={0.5} value={Math.round(layer.box[key] * 1000) / 10} onChange={(event) => onChange(normalizedBox(layer.box, { [key]: Number(event.target.value) / 100 }))} className={smallFieldClass} /></label>)}
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
+      {groups.map((group) => <fieldset key={group.label} className="min-w-0 border border-hairline p-2.5"><legend className="px-1 font-mono text-[8px] uppercase tracking-[.12em] text-muted">{group.label}</legend><div className="grid grid-cols-2 gap-2">{group.fields.map(({ key, label }) => <label key={key} className="min-w-0 font-mono text-[9px] uppercase text-muted"><span className="flex items-center justify-between"><span>{label}</span><span aria-hidden>%</span></span><input aria-label={`${group.label} ${label} percent`} type="number" min={0} max={100} step={0.5} value={Math.round(layer.box[key] * 1000) / 10} onChange={(event) => onChange(normalizedBox(layer.box, { [key]: Number(event.target.value) / 100 }))} className={smallFieldClass} /></label>)}</div></fieldset>)}
+    </div>
+  );
+}
+
+function LayerStack({ canvas, selectedLayerId, onSelect }: { canvas?: CustomTemplateCanvas; selectedLayerId?: string; onSelect: (id: string) => void }) {
+  if (!canvas) return null;
+  return (
+    <div>
+      <div className="flex items-center justify-between"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-muted">Layers</p><span className="font-mono text-[8px] text-muted">Front to back</span></div>
+      <div className="mt-2 max-h-52 space-y-1 overflow-auto pr-1">
+        {[...canvas.layers].reverse().map((layer, reverseIndex) => {
+          const active = layer.id === selectedLayerId;
+          const contractBound = layer.type === "text" || layer.type === "image" || layer.type === "data";
+          return <button key={layer.id} type="button" aria-pressed={active} onClick={() => onSelect(layer.id)} className={`flex w-full items-center gap-2 border px-2.5 py-2 text-left transition-colors ${active ? "border-signal bg-signal/5" : "border-hairline hover:border-bone"}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center font-mono text-[8px] uppercase ${active ? "bg-signal text-ink" : "bg-hairline text-muted"}`}>{canvas.layers.length - reverseIndex}</span><span className="min-w-0 flex-1"><span className="block truncate font-display text-xs font-bold">{layerLabel(layer)}</span><span className="block truncate font-mono text-[8px] text-muted">{layer.id}</span></span><span className="font-mono text-[7px] uppercase text-muted">{contractBound ? "locked" : "free"}</span></button>;
+        })}
+      </div>
     </div>
   );
 }
@@ -242,6 +257,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
   const [renderProof, setRenderProof] = useState<{ id: string; assets: Array<{ filename: string; format: string }> } | null>(null);
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [zoom, setZoom] = useState(100);
   const interactionActive = useRef(false);
   const canonicalJson = selected ? familyJson(selected) : "";
   const dirty = Boolean(selected && json !== canonicalJson);
@@ -550,6 +566,12 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
   const issueCounts = { errors: issues.filter((issue) => issue.severity === "error").length, warnings: issues.filter((issue) => issue.severity === "warning").length };
   const sourceInfo = systemTemplates[source];
   const completedFormats = Object.keys(preview?.formats ?? {}).length;
+  const selectedLayerIndex = previewCanvas?.layers.findIndex((layer) => layer.id === selectedLayerId) ?? -1;
+  const selectedLayerCanBeRemoved = selectedLayer?.type === "shape" || selectedLayer?.type === "logo";
+  const activeDefinition = FORMATS[format];
+  const activeAspect = activeDefinition.width / activeDefinition.height;
+  const canvasBaseWidth = activeAspect < 0.7 ? 46 : activeAspect < 0.9 ? 68 : 100;
+  const canvasWidthPercent = canvasBaseWidth * zoom / 100;
 
   return (
     <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6">
@@ -579,18 +601,37 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
             {!owner && <p className="mt-2 text-xs text-muted">Reviewers can inspect and render existing families; only workspace owners can change them.</p>}
           </div>
 
-          {selected && <div className="panel p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow text-signal">Visual editor</p><h2 className="mt-1 font-display text-xl font-bold">{preview?.name ?? selected.name}</h2><p className="mt-1 font-mono text-[9px] text-muted">{selected.scope}:{selected.id}@{selected.version} · {selected.status}{dirty ? " · unsaved changes" : ""}</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={!undoStack.length} onClick={undo} className="btn-ghost" title="Undo the last visual edit">Undo</button><button type="button" disabled={!redoStack.length} onClick={redo} className="btn-ghost" title="Redo the reverted edit">Redo</button>{dirty && <button type="button" onClick={() => choose(selected, true)} className="btn-ghost">Reset changes</button>}<label className="btn-ghost cursor-pointer">Import JSON<input className="sr-only" type="file" accept="application/json" onChange={(event) => void importJson(event.target.files?.[0])} /></label><button type="button" onClick={exportJson} className="btn-ghost">Export JSON</button></div></div>
-            <div className="mt-5 flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="template-format">Canvas format</label><select id="template-format" value={format} onChange={(event) => { setFormat(event.target.value as FormatId); setSelectedLayerId(undefined); }} className="border border-hairline bg-ink p-2 font-mono text-[9px]">{Object.entries(FORMAT_LABELS).map(([id, label]) => <option key={id} value={id}>{label} · {FORMATS[id as FormatId].width}×{FORMATS[id as FormatId].height}</option>)}</select><span className="font-mono text-[9px] text-muted">{completedFormats}/{Object.keys(FORMAT_LABELS).length} canvases</span><button type="button" onClick={() => addLayer("shape")} disabled={!previewCanvas} className="btn-ghost">Add shape</button><button type="button" onClick={() => addLayer("logo")} disabled={!previewCanvas || previewCanvas.layers.some((layer) => layer.type === "logo")} className="btn-ghost">Add logo</button>{!previewCanvas && <button type="button" onClick={addFormatCanvas} className="btn">Add this canvas</button>}</div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5" role="group" aria-label="Template format readiness">{(Object.keys(FORMAT_LABELS) as FormatId[]).map((id) => { const exists = Boolean(preview?.formats[id]); const active = id === format; return <button key={id} type="button" aria-pressed={active} onClick={() => { setFormat(id); setSelectedLayerId(undefined); }} className={`border px-2 py-2 text-left font-mono text-[8px] uppercase ${active ? "border-signal bg-signal/5" : "border-hairline"}`}><span className={exists ? "text-green" : "text-muted"}>{exists ? "●" : "○"}</span> {FORMAT_LABELS[id]}</button>; })}</div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(240px,1fr)_220px] 2xl:grid-cols-[minmax(300px,1fr)_280px]">
-              <CanvasPreview canvas={previewCanvas} format={format} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} onMove={(id, box) => updateLayer(id, (layer) => { layer.box = box; }, false)} onInteractionStart={beginCanvasInteraction} onInteractionEnd={endCanvasInteraction} />
-              <div className="border border-hairline p-3"><p className="eyebrow">Layer inspector</p>{selectedLayer ? <div className="mt-3 space-y-4"><div><p className="font-display text-sm font-bold">{layerLabel(selectedLayer)}</p><p className="font-mono text-[9px] text-muted">{selectedLayer.id}</p></div><GeometryEditor layer={selectedLayer} onChange={(box) => updateLayer(selectedLayer.id, (layer) => { layer.box = box; })} /><LayerProperties layer={selectedLayer} onPatch={(patch) => updateLayer(selectedLayer.id, (layer) => Object.assign(layer, patch))} /><div className="flex flex-wrap gap-2"><button type="button" className="btn-ghost !px-3 !py-2" onClick={() => reorderLayer(-1)}>Send back</button><button type="button" className="btn-ghost !px-3 !py-2" onClick={() => reorderLayer(1)}>Bring forward</button><button type="button" className="btn-ghost !px-3 !py-2" onClick={removeSelectedLayer}>Remove</button></div></div> : <p className="mt-3 text-xs text-muted">Select a layer on the canvas. Drag to position it, then use exact percentage controls here.</p>}</div>
+          {selected && <div className="panel overflow-hidden">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline p-5">
+              <div><div className="flex flex-wrap items-center gap-2"><p className="eyebrow text-signal">Visual editor</p><span className={`px-1.5 py-0.5 font-mono text-[8px] uppercase ${dirty ? "bg-signal text-ink" : "bg-green text-ink"}`}>{dirty ? "Unsaved" : "Saved"}</span></div><h2 className="mt-1 font-display text-2xl font-bold">{preview?.name ?? selected.name}</h2><p className="mt-1 font-mono text-[9px] text-muted">{selected.scope}:{selected.id}@{selected.version} · {selected.status}</p></div>
+              <div className="flex flex-wrap items-center gap-2" aria-label="Editor history and data actions"><div className="flex"><button type="button" disabled={!undoStack.length} onClick={undo} className={`${compactButtonClass} rounded-r-none`} title="Undo the last visual edit">← Undo</button><button type="button" disabled={!redoStack.length} onClick={redo} className={`${compactButtonClass} -ml-px rounded-l-none`} title="Redo the reverted edit">Redo →</button></div>{dirty && <button type="button" onClick={() => choose(selected, true)} className={compactButtonClass}>Reset</button>}<label className={`${compactButtonClass} cursor-pointer`}>Import<input className="sr-only" type="file" accept="application/json" onChange={(event) => void importJson(event.target.files?.[0])} /></label><button type="button" onClick={exportJson} className={compactButtonClass}>Export</button></div>
             </div>
-            <div className="mt-4 grid gap-3 border border-hairline p-3 sm:grid-cols-[180px_1fr] sm:items-end"><label className="text-[10px] text-muted">Canvas background role<input value={previewCanvas?.backgroundRole ?? ""} disabled={!previewCanvas} onChange={(event) => editFamily((family) => { if (family.formats[format]) family.formats[format]!.backgroundRole = event.target.value; })} className={smallFieldClass} /></label><div className="flex flex-wrap items-center gap-2"><label className="btn-ghost cursor-pointer">Upload locked artwork<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => void upload(event.target.files?.[0])} /></label>{previewCanvas?.artwork && <button type="button" className="btn-ghost" onClick={() => editFamily((family) => { if (family.formats[format]) delete family.formats[format]!.artwork; })}>Remove artwork</button>}<span className="font-mono text-[9px] text-muted">Raster ≤12 MB / 40 MP · static SVG ≤2 MB</span></div></div>
-            <details className="mt-5 border-t border-hairline pt-4"><summary className="cursor-pointer font-mono text-[10px] uppercase text-muted">Advanced JSON editor</summary><p className="mt-3 text-sm text-muted">The schema is strict: HTML, CSS, scripts, remote assets, and unknown fields are rejected.</p><textarea aria-label="Template family JSON" spellCheck={false} value={json} onChange={(event) => setJson(event.target.value)} className="mt-3 min-h-[380px] w-full border border-hairline bg-black/20 p-3 font-mono text-[11px] leading-5" /></details>
-            <div className="mt-5 flex flex-wrap items-center gap-2"><button type="button" disabled={!owner || busy || !dirty} onClick={() => void save()} className="btn">Save new draft version</button><button type="button" disabled={busy || dirty} onClick={() => void preflight()} className="btn-ghost" title={dirty ? "Save first" : undefined}>Run preflight</button><button type="button" disabled={!owner || busy || dirty || !brand} onClick={() => void lifecycle("publish")} className="btn-ghost">{selected.status === "published" ? "Publish settings version" : "Publish"}</button><button type="button" disabled={!owner || busy || dirty || selected.status === "archived"} onClick={() => void lifecycle("archive")} className="btn-ghost">Archive</button>{canDelete && <button type="button" disabled={!owner || busy} onClick={() => void removeDraftFamily()} className="btn-ghost">Delete drafts</button>}</div>
-            <label className="mt-4 flex items-start gap-3 border border-hairline p-3 text-xs"><input type="checkbox" checked={autoEligible} onChange={(event) => setAutoEligible(event.target.checked)} className="mt-0.5 accent-[#ff4d00]" /><span><b className="block font-display">Allow automatic planning</b><span className="text-muted">Requires all five format canvases and a clean preflight. Leave off for deliberate, manually selected campaign templates.</span></span></label>
+
+            <div className="grid grid-cols-2 border-b border-hairline sm:grid-cols-5" role="group" aria-label="Template format readiness">{(Object.keys(FORMAT_LABELS) as FormatId[]).map((id) => { const exists = Boolean(preview?.formats[id]); const active = id === format; const definition = FORMATS[id]; return <button key={id} type="button" aria-pressed={active} onClick={() => { setFormat(id); setSelectedLayerId(undefined); }} className={`relative border-r border-hairline px-3 py-3 text-left transition-colors last:border-r-0 ${active ? "bg-signal/[.08] text-bone" : "text-muted hover:bg-white/[.025] hover:text-bone"}`}><span className={`absolute inset-x-0 bottom-0 h-0.5 ${active ? "bg-signal" : "bg-transparent"}`} /><span className="flex items-center gap-2 font-mono text-[8px] uppercase"><span className={exists ? "text-green" : "text-muted"}>{exists ? "●" : "○"}</span>{FORMAT_LABELS[id]}</span><span className="mt-1 block font-mono text-[8px] text-muted">{definition.width} × {definition.height}</span></button>; })}</div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-black/10 px-5 py-3">
+              <div><span className="font-display text-sm font-bold">{FORMAT_LABELS[format]}</span><span className="ml-2 font-mono text-[9px] text-muted">{previewCanvas?.layers.length ?? 0} layers · {completedFormats}/5 canvases</span></div>
+              <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => addLayer("shape")} disabled={!previewCanvas} className={compactButtonClass}>＋ Shape</button><button type="button" onClick={() => addLayer("logo")} disabled={!previewCanvas || previewCanvas.layers.some((layer) => layer.type === "logo")} className={compactButtonClass}>＋ Logo</button>{!previewCanvas && <button type="button" onClick={addFormatCanvas} className="btn !px-3 !py-2 !text-xs">Add canvas</button>}<label className="flex items-center gap-2 border-l border-hairline pl-3 font-mono text-[9px] uppercase text-muted">Zoom<select aria-label="Canvas zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="border border-hairline bg-ink px-2 py-2 text-[10px] text-bone"><option value={75}>75%</option><option value={100}>100%</option><option value={125}>125%</option></select></label></div>
+            </div>
+
+            <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="min-w-0 border-b border-hairline p-4 xl:border-b-0 xl:border-r sm:p-5">
+                <div className="min-h-[360px] overflow-auto border border-hairline bg-[#0d0d0f] p-4 sm:p-7"><div className="mx-auto transition-[width]" style={{ width: `${canvasWidthPercent}%` }}><CanvasPreview canvas={previewCanvas} format={format} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} onMove={(id, box) => updateLayer(id, (layer) => { layer.box = box; }, false)} onInteractionStart={beginCanvasInteraction} onInteractionEnd={endCanvasInteraction} /></div></div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[8px] uppercase text-muted"><span>Drag to move · corner to resize</span><span>Arrow keys 0.5% · Shift + arrow 2%</span></div>
+              </div>
+
+              <aside className="min-w-0 bg-black/[.08] p-4 sm:p-5">
+                <div className="flex items-center justify-between"><p className="eyebrow">Inspector</p>{selectedLayer && <span className="border border-hairline px-1.5 py-0.5 font-mono text-[8px] uppercase text-muted">{selectedLayer.type}</span>}</div>
+                <div className="mt-4"><LayerStack canvas={previewCanvas} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} /></div>
+                <div className="my-5 border-t border-hairline" />
+                {selectedLayer ? <div className="space-y-4"><div><p className="font-display text-base font-bold">{layerLabel(selectedLayer)}</p><p className="mt-0.5 truncate font-mono text-[9px] text-muted">{selectedLayer.id}</p></div><GeometryEditor layer={selectedLayer} onChange={(box) => updateLayer(selectedLayer.id, (layer) => { layer.box = box; })} /><div className="border border-hairline p-3"><p className="mb-3 font-mono text-[8px] uppercase tracking-[.12em] text-muted">Properties</p><LayerProperties layer={selectedLayer} onPatch={(patch) => updateLayer(selectedLayer.id, (layer) => Object.assign(layer, patch))} /></div><div className="grid grid-cols-2 gap-2"><button type="button" disabled={selectedLayerIndex <= 0} className={compactButtonClass} onClick={() => reorderLayer(-1)}>↓ Send back</button><button type="button" disabled={!previewCanvas || selectedLayerIndex >= previewCanvas.layers.length - 1} className={compactButtonClass} onClick={() => reorderLayer(1)}>↑ Bring forward</button></div><button type="button" disabled={!selectedLayerCanBeRemoved} title={selectedLayerCanBeRemoved ? "Remove this free layer" : "Contract-bound layers cannot be removed"} className="w-full border border-signal/50 px-3 py-2 text-xs text-signal transition-colors hover:bg-signal hover:text-ink disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent" onClick={removeSelectedLayer}>{selectedLayerCanBeRemoved ? "Remove layer" : "Contract layer · required"}</button></div> : <div className="border border-dashed border-hairline p-4 text-xs leading-relaxed text-muted"><b className="mb-1 block font-display text-bone">Select a layer</b>Choose one from the stack or canvas to edit its position, size, and visual properties.</div>}
+                <div className="mt-5 border-t border-hairline pt-5"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-muted">Canvas settings</p><label className="mt-3 block text-[10px] text-muted">Background role<input value={previewCanvas?.backgroundRole ?? ""} disabled={!previewCanvas} onChange={(event) => editFamily((family) => { if (family.formats[format]) family.formats[format]!.backgroundRole = event.target.value; })} className={smallFieldClass} /></label><div className="mt-3 flex flex-wrap gap-2"><label className={`${compactButtonClass} cursor-pointer`}>Upload artwork<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => void upload(event.target.files?.[0])} /></label>{previewCanvas?.artwork && <button type="button" className={compactButtonClass} onClick={() => editFamily((family) => { if (family.formats[format]) delete family.formats[format]!.artwork; })}>Remove artwork</button>}</div><p className="mt-2 font-mono text-[8px] leading-relaxed text-muted">Raster ≤12 MB / 40 MP · static SVG ≤2 MB</p></div>
+              </aside>
+            </div>
+
+            <details className="border-t border-hairline px-5 py-4"><summary className="cursor-pointer font-mono text-[10px] uppercase text-muted">Advanced JSON editor</summary><p className="mt-3 text-sm text-muted">The schema is strict: HTML, CSS, scripts, remote assets, and unknown fields are rejected.</p><textarea aria-label="Template family JSON" spellCheck={false} value={json} onChange={(event) => setJson(event.target.value)} className="mt-3 min-h-[380px] w-full border border-hairline bg-black/20 p-3 font-mono text-[11px] leading-5" /></details>
+            <label className="mx-5 mb-4 flex items-start gap-3 border border-hairline p-3 text-xs"><input type="checkbox" checked={autoEligible} onChange={(event) => setAutoEligible(event.target.checked)} className="mt-0.5 accent-[#ff4d00]" /><span><b className="block font-display">Allow automatic planning</b><span className="text-muted">Requires all five format canvases and a clean preflight. Leave off for deliberate, manually selected campaign templates.</span></span></label>
+            <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-hairline bg-panel/95 px-5 py-4 shadow-[0_-14px_30px_rgba(0,0,0,.22)] backdrop-blur"><div><b className="font-display text-sm">{dirty ? "Changes ready to save" : `Draft v${selected.version} is current`}</b><p className="font-mono text-[8px] uppercase text-muted">{dirty ? "Saving creates a new immutable version" : "Edit a layer or canvas to create the next version"}</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" disabled={!owner || busy || !dirty} onClick={() => void save()} className="btn !px-4 !py-2.5 !text-xs">Save new version</button><button type="button" disabled={busy || dirty} onClick={() => void preflight()} className={compactButtonClass} title={dirty ? "Save first" : undefined}>Run preflight</button><button type="button" disabled={!owner || busy || dirty || !brand} onClick={() => void lifecycle("publish")} className={compactButtonClass}>{selected.status === "published" ? "Publish settings" : "Publish"}</button><button type="button" disabled={!owner || busy || dirty || selected.status === "archived"} onClick={() => void lifecycle("archive")} className={compactButtonClass}>Archive</button>{canDelete && <button type="button" disabled={!owner || busy} onClick={() => void removeDraftFamily()} className={compactButtonClass}>Delete drafts</button>}</div></div>
           </div>}
 
           {selected && <div className="panel p-5"><div className="flex items-center justify-between"><div><p className="eyebrow text-signal">Immutable history</p><h3 className="mt-1 font-display text-lg font-bold">Version timeline</h3></div><span className="font-mono text-[9px] text-muted">{versions.length} version{versions.length === 1 ? "" : "s"}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{versions.map((version) => <div key={version.version} className="flex items-center justify-between border border-hairline p-3"><div><b className="font-mono text-xs">v{version.version}</b><span className="ml-2 font-mono text-[8px] uppercase text-muted">{version.status}</span><time className="mt-1 block font-mono text-[8px] text-muted">{new Date(version.updatedAt).toLocaleString()}</time></div><button type="button" disabled={version.version === selected.version} onClick={() => restoreVersion(version)} className="btn-ghost !px-3 !py-2">Restore</button></div>)}</div></div>}
