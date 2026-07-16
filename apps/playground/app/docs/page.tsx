@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CopyCode } from "../components/copy-code";
+import { HashScroll } from "../components/hash-scroll";
 import { McpSetupGuide } from "../components/mcp-setup-guide";
 import { PublicFooter } from "../components/public-footer";
 import { PublicNav } from "../components/public-nav";
@@ -31,6 +32,7 @@ const SECTIONS = [
   ["#api", "REST API"],
   ["#sdk", "SDK"],
   ["#cli", "CLI"],
+  ["#publishing", "Publishing"],
   ["#spec", "BrandSpec"],
   ["#errors", "Errors & safety"],
   ["#selfhost", "Self-host"],
@@ -117,6 +119,7 @@ node packages/cli/dist/index.js schedule "Launch day" --channels ch_123 \\
 export default function DocsPage() {
   return (
     <main className="min-h-screen">
+      <HashScroll />
       <DocsHeader />
       <DocsHero />
       <div className="mx-auto grid max-w-[1180px] gap-10 px-5 pb-20 sm:px-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-14 lg:pt-14">
@@ -136,6 +139,7 @@ export default function DocsPage() {
           <ApiSection />
           <SdkSection />
           <CliSection />
+          <PublishingSection />
           <BrandSpecSection />
           <ErrorsSection />
           <SelfHostSection />
@@ -319,6 +323,20 @@ function CliSection() {
       <DocHeading id="cli" eyebrow="HUMANS + AUTOMATION">CLI</DocHeading>
       <p className="mt-4 text-[15px] leading-relaxed text-muted">The CLI is designed for both operators and agents: machine-readable JSON, stable exit codes and explicit dry-runs. Build it from the repository until the public package ships.</p>
       <CopyCode label="CLI from source">{CLI_EXAMPLE}</CopyCode>
+    </section>
+  );
+}
+
+function PublishingSection() {
+  return (
+    <section>
+      <DocHeading id="publishing" eyebrow="CHANNEL READINESS">Publishing</DocHeading>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">Brandrail renders for every supported format. Direct delivery depends on the channel credentials available to your workspace, and the publish gate stays closed until the item is approved or explicitly confirmed.</p>
+      <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-2">
+        <div className="bg-panel p-5"><p className="eyebrow text-green">READY WITHOUT APP REVIEW</p><h3 className="mt-2 font-display text-lg font-bold">Bluesky + Mastodon</h3><p className="mt-2 text-sm leading-relaxed text-muted">Connect account credentials, dry-run the delivery and schedule approved items from the same run.</p></div>
+        <div className="bg-panel p-5"><p className="eyebrow text-signal">PLATFORM CREDENTIALS REQUIRED</p><h3 className="mt-2 font-display text-lg font-bold">LinkedIn, Meta, X + TikTok</h3><p className="mt-2 text-sm leading-relaxed text-muted">Use your registered platform app and scopes. Until connected, Brandrail still renders the correct export package for manual publishing.</p></div>
+      </div>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Agents can inspect connected channels, dry-run <code className="text-bone">/v0/publish</code>, schedule approved content and read delivery state without bypassing the human review boundary.</p>
     </section>
   );
 }

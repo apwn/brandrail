@@ -8,28 +8,41 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-mono", weight
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://playground.brandrail.dev"),
-  title: "Brandrail — agent-native content operations",
+  title: "Brandrail — one brief to a week of on-brand content",
   description:
-    "Connect your agent to an enforceable brand system. Plan, render, review, publish and learn without letting AI break the brand.",
+    "Turn one brief into a week of on-brand content. Brandrail gives your agent enforceable brand rules, finished channel assets and human approval before publishing.",
   openGraph: {
-    title: "Your agent can write. Brandrail makes it publish on-brand.",
-    description: "Agent-native content operations with BrandSpec enforcement, human approval, publishing and performance feedback.",
+    title: "Turn one brief into a week of on-brand content.",
+    description: "Your agent plans it. Brandrail renders every channel, enforces the brand and waits for human approval before publishing.",
     type: "website",
     url: "/",
-    images: [{ url: "/og-agent.png", width: 1731, height: 909, alt: "Brandrail agent-native content operations workflow" }],
+    images: [{ url: "/og-agent.png", width: 1731, height: 909, alt: "Brandrail turns one brief into an approved, on-brand channel set" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Your agent can write. Brandrail makes it publish on-brand.",
-    description: "BrandSpec-enforced content operations with human approval built in.",
+    title: "Turn one brief into a week of on-brand content.",
+    description: "Agent-planned, BrandSpec-enforced and human-approved before publishing.",
     images: ["/og-agent.png"],
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const software = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Brandrail",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Agent-first branded content operations: plan, render, review and publish channel-ready campaigns through an enforceable brand system.",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    url: "https://playground.brandrail.dev/",
+  };
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
-      <body className="bg-ink text-bone font-body antialiased min-h-screen">{children}</body>
+      <body className="bg-ink text-bone font-body antialiased min-h-screen">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(software) }} />
+        {children}
+      </body>
     </html>
   );
 }

@@ -7,6 +7,7 @@ import { WorkspaceLockup } from "./components/workspace-lockup";
 import { TemplatePicker } from "./components/template-picker";
 import { MarketingLanding } from "./marketing";
 import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
+import { trackConversion } from "@/lib/conversion";
 
 type Step = "landing" | "loading" | "compiling" | "sheet" | "rendering" | "result";
 
@@ -195,7 +196,9 @@ export default function Playground() {
       setExistingBrand(false);
       setEdits({});
       setStep("sheet");
+      trackConversion("compile_completed", { warnings: body.warnings.length });
     } catch (e) {
+      trackConversion("compile_failed");
       setError((e as Error).message);
       setStep("landing");
     }
@@ -273,7 +276,9 @@ export default function Playground() {
       }
       setRender(body);
       setStep("result");
+      trackConversion("render_completed", { assets: body.assets.length, mode: chosenRecipe ? "recipe" : chosenTemplates ? "plan" : chosenTemplate ? "template" : "auto" });
     } catch (e) {
+      trackConversion("render_failed");
       setError((e as Error).message);
       setStep("sheet");
     }

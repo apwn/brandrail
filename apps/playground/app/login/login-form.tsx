@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { trackConversion } from "@/lib/conversion";
 
 export function LoginForm({ plan, agent }: { plan?: "studio" | "agency"; agent?: boolean }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageKind, setMessageKind] = useState<"success" | "error" | null>(null);
   const [devLink, setDevLink] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
+    setMessageKind(null);
+    setDevLink(null);
+    trackConversion("login_submitted", { intent: plan ?? (agent ? "agent" : "workspace") });
     try {
       const res = await fetch("/api/auth/magic-link", {
         method: "POST",
@@ -22,8 +27,12 @@ export function LoginForm({ plan, agent }: { plan?: "studio" | "agency"; agent?:
       if (!res.ok) throw new Error(body.error ?? "Couldn't send the link");
       setDevLink(body.devLink ?? null);
       setMessage("Check your inbox — your secure link is on the way.");
+      setMessageKind("success");
+      trackConversion("login_link_sent", { intent: plan ?? (agent ? "agent" : "workspace") });
     } catch (error) {
       setMessage((error as Error).message);
+      setMessageKind("error");
+      trackConversion("login_failed", { intent: plan ?? (agent ? "agent" : "workspace") });
     } finally {
       setBusy(false);
     }
@@ -31,15 +40,15 @@ export function LoginForm({ plan, agent }: { plan?: "studio" | "agency"; agent?:
 
   return (
     <form onSubmit={submit} className="mt-7">
-      <label className="eyebrow text-bone" htmlFor="login-email">WORK EMAIL</label>
-      <input id="login-email" type="email" required autoComplete="email" autoFocus className="field mt-2" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <button className="btn w-full mt-3" disabled={busy}>{busy ? "Sending…" : selectedLabel(plan, agent)}</button>
-      {message && <p className={`font-mono text-xs mt-4 ${devLink ? "text-green" : "text-muted"}`}>{message}</p>}
+      <label className="eyebrow text-bone" htmlFor="login-email">EMAIL</label>
+      <input id="login-email" type="email" required autoComplete="email" autoFocus className="field mt-2" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <button type="submit" className="btn mt-3 w-full" disabled={busy}>{busy ? "Sending…" : selectedLabel(plan, agent)}</button>
+      {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-4 font-mono text-xs ${messageKind === "error" ? "text-signal" : "text-green"}`}>{message}</p>}
       {devLink && <a href={devLink} className="btn-ghost w-full mt-3 text-xs">Open local development link →</a>}
     </form>
   );
 }
 
 function selectedLabel(plan?: "studio" | "agency", agent?: boolean) {
-  return plan ? `Email my link and continue →` : agent ? "Email my connection link →" : "Email my sign-in link →";
+  return plan ? "Send my secure checkout link →" : agent ? "Send my agent setup link →" : "Send my sign-in link →";
 }

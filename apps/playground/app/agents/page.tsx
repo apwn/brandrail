@@ -78,7 +78,7 @@ function AgentHero() {
             <a className="btn min-h-12" href="/login?agent=1">Connect your agent free →</a>
             <a className="btn-ghost min-h-12" href="#connect">View the 2-minute setup ↓</a>
           </div>
-          <p className="mt-4 font-mono text-[10px] text-muted sm:text-[11px]">1 free connection · {MCP_TOOL_COUNT} lifecycle tools · 50 assets · no card</p>
+          <p className="mt-4 font-mono text-[10px] text-muted sm:text-[11px]">1 free agent key · {MCP_TOOL_COUNT} lifecycle tools · 50 assets · no card</p>
         </div>
         <AgentRunProof />
       </div>
@@ -171,7 +171,7 @@ function ConnectionSection() {
               </li>
             ))}
           </ol>
-          <a href="/login?agent=1" className="mt-6 inline-flex text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Create the free connection →</a>
+          <a href="/login?agent=1" className="mt-6 inline-flex text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Create the free agent key →</a>
         </div>
         <div className="min-w-0">
           <McpSetupGuide endpoint="https://playground.brandrail.dev/api/mcp" />
