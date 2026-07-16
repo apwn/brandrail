@@ -1,4 +1,5 @@
 /** Server-side proxy helpers: the engine URL and API key never reach the client. */
+import { createHash } from "node:crypto";
 
 const ENGINE_KEY = process.env.BRANDRAIL_API_KEY;
 // shared secret proving this call comes from the trusted proxy (prod only)
@@ -79,36 +80,27 @@ export async function agentEngine(path: string, apiKey: string, init: RequestIni
   });
 }
 
-/**
- * Daily compile cap per IP: 3 anonymous, more with a verified account (the
- * account should always GIVE something). In-memory is fine for V0 (single
- * instance); // V1: move to the shared store when the playground scales out.
- */
-const compileHits = new Map<string, { day: string; count: number }>();
-
-export function rateLimitCompile(ip: string, max = 3): { ok: boolean; remaining: number } {
-  const day = new Date().toISOString().slice(0, 10);
-  const entry = compileHits.get(ip);
-  if (!entry || entry.day !== day) {
-    compileHits.set(ip, { day, count: 1 });
-    return { ok: true, remaining: max - 1 };
+/** Reserve abuse-sensitive work in the engine's durable shared store. Failure
+ * is explicit and fail-closed so a storage outage cannot disable protection. */
+export async function reserveAbuseLimit(namespace: string, subject: string, limit: number, windowMs: number): Promise<{ ok: boolean; unavailable: boolean; retryAfterMs: number }> {
+  const key = createHash("sha256").update(`${namespace}\0${subject}`).digest("hex");
+  try {
+    const res = await engine("/v0/internal/rate-limit", { method: "POST", body: JSON.stringify({ key, limit, windowMs }), signal: AbortSignal.timeout(5_000) });
+    if (!res.ok) return { ok: false, unavailable: true, retryAfterMs: 1_000 };
+    const data = await res.json() as { allowed?: boolean; retryAfterMs?: number };
+    return { ok: data.allowed === true, unavailable: false, retryAfterMs: Math.max(1, Number(data.retryAfterMs) || windowMs) };
+  } catch {
+    return { ok: false, unavailable: true, retryAfterMs: 1_000 };
   }
-  if (entry.count >= max) return { ok: false, remaining: 0 };
-  entry.count += 1;
-  return { ok: true, remaining: max - entry.count };
-}
-
-/** Return a reserved compile when the upstream request produced no value. */
-export function refundCompile(ip: string): void {
-  const entry = compileHits.get(ip);
-  if (!entry) return;
-  entry.count = Math.max(0, entry.count - 1);
-  if (entry.count === 0) compileHits.delete(ip);
 }
 
 export function clientIp(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  return fwd?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? "local";
+  const trustProxy = process.env.VERCEL === "1" || process.env.TRUST_PROXY_HEADERS === "1";
+  if (!trustProxy) return "unknown";
+  const forwarded = process.env.VERCEL === "1"
+    ? req.headers.get("x-vercel-forwarded-for") ?? req.headers.get("x-forwarded-for")
+    : req.headers.get("x-forwarded-for");
+  return forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 /** Is this session's user email-verified? Gates the "take" actions (publish,

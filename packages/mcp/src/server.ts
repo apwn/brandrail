@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, open } from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -14,6 +15,21 @@ import {
 } from "@brandrail/spec";
 
 const ARCHETYPES = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
+
+function safeAssetPath(directory: string, filename: string): string {
+  if (path.basename(filename) !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(filename)) throw new Error("server returned an unsafe asset filename");
+  const root = path.resolve(directory);
+  const target = path.resolve(root, filename);
+  if (!target.startsWith(`${root}${path.sep}`)) throw new Error("server returned an unsafe asset filename");
+  return target;
+}
+
+async function writeAsset(directory: string, filename: string, bytes: Uint8Array): Promise<string> {
+  const target = safeAssetPath(directory, filename);
+  const handle = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600);
+  try { await handle.writeFile(bytes); } finally { await handle.close(); }
+  return target;
+}
 const slideCopyInput = z.object({
   kicker: z.string().max(500).optional(),
   hook: z.string().min(1).max(500),
@@ -171,8 +187,7 @@ export function buildServer(): McpServer {
         const files: string[] = [];
         for (const asset of res.assets) {
           const bytes = await api.downloadAsset(asset.url);
-          const file = path.join(outDir, asset.filename);
-          await writeFile(file, bytes);
+          const file = await writeAsset(outDir, asset.filename, bytes);
           files.push(file);
         }
         const text = [

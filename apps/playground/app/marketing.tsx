@@ -26,7 +26,7 @@ type LandingProps = {
 
 export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps) {
   useEffect(() => {
-    trackConversion("landing_view");
+    if (!new URLSearchParams(window.location.search).has("brand")) trackConversion("landing_view");
   }, []);
 
   return (
@@ -379,11 +379,11 @@ function TemplateStudioProof() {
               <div className="relative aspect-[40/21] overflow-hidden border border-hairline bg-bone text-ink">
                 <span className="absolute left-[7%] top-[8%] h-[84%] w-[47%] border border-[#BEB8AD] bg-[#F4EFE5]" />
                 <span className="absolute left-[10%] top-[15%] flex h-[10%] w-[38%] items-center border border-[#BEB8AD] px-2 font-mono text-[7px] uppercase text-[#6A655D]">kicker · 36</span>
-                <span className="absolute left-[10%] top-[28%] flex h-[25%] w-[38%] items-center border-2 border-[#A83200] px-2 font-display text-[clamp(10px,1.4vw,18px)] font-bold leading-tight">The launch system teams remember.</span>
+                <span className="absolute left-[10%] top-[28%] flex h-[25%] w-[38%] items-center overflow-hidden border-2 border-[#A83200] px-2 font-display text-[clamp(9px,1vw,14px)] font-bold leading-[1.08]">The launch system teams remember.</span>
                 <span className="absolute left-[10%] top-[58%] flex h-[17%] w-[38%] items-center border border-[#BEB8AD] px-2 text-[7px] leading-tight text-[#514D47]">Approved copy stays editable inside the contract.</span>
                 <span className="absolute left-[10%] top-[82%] flex h-[5%] w-[19%] items-center font-display text-[7px] font-bold">NORTHSTAR</span>
                 <span className="absolute left-[57%] top-[8%] flex h-[84%] w-[36%] items-center justify-center border border-[#BEB8AD] bg-[#D8D3C9] font-mono text-[7px] uppercase text-[#6A655D]">approved artwork</span>
-                <span className="absolute left-[47%] top-[24%] bg-signal px-1.5 py-1 font-mono text-[7px] font-bold uppercase text-ink">hook selected</span>
+                <span className="absolute left-[48%] top-[28%] -translate-x-full -translate-y-full bg-signal px-1.5 py-1 font-mono text-[6px] font-bold uppercase text-ink">hook selected</span>
               </div>
             </div>
             <aside className="bg-panel p-4">

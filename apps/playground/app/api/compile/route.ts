@@ -1,4 +1,4 @@
-import { engineJson, rateLimitCompile, refundCompile, clientIp, getUserAccess } from "@/lib/engine";
+import { engineJson, reserveAbuseLimit, clientIp, getUserAccess } from "@/lib/engine";
 import { ensureUserId } from "@/lib/session";
 import { readJsonBody } from "@/lib/request";
 
@@ -24,7 +24,8 @@ export async function POST(req: Request) {
   const access = await getUserAccess(uid);
   const max = access.verified ? ({ free: 10, studio: 50, agency: 250 } as const)[access.plan] : 3;
   const ip = clientIp(req);
-  const limit = rateLimitCompile(ip, max);
+  const limit = await reserveAbuseLimit("compile-daily", ip, max, 24 * 60 * 60_000);
+  if (limit.unavailable) return Response.json({ error: "Compile protection is temporarily unavailable. Please retry shortly." }, { status: 503 });
   if (!limit.ok) {
     return Response.json(
       {
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
           ? `That's ${max} compiles today on ${access.plan} — the rail reopens tomorrow. (Self-host for unlimited runs.)`
           : "That's 3 compiles today. Sign in (free) for 10/day — or self-host for unlimited runs.",
       },
-      { status: 429 },
+      { status: 429, headers: { "retry-after": String(Math.max(1, Math.ceil(limit.retryAfterMs / 1000))) } },
     );
   }
   const result = await engineJson(
@@ -40,6 +41,5 @@ export async function POST(req: Request) {
     { method: "POST", body: JSON.stringify({ url: url.toString() }) },
     uid,
   );
-  if (result.status >= 400) refundCompile(ip);
   return Response.json(result.data, { status: result.status });
 }

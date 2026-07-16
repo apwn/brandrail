@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/request";
 
 const EVENTS = new Set([
   "landing_view", "url_submitted", "compile_completed", "compile_failed",
@@ -29,13 +30,15 @@ function isSameOrigin(origin: string, requestUrl: string): boolean {
 export async function POST(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
-  if (fetchSite === "cross-site" || (origin && !isSameOrigin(origin, request.url))) {
+  // Sec-Fetch-Site is browser-controlled and survives reverse-proxy host
+  // normalization. Fall back to Origin comparison when the signal is absent.
+  if (fetchSite === "cross-site" || (fetchSite !== "same-origin" && origin && !isSameOrigin(origin, request.url))) {
     return NextResponse.json({ error: "cross-site events are not accepted" }, { status: 403 });
   }
 
-  const length = Number(request.headers.get("content-length") ?? 0);
-  if (length > 4_096) return NextResponse.json({ error: "event payload too large" }, { status: 413 });
-  const body = (await request.json().catch(() => null)) as { event?: unknown; sessionId?: unknown; path?: unknown; properties?: unknown } | null;
+  const parsed = await readJsonBody<{ event?: unknown; sessionId?: unknown; path?: unknown; properties?: unknown }>(request, 4_096);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   if (!body || typeof body.event !== "string" || !EVENTS.has(body.event)) return NextResponse.json({ error: "unknown conversion event" }, { status: 400 });
   if (typeof body.sessionId !== "string" || !/^[a-f0-9-]{20,64}$/i.test(body.sessionId)) return NextResponse.json({ error: "invalid session" }, { status: 400 });
   const properties = {

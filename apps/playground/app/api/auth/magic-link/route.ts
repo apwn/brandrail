@@ -1,22 +1,8 @@
 import { ensureUserId } from "@/lib/session";
 import { signMagicToken, sendMagicLink } from "@/lib/magic";
-import { clientIp } from "@/lib/engine";
+import { clientIp, reserveAbuseLimit } from "@/lib/engine";
 import { publicOrigin } from "@/lib/origin";
 import { readJsonBody } from "@/lib/request";
-
-const attempts = new Map<string, { started: number; count: number }>();
-function allowed(key: string, max: number, windowMs: number): boolean {
-  const now = Date.now();
-  const prior = attempts.get(key);
-  if (!prior || now - prior.started > windowMs) {
-    if (attempts.size > 5_000) attempts.clear();
-    attempts.set(key, { started: now, count: 1 });
-    return true;
-  }
-  if (prior.count >= max) return false;
-  prior.count += 1;
-  return true;
-}
 
 /** Request a sign-in link. The token carries the CURRENT anon session id so
  * the work done before signing in (compiles, renders) survives the login. */
@@ -28,8 +14,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "a valid email is required" }, { status: 400 });
   }
   const normalized = email.trim().toLowerCase();
-  if (!allowed(`ip:${clientIp(req)}`, 10, 15 * 60_000) || !allowed(`email:${normalized}`, 5, 15 * 60_000)) {
-    return Response.json({ error: "too many sign-in links requested — try again in 15 minutes" }, { status: 429, headers: { "retry-after": "900" } });
+  const [ipLimit, emailLimit] = await Promise.all([
+    reserveAbuseLimit("magic-ip", clientIp(req), 10, 15 * 60_000),
+    reserveAbuseLimit("magic-email", normalized, 5, 15 * 60_000),
+  ]);
+  if (ipLimit.unavailable || emailLimit.unavailable) return Response.json({ error: "Sign-in protection is temporarily unavailable. Please retry shortly." }, { status: 503 });
+  if (!ipLimit.ok || !emailLimit.ok) {
+    const retryAfter = Math.max(ipLimit.retryAfterMs, emailLimit.retryAfterMs);
+    return Response.json({ error: "too many sign-in links requested — try again in 15 minutes" }, { status: 429, headers: { "retry-after": String(Math.max(1, Math.ceil(retryAfter / 1000))) } });
   }
   const anonId = await ensureUserId();
   const token = signMagicToken(normalized, anonId, Date.now(), next);

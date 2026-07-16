@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { Brandrail, BrandrailError, type ContentProgramInput, type TemplateMediaSelection } from "@brandrail/sdk";
@@ -13,6 +14,21 @@ const EXIT_LOW_CONFIDENCE = 3;
 const DEFAULT_MCP_URL = "https://playground.brandrail.dev/api/mcp";
 const MCP_PROTOCOL_VERSION = "2025-11-25";
 const MCP_REQUIRED_TOOLS = ["list_brands", "get_brand", "start_campaign_run", "render_assets", "create_review_batch", "get_review_status", "schedule_post", "get_audit_log"];
+
+function safeAssetPath(directory: string, filename: string): string {
+  if (path.basename(filename) !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(filename)) throw new Error("server returned an unsafe asset filename");
+  const root = path.resolve(directory);
+  const target = path.resolve(root, filename);
+  if (!target.startsWith(`${root}${path.sep}`)) throw new Error("server returned an unsafe asset filename");
+  return target;
+}
+
+async function writeAsset(directory: string, filename: string, bytes: Uint8Array): Promise<string> {
+  const target = safeAssetPath(directory, filename);
+  const handle = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600);
+  try { await handle.writeFile(bytes); } finally { await handle.close(); }
+  return target;
+}
 
 const program = new Command()
   .name("brandrail")
@@ -332,8 +348,7 @@ program
         const files: string[] = [];
         for (const asset of res.assets) {
           const bytes = await api.downloadAsset(asset.url);
-          const file = path.join(opts.out, asset.filename);
-          await writeFile(file, bytes);
+          const file = await writeAsset(opts.out, asset.filename, bytes);
           files.push(file);
         }
         if (isJson()) {
