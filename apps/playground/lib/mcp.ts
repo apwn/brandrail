@@ -1,6 +1,7 @@
 import { agentEngine } from "@/lib/engine";
 import { publicOrigin } from "@/lib/origin";
 import { readJsonBody } from "@/lib/request";
+import { MCP_PROTOCOL_VERSION, MCP_SERVER_VERSION, MCP_SUPPORTED_VERSIONS, MCP_TOOL_COUNT } from "@/lib/mcp-meta";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
 
 type JsonSchema = Record<string, unknown>;
@@ -33,8 +34,6 @@ const campaignFields = {
   brandIds: { type: "array", items: { type: "string" }, maxItems: 50 }, batchIds: { type: "array", items: { type: "string" }, maxItems: 100 }, postIds: { type: "array", items: { type: "string" }, maxItems: 500 },
 };
 
-export const MCP_PROTOCOL_VERSION = "2025-11-25";
-export const MCP_SUPPORTED_VERSIONS = [MCP_PROTOCOL_VERSION, "2025-06-18", "2025-03-26"] as const;
 export const MCP_INSTRUCTIONS = "Brandrail is an approval-safe execution rail. Start with list_brands, then plan_campaign or start_campaign_run. Rendered output is never published automatically. Use a review batch and wait for human approval, or obtain explicit confirmation. Always call schedule_post with dryRun=true before a real schedule or publish call. Never approve your own work.";
 
 export const MCP_TOOLS: Tool[] = [
@@ -69,6 +68,10 @@ export const MCP_TOOLS: Tool[] = [
   tool("get_usage", "Get usage", "Read plan entitlements and remaining render/generation allowances.", object(), { readOnlyHint: true, idempotentHint: true }),
   tool("get_audit_log", "Get audit log", "Read recent human and agent workspace mutations.", object({ limit: { type: "integer", minimum: 1, maximum: 250 } }), { readOnlyHint: true, idempotentHint: true }),
 ];
+
+if (MCP_TOOLS.length !== MCP_TOOL_COUNT) {
+  throw new Error(`MCP tool registry mismatch: expected ${MCP_TOOL_COUNT}, found ${MCP_TOOLS.length}`);
+}
 
 type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> & { name?: string; arguments?: Record<string, unknown>; uri?: string; protocolVersion?: string } };
 
@@ -136,6 +139,7 @@ async function readResource(apiKey: string, uri: string) {
 
 async function listResources(apiKey: string) {
   const upstream = await agentEngine("/v0/renders?limit=50", apiKey);
+  if (!upstream.ok) throw new Error(`Could not list resources (HTTP ${upstream.status})`);
   const data = await upstream.json().catch(() => ({ renders: [] })) as { renders?: Array<{ id: string; manifest?: { brand?: string; assets?: Array<{ filename?: string; format?: string }> } }> };
   return (data.renders ?? []).flatMap((render) => (render.manifest?.assets ?? []).filter((asset) => asset.filename).map((asset) => ({
     uri: resourceUri(render.id, asset.filename!), name: `${render.manifest?.brand ?? "brand"} · ${asset.format ?? asset.filename}`,
@@ -215,17 +219,21 @@ export async function handleMcp(req: Request): Promise<Response> {
   if (message.method === "initialize") {
     const requested = String(message.params?.protocolVersion ?? "");
     const version = MCP_SUPPORTED_VERSIONS.includes(requested as typeof MCP_SUPPORTED_VERSIONS[number]) ? requested : MCP_PROTOCOL_VERSION;
-    payload = rpcResult(message.id, { protocolVersion: version, capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: "brandrail", title: "Brandrail Agent Runtime", version: "0.3.0" }, instructions: MCP_INSTRUCTIONS });
+    payload = rpcResult(message.id, { protocolVersion: version, capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: "brandrail", title: "Brandrail Agent Runtime", version: MCP_SERVER_VERSION }, instructions: MCP_INSTRUCTIONS });
     return Response.json(payload, { headers: responseHeaders(version) });
   }
-  if (message.method === "ping") payload = rpcResult(message.id, {});
-  else if (message.method === "tools/list") payload = rpcResult(message.id, { tools: MCP_TOOLS });
-  else if (message.method === "tools/call") payload = rpcResult(message.id, await toolCall(apiKey, message.params?.name ?? "", message.params?.arguments ?? {}));
-  else if (message.method === "resources/list") payload = rpcResult(message.id, { resources: await listResources(apiKey) });
-  else if (message.method === "resources/read") {
-    const uri = String(message.params?.uri ?? "");
-    const resource = await readResource(apiKey, uri);
-    payload = "blob" in resource ? rpcResult(message.id, { contents: [{ uri, mimeType: resource.mimeType, blob: resource.blob }] }) : rpcError(message.id, -32002, resource.error);
-  } else payload = rpcError(message.id, -32601, "Method not found");
+  try {
+    if (message.method === "ping") payload = rpcResult(message.id, {});
+    else if (message.method === "tools/list") payload = rpcResult(message.id, { tools: MCP_TOOLS });
+    else if (message.method === "tools/call") payload = rpcResult(message.id, await toolCall(apiKey, message.params?.name ?? "", message.params?.arguments ?? {}));
+    else if (message.method === "resources/list") payload = rpcResult(message.id, { resources: await listResources(apiKey) });
+    else if (message.method === "resources/read") {
+      const uri = String(message.params?.uri ?? "");
+      const resource = await readResource(apiKey, uri);
+      payload = "blob" in resource ? rpcResult(message.id, { contents: [{ uri, mimeType: resource.mimeType, blob: resource.blob }] }) : rpcError(message.id, -32002, resource.error);
+    } else payload = rpcError(message.id, -32601, "Method not found");
+  } catch (cause) {
+    payload = rpcError(message.id, -32002, cause instanceof Error ? cause.message : "MCP operation failed");
+  }
   return Response.json(payload, { headers: responseHeaders(requestedHeader ?? MCP_PROTOCOL_VERSION) });
 }

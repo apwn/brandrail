@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
 import { RunComposer } from "./run-composer";
+import { WorkspaceLockup } from "../components/workspace-lockup";
 
 type Run = {
   id: string;
@@ -34,7 +35,7 @@ export default async function AgentRunsPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3"><div className="rail w-10" aria-hidden /><a href="/" className="font-display text-lg font-bold">brandrail</a><span className="eyebrow">AGENT RUNS</span></div>
+        <WorkspaceLockup context="Agent runs" />
         <a href="/dashboard" className="btn-ghost !px-3 !py-2 text-xs">← Control room</a>
       </header>
 

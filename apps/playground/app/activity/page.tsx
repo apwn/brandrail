@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
+import { WorkspaceLockup } from "../components/workspace-lockup";
 
 type Event = { id: string; action: string; actor: "agent" | "user" | "reviewer" | "system"; actorId: string; path: string; method: string; status: number; createdAt: string };
 
@@ -14,7 +15,7 @@ export default async function ActivityPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3"><div className="rail w-10" aria-hidden /><a href="/" className="font-display font-bold text-lg">brandrail</a><span className="eyebrow">ACTIVITY</span></div>
+        <WorkspaceLockup context="Activity" />
         <a href="/dashboard" className="btn-ghost !px-3 !py-2 text-xs">← Control room</a>
       </header>
       <div className="mt-12 max-w-2xl"><p className="eyebrow text-signal">HUMAN OVERSIGHT</p><h1 className="mt-3 font-display text-4xl font-bold tracking-tight">Every agent action leaves a rail.</h1><p className="mt-3 text-muted">Recent workspace mutations, who initiated them, and whether the engine accepted them. Read-only requests are intentionally excluded.</p></div>

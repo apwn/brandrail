@@ -1,5 +1,19 @@
 "use client";
 
+import { PublicFooter } from "./components/public-footer";
+import { PublicNav } from "./components/public-nav";
+import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
+
+const LANDING_NAV_LINKS = [
+  { href: "/agents", label: "For agents" },
+  { href: "#agent-workflow", label: "How it works" },
+  { href: "#examples", label: "Output" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
+] as const;
+
+const LANDING_MOBILE_LINK = { href: "/agents", label: "Agents" } as const;
+
 type LandingProps = {
   url: string;
   setUrl: (value: string) => void;
@@ -12,12 +26,12 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
     <div className="min-h-screen overflow-x-hidden">
       <Announcement />
       <Nav />
-      <Hero url={url} setUrl={setUrl} onSubmit={onSubmit} error={error} />
+      <Hero />
+      <CompileBar url={url} setUrl={setUrl} onSubmit={onSubmit} error={error} />
       <AudiencePaths />
       <main>
         <AgentWorkflowSection />
         <OutputSection />
-        <WorkflowSection />
         <MechanismSection />
         <UseCasesSection />
         <ComparisonSection />
@@ -32,10 +46,10 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
 
 function Announcement() {
   return (
-    <div className="border-b border-hairline bg-panel px-4 py-2.5 text-center font-mono text-xs text-muted">
-      <span className="text-bone">NEW · Hosted Streamable HTTP MCP.</span> One free, scoped agent connection with durable runs and human approval built in.{" "}
+    <div className="border-b border-hairline bg-panel px-4 py-2 text-center font-mono text-[11px] text-muted sm:text-xs">
+      <span className="text-bone">NEW · Hosted MCP.</span><span className="hidden sm:inline"> One free, scoped agent connection with durable runs and human approval built in.</span>{" "}
       <a className="text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone" href="/agents">
-        See the agent rail →
+        Connect free →
       </a>
     </div>
   );
@@ -43,62 +57,58 @@ function Announcement() {
 
 function Nav() {
   return (
-    <nav className="sticky top-0 z-50 border-b border-hairline bg-ink/95 backdrop-blur" aria-label="Main navigation">
-      <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-4 px-5 sm:px-6">
-        <a href="/" className="font-display text-xl font-bold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal">
-          brand<span className="border-b-[3px] border-signal pb-px">rail</span>
-        </a>
-        <div className="hidden items-center gap-7 text-sm text-muted lg:flex">
-          <a href="#agent-workflow" className="hover:text-bone">For agents</a>
-          <a href="#workflow" className="hover:text-bone">How it works</a>
-          <a href="#examples" className="hover:text-bone">Output</a>
-          <a href="#pricing" className="hover:text-bone">Pricing</a>
-          <a href="#faq" className="hover:text-bone">FAQ</a>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <a href="/agents" className="hidden text-sm text-muted hover:text-bone md:inline">Agent platform</a>
-          <a href="/login" className="hidden text-sm text-muted hover:text-bone sm:inline">Log in</a>
-          <a href="/login?agent=1" className="btn !px-3.5 !py-2 !text-xs sm:!px-4 sm:!text-[13px]">Connect your agent</a>
-        </div>
-      </div>
-    </nav>
+    <PublicNav
+      links={LANDING_NAV_LINKS}
+      mobileLink={LANDING_MOBILE_LINK}
+    />
   );
 }
 
-function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
+function Hero() {
   return (
-    <header id="top" className="relative overflow-hidden border-b border-hairline-soft py-14 md:py-20">
+    <header id="top" className="relative overflow-hidden border-b border-hairline-soft py-10 sm:py-12 md:py-14">
       <div className="surface-grid absolute inset-0 opacity-50" aria-hidden />
-      <div className="relative mx-auto grid max-w-[1180px] items-center gap-12 px-5 sm:px-6 xl:grid-cols-[1.02fr_.98fr] xl:gap-16">
+      <div className="relative mx-auto grid max-w-[1180px] items-center gap-9 px-5 sm:px-6 lg:grid-cols-[1.02fr_.98fr] lg:gap-12 xl:gap-16">
         <div>
-          <div className="mb-6 flex w-fit items-center gap-2 border border-hairline bg-panel px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+          <div className="mb-5 flex w-fit items-center gap-2 border border-hairline bg-panel px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted sm:text-[11px]">
             <span className="h-2 w-2 bg-signal" aria-hidden />
             Agent-native content operations
           </div>
-          <h1 className="max-w-[690px] font-display text-[clamp(42px,5.7vw,68px)] font-bold leading-[0.98] tracking-[-0.045em]">
+          <h1 className="max-w-[690px] font-display text-[clamp(40px,5.4vw,64px)] font-bold leading-[0.98] tracking-[-0.045em]">
             Your agent can write.<br /><span className="text-signal">Brandrail makes it publish on-brand.</span>
           </h1>
-          <p className="mt-6 max-w-[650px] text-[17px] leading-relaxed text-muted sm:text-lg">
-            Connect the agent you already use to an enforceable brand system. One prompt becomes a planned, rendered, reviewed and scheduled campaign—without letting the agent freestyle your identity.
+          <p className="mt-5 max-w-[620px] text-[16px] leading-relaxed text-muted sm:text-[17px]">
+            Connect the agent you already use to a brand system it cannot break. One brief becomes planned, rendered, reviewed and scheduled content—with your approval required before anything goes live.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a>
-            <a href="#agent-workflow" className="btn-ghost min-h-12">Watch the workflow ↓</a>
+            <a href="#agent-workflow" className="btn-ghost min-h-12">See it run ↓</a>
           </div>
-          <div className="mt-6 max-w-[650px] border-t border-hairline-soft pt-5">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-muted">Or prove it with your real website</p>
-            <UrlBox id="hero-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
-            <span><b className="font-medium text-green">Free</b> · 1 agent connection · 50 assets</span>
+          <div className="mt-5 flex max-w-[620px] flex-wrap items-center gap-x-5 gap-y-2 border-t border-hairline-soft pt-4 font-mono text-[10px] text-muted sm:text-[11px]">
+            <span><b className="font-medium text-green">Free</b> · 1 connection · 50 assets · no card</span>
             <span>Hosted MCP · CLI · API</span>
-            <span>Human approval by default</span>
           </div>
-          {error && <p className="mt-4 border-l-2 border-signal pl-3 font-mono text-sm text-signal" role="alert">{error}</p>}
         </div>
         <HeroBoard />
       </div>
     </header>
+  );
+}
+
+function CompileBar({ url, setUrl, onSubmit, error }: LandingProps) {
+  return (
+    <section className="border-b border-hairline bg-panel" aria-labelledby="compile-proof-title">
+      <div className="mx-auto grid max-w-[1180px] gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[.72fr_1.28fr] lg:items-center">
+        <div>
+          <p className="eyebrow text-signal">Prove it with your real website</p>
+          <h2 id="compile-proof-title" className="mt-1 font-display text-lg font-bold">URL in. Brand system out.</h2>
+        </div>
+        <div>
+          <UrlBox id="hero-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} />
+          {error && <p className="mt-3 border-l-2 border-signal pl-3 font-mono text-xs text-signal" role="alert">{error}</p>}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -167,7 +177,7 @@ function AgentWorkflowSection() {
     ["06", "LEARN", "Performance returns to the next plan. Every mutation remains visible in the audit rail."],
   ];
   return (
-    <section id="agent-workflow" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+    <section id="agent-workflow" className="scroll-mt-20 border-b border-hairline-soft py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead eyebrow="Agent-native by design" title={<>One prompt can run the campaign.<br />It still cannot bypass your judgment.</>} body="Brandrail is not a chatbot glued onto a scheduler. The agent is the operator; BrandSpec constraints, approval state, execution plans and the audit trail are the control system." />
         <div className="grid gap-px border border-hairline bg-hairline md:grid-cols-2 lg:grid-cols-3">{stages.map(([number, title, body]) => <article key={number} className="bg-ink p-5 sm:p-6"><div className="flex items-center justify-between"><span className="font-mono text-xs text-signal">{number}</span><span className="h-2 w-2 bg-green" /></div><h3 className="mt-6 font-display text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{body}</p></article>)}</div>
@@ -227,7 +237,7 @@ function OutputSection() {
     ["04", "GATE", "0 rule violations"],
   ];
   return (
-    <section id="examples" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
+    <section id="examples" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-16 text-ink md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead
           light
@@ -314,13 +324,13 @@ function OutputSection() {
               Same engine. Same landscape format. Three fictional BrandSpecs with different palette, typography, casing, alignment and composition rules—rendered without hand-styling the final canvases.
             </p>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 md:grid md:grid-cols-3 md:overflow-visible md:pb-0" aria-label="Brand range examples">
             {[
               { src: "/proof/range-fieldnote.png", name: "Fieldnote", mode: "Quiet editorial", detail: "Inter · warm neutral · left" },
               { src: "/proof/range-relay.png", name: "RELAY/OPS", mode: "Operational", detail: "Space Grotesk · dark · upper" },
               { src: "/proof/range-morrow.png", name: "Morrow Studio", mode: "Studio principle", detail: "Mixed type · lavender · center" },
             ].map((brand, index) => (
-              <figure key={brand.src} className="border border-[#C9C4BA] bg-[#F6F3ED] p-2.5 shadow-[4px_4px_0_#D8D3C9]">
+              <figure key={brand.src} className="min-w-[82%] snap-start border border-[#C9C4BA] bg-[#F6F3ED] p-2.5 shadow-[4px_4px_0_#D8D3C9] md:min-w-0">
                 <div className="overflow-hidden border border-[#D8D3C9] bg-white">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={brand.src} alt={`${brand.name} fictional BrandSpec proof render`} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />
@@ -343,36 +353,9 @@ function OutputSection() {
   );
 }
 
-function WorkflowSection() {
-  const steps = [
-    ["01", "Compile the brand once", "Brandrail reads the live site, pins real fonts and imagery, and turns the observed identity into constraints."],
-    ["02", "Connect the agent you use", "A hosted Streamable HTTP MCP connection gives a compatible client scoped lifecycle tools and inspectable resources."],
-    ["03", "Ask for the outcome", "The agent dry-runs the objective, then plans and renders inside the BrandSpec instead of prompt-lottery styling."],
-    ["04", "Approve the irreversible step", "Review exact assets, resume the run, schedule approved work, and feed results into the next plan."],
-  ];
-  return (
-    <section id="workflow" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
-      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead eyebrow="The human + agent workflow" title="From website to measured campaign in one controlled rail." body="You own the brand and the final decision. The agent carries the repetitive operating work between them." />
-        <div className="relative grid gap-8 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-          <div className="absolute left-0 right-0 top-3 hidden h-px bg-hairline xl:block" aria-hidden />
-          {steps.map(([number, title, body]) => (
-            <article key={number} className="relative border-l border-hairline pl-5 xl:border-l-0 xl:pl-0 xl:pt-10">
-              <span className="absolute -left-[5px] top-1 h-2.5 w-2.5 bg-signal xl:left-0 xl:top-0" aria-hidden />
-              <span className="font-mono text-xs text-signal">{number}</span>
-              <h3 className="mt-3 font-display text-xl font-bold">{title}</h3>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{body}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function UseCasesSection() {
   return (
-    <section id="use-cases" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-20 md:py-28">
+    <section id="use-cases" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead eyebrow="Built to scale with you" title="One brand today. Twenty-five tomorrow. Same rail." body="Start with the job you have now. Brandrail keeps the workflow simple for a solo operator and adds review, workspaces and automation when the workload grows." />
         <div className="grid gap-px overflow-hidden border border-hairline bg-hairline lg:grid-cols-2">
@@ -430,7 +413,7 @@ function MechanismSection() {
     ["Voice", "Tone, banned phrases, emoji and CTA limits"],
   ];
   return (
-    <section className="border-b border-hairline-soft py-20 md:py-28">
+    <section className="border-b border-hairline-soft py-16 md:py-24">
       <div className="mx-auto grid max-w-[1180px] gap-12 px-5 sm:px-6 lg:grid-cols-2 lg:items-center">
         <div>
           <span className="eyebrow text-signal">The proprietary mechanism</span>
@@ -467,13 +450,13 @@ function ComparisonSection() {
   const rows = [
     ["Compiles a brand system from a URL", "—", "—", "✓"],
     ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
-    ["Agent operates the full lifecycle", "—", "Partial actions", "29 MCP tools + resources"],
+    ["Agent operates the full lifecycle", "—", "Partial actions", `${MCP_TOOL_COUNT} MCP tools + resources`],
     ["Resumable human approval", "Manual", "Basic approval", "Stateful + safe"],
     ["Dry-run + mutation audit trail", "—", "—", "✓"],
     ["Calendar, publishing + feedback", "—", "Distribution", "Closed loop"],
   ];
   return (
-    <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+    <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead eyebrow="Where Brandrail fits" title="Schedulers give agents accounts. Brandrail gives agents a brand they cannot break." body="Keep the tools you already like. Brandrail adds the missing operating layer: machine-readable brand constraints, deterministic assets, resumable approval, publishing and feedback." />
         <div className="overflow-x-auto border border-hairline">
@@ -530,7 +513,7 @@ function PricingSection() {
     },
   ];
   return (
-    <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-20 text-ink md:py-28">
+    <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-16 text-ink md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <SectionHead light eyebrow="Simple plans, honest scaling" title="Connect the agent free. Pay when it starts operating the business." body="Free proves the agent + brand loop on one real identity. Studio adds approvals, scheduling, webhooks and learning. Agency adds client volume and controlled collaboration." />
         <div className="grid items-stretch gap-5 lg:grid-cols-3">
@@ -590,7 +573,7 @@ const FAQ = [
 
 function FaqSection() {
   return (
-    <section id="faq" className="scroll-mt-20 border-b border-hairline-soft py-20 md:py-28">
+    <section id="faq" className="scroll-mt-20 border-b border-hairline-soft py-16 md:py-24">
       <div className="mx-auto max-w-[900px] px-5 sm:px-6">
         <SectionHead eyebrow="FAQ" title="Before you put your brand on the rail." />
         <div className="border-t border-hairline">
@@ -610,13 +593,13 @@ function FaqSection() {
 
 function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
   return (
-    <section className="relative overflow-hidden py-24 text-center md:py-32">
+    <section className="relative overflow-hidden py-20 text-center md:py-24">
       <div className="surface-grid absolute inset-0 opacity-50" aria-hidden />
       <div className="relative mx-auto max-w-[820px] px-5 sm:px-6">
         <span className="eyebrow text-signal">The agent is ready. Give it rails.</span>
         <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">Connect the AI you already use to the brand you already own.</h2>
         <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with one free hosted connection, one real BrandSpec and a workflow that keeps you in control of every irreversible step.</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a><a href="/agents" className="btn-ghost min-h-12">Explore all 29 tools</a></div>
+        <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a><a href="/agents" className="btn-ghost min-h-12">Explore all {MCP_TOOL_COUNT} tools</a></div>
         <div className="mx-auto mt-10 max-w-[650px] border-t border-hairline pt-6 text-left"><p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-muted">Or compile your website first</p><UrlBox id="final-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
       </div>
     </section>
@@ -624,19 +607,5 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
 }
 
 function Footer() {
-  return (
-    <footer className="border-t border-hairline bg-panel py-12">
-      <div className="mx-auto grid max-w-[1180px] gap-9 px-5 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div>
-          <a href="/" className="font-display text-xl font-bold">brand<span className="border-b-[3px] border-signal">rail</span></a>
-          <p className="mt-3 max-w-[340px] text-sm leading-relaxed text-muted">The agent-native operating layer for branded content—from intent to measured campaign.</p>
-        </div>
-        <div><h3 className="eyebrow text-bone">Product</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="#workflow">How it works</a><a className="block hover:text-bone" href="#use-cases">Use cases</a><a className="block hover:text-bone" href="#pricing">Pricing</a><a className="block hover:text-bone" href="/login">Workspace</a></div></div>
-        <div><h3 className="eyebrow text-bone">Builders</h3><div className="mt-3 space-y-2 text-sm text-muted"><a className="block hover:text-bone" href="/agents">For agent builders</a><a className="block hover:text-bone" href="/docs">Documentation</a><a className="block hover:text-bone" href="https://github.com/apwn/brandrail">GitHub</a><a className="block hover:text-bone" href="/review">Review queue</a></div></div>
-      </div>
-      <div className="mx-auto mt-10 flex max-w-[1180px] flex-col gap-2 border-t border-hairline px-5 pt-5 font-mono text-[11px] text-muted sm:flex-row sm:justify-between sm:px-6">
-        <span>© Brandrail 2026 · built in public</span><span>Agent-operated · BrandSpec-enforced · human-controlled</span>
-      </div>
-    </footer>
-  );
+  return <PublicFooter />;
 }

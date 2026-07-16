@@ -13,6 +13,7 @@ import { CheckoutIntent } from "./checkout-intent";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ShareBatchButton } from "./share-batch-button";
 import { WebhooksCard } from "./webhooks-card";
+import { WorkspaceLockup } from "../components/workspace-lockup";
 import { redirect } from "next/navigation";
 
 type Usage = {
@@ -67,11 +68,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rail w-10" aria-hidden />
-          <a href="/" className="font-display font-bold text-lg tracking-tight">brandrail</a>
-          <span className="eyebrow mt-[2px]">WORKSPACE</span>
-        </div>
+        <WorkspaceLockup context="Workspace" />
         <nav className="flex items-center gap-5 eyebrow">
           {workspaces.workspaces.length > 1 && <WorkspaceSwitcher workspaces={workspaces.workspaces} />}
           {owner && <a href="#agent" className="text-signal hover:text-bone">AGENT</a>}

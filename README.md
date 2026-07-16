@@ -40,10 +40,17 @@ node packages/cli/dist/index.js render "Summer promotion" --brand acme --out ./a
 **Agents (MCP):**
 
 ```sh
+# Hosted MCP through OpenClaw
+export BRANDRAIL_API_KEY='brk_…'
+openclaw mcp set brandrail \
+  '{"url":"https://playground.brandrail.dev/api/mcp","transport":"streamable-http","headers":{"Authorization":"Bearer ${BRANDRAIL_API_KEY}"},"connectTimeout":10,"timeout":120}'
+openclaw mcp doctor brandrail --probe
+
+# Or run the source-built stdio server locally
 claude mcp add brandrail -e BRANDRAIL_API_URL=https://api.brandrail.dev -- node packages/mcp/dist/index.js
 ```
 
-Then ask your agent: *"compile acme.com and render a summer promotion."* The MCP server exposes the same 29-tool lifecycle locally and remotely: BrandSpecs, visible render output, durable runs, review pauses, scoped publishing, calendar, analytics and audit. See [`packages/mcp/README.md`](packages/mcp/README.md).
+Then ask your agent: *"compile acme.com and render a summer promotion."* The MCP server exposes the same full lifecycle locally and remotely: BrandSpecs, visible render output, durable runs, review pauses, scoped publishing, calendar, analytics and audit. See [`packages/mcp/README.md`](packages/mcp/README.md).
 
 **Programmatic:**
 

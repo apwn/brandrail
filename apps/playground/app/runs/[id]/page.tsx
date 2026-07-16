@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { WorkspaceLockup } from "../../components/workspace-lockup";
 import type { ReactNode } from "react";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
@@ -95,7 +96,7 @@ export default async function AgentRunPage({ params }: { params: Promise<{ id: s
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3"><div className="rail w-10" aria-hidden /><a href="/" className="font-display text-lg font-bold">brandrail</a><span className="eyebrow">AGENT RUN</span></div>
+        <WorkspaceLockup context="Agent run" />
         <a href="/runs" className="btn-ghost !px-3 !py-2 text-xs">← All agent runs</a>
       </header>
 

@@ -10,6 +10,9 @@ import { stringify, formatDiff, isFormatId, ARCHETYPE_INFO, type FormatId } from
  */
 const EXIT_VIOLATION = 2;
 const EXIT_LOW_CONFIDENCE = 3;
+const DEFAULT_MCP_URL = "https://playground.brandrail.dev/api/mcp";
+const MCP_PROTOCOL_VERSION = "2025-11-25";
+const MCP_REQUIRED_TOOLS = ["list_brands", "get_brand", "start_campaign_run", "render_assets", "create_review_batch", "get_review_status", "schedule_post", "get_audit_log"];
 
 const program = new Command()
   .name("brandrail")
@@ -46,6 +49,134 @@ function handleError(e: unknown): never {
   }
   fail(e instanceof Error ? e.message : String(e));
 }
+
+type McpRpcResponse<T> = { result?: T; error?: { code?: number; message?: string } };
+
+function mcpCredential(): string | undefined {
+  return program.opts<{ apiKey?: string }>().apiKey ?? process.env.BRANDRAIL_API_KEY;
+}
+
+function mcpSetup(clientName: string, endpoint: string): string {
+  const key = mcpCredential() ?? "brk_…";
+  const continuation = "\\";
+  if (clientName === "openclaw") {
+    const config = JSON.stringify({
+      url: endpoint,
+      transport: "streamable-http",
+      headers: { Authorization: "Bearer ${BRANDRAIL_API_KEY}" },
+      connectTimeout: 10,
+      timeout: 120,
+    });
+    return [
+      `export BRANDRAIL_API_KEY='${key}'`,
+      "",
+      `openclaw mcp set brandrail ${continuation}`,
+      `  '${config}'`,
+      "",
+      "openclaw mcp doctor brandrail --probe",
+    ].join("\n");
+  }
+  if (clientName === "claude") {
+    return [
+      `claude mcp add --transport http brandrail '${endpoint}' ${continuation}`,
+      `  --header 'Authorization: Bearer ${key}'`,
+      "",
+      "claude mcp get brandrail",
+    ].join("\n");
+  }
+  if (clientName === "http") {
+    return [
+      `curl -X POST '${endpoint}' ${continuation}`,
+      `  -H 'Authorization: Bearer ${key}' ${continuation}`,
+      `  -H 'Content-Type: application/json' ${continuation}`,
+      `  -H 'Accept: application/json, text/event-stream' ${continuation}`,
+      `  --data '{"jsonrpc":"2.0","id":"probe","method":"initialize","params":{"protocolVersion":"${MCP_PROTOCOL_VERSION}","capabilities":{},"clientInfo":{"name":"brandrail-probe","version":"1.0.0"}}}'`,
+    ].join("\n");
+  }
+  fail(`unknown MCP client "${clientName}" (expected openclaw, claude, or http)`);
+}
+
+async function mcpRpc<T>(endpoint: string, key: string, id: string, method: string, params?: Record<string, unknown>, protocolVersion?: string): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+        ...(protocolVersion ? { "mcp-protocol-version": protocolVersion } : {}),
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (cause) {
+    throw new Error(`could not reach ${endpoint}: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+  const body = await response.json().catch(() => ({})) as McpRpcResponse<T>;
+  if (!response.ok || body.error || !body.result) {
+    throw new Error(body.error?.message ?? `MCP endpoint returned HTTP ${response.status}`);
+  }
+  return body.result;
+}
+
+const mcp = program.command("mcp").description("configure and diagnose the hosted MCP connection");
+
+mcp.command("config")
+  .description("print setup for OpenClaw, Claude, or raw Streamable HTTP")
+  .option("--client <client>", "openclaw, claude, or http", "openclaw")
+  .option("--endpoint <url>", "hosted MCP endpoint", process.env.BRANDRAIL_MCP_URL ?? DEFAULT_MCP_URL)
+  .action((opts: { client: string; endpoint: string }) => {
+    const setup = mcpSetup(opts.client.toLowerCase(), opts.endpoint.replace(/\/$/, ""));
+    if (isJson()) console.log(JSON.stringify({ ok: true, client: opts.client.toLowerCase(), endpoint: opts.endpoint, setup }));
+    else console.log(setup);
+  });
+
+mcp.command("doctor")
+  .description("run an authenticated MCP handshake and verify the core lifecycle tools")
+  .option("--endpoint <url>", "hosted MCP endpoint", process.env.BRANDRAIL_MCP_URL ?? DEFAULT_MCP_URL)
+  .action(async (opts: { endpoint: string }) => {
+    const key = mcpCredential();
+    if (!key) fail("BRANDRAIL_API_KEY is required. Create one in Workspace → Agent connection.");
+    const endpoint = opts.endpoint.replace(/\/$/, "");
+    try {
+      const initialized = await mcpRpc<{ protocolVersion: string; serverInfo?: { title?: string; name?: string; version?: string } }>(endpoint, key, "cli-init", "initialize", {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "brandrail-cli", version: "0.1.0" },
+      });
+      const listed = await mcpRpc<{ tools?: Array<{ name: string }> }>(endpoint, key, "cli-tools", "tools/list", undefined, initialized.protocolVersion);
+      const names = new Set((listed.tools ?? []).map((tool) => tool.name));
+      const missing = MCP_REQUIRED_TOOLS.filter((name) => !names.has(name));
+      if (missing.length) throw new Error(`missing required tools: ${missing.join(", ")}`);
+      let resourceCount: number | null = null;
+      try {
+        const resources = await mcpRpc<{ resources?: unknown[] }>(endpoint, key, "cli-resources", "resources/list", undefined, initialized.protocolVersion);
+        resourceCount = resources.resources?.length ?? 0;
+      } catch {
+        // Valid least-privilege keys may intentionally omit assets:read.
+      }
+      const result = {
+        endpoint,
+        server: initialized.serverInfo?.title ?? initialized.serverInfo?.name ?? "Brandrail",
+        version: initialized.serverInfo?.version,
+        protocol: initialized.protocolVersion,
+        tools: listed.tools?.length ?? 0,
+        resources: resourceCount,
+      };
+      if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else {
+        console.log("status     ready");
+        console.log(`server     ${result.server}${result.version ? ` ${result.version}` : ""}`);
+        console.log(`protocol   ${result.protocol}`);
+        console.log(`tools      ${result.tools} · core lifecycle present`);
+        console.log(`resources  ${result.resources === null ? "scoped off" : `${result.resources} inspectable assets`}`);
+        console.log(`endpoint   ${result.endpoint}`);
+      }
+    } catch (cause) {
+      handleError(cause);
+    }
+  });
 
 program
   .command("compile")

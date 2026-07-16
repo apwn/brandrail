@@ -1,6 +1,6 @@
 # @brandrail/mcp
 
-The Brandrail MCP server. Gives compatible agents the full controlled content lifecycle through the same 30 tools locally and remotely:
+The Brandrail MCP server. Gives compatible agents the full controlled content lifecycle through the same versioned tool registry locally and remotely:
 
 | Tool | What it does | Comes back |
 |---|---|---|
@@ -37,6 +37,28 @@ Publishing is also fail-closed: an agent must supply an approved batch item or `
 ## Hosted remote MCP
 
 The hosted app exposes a Streamable HTTP endpoint at `https://playground.brandrail.dev/api/mcp`. Authenticate with an expiring, scoped `Authorization: Bearer brk_…` credential minted in the workspace control room. Rendered PNGs are returned as MCP resource links plus an inline preview, and durable run state survives client disconnects.
+
+### OpenClaw
+
+```sh
+export BRANDRAIL_API_KEY='brk_…'
+
+openclaw mcp set brandrail \
+  '{"url":"https://playground.brandrail.dev/api/mcp","transport":"streamable-http","headers":{"Authorization":"Bearer ${BRANDRAIL_API_KEY}"},"connectTimeout":10,"timeout":120}'
+
+openclaw mcp doctor brandrail --probe
+```
+
+OpenClaw uses the same hosted endpoint and scoped key as every other remote client; no adapter or gateway process is required. The environment-variable reference keeps the literal key out of the saved MCP configuration.
+
+### Brandrail CLI diagnostics
+
+```sh
+brandrail mcp config --client openclaw
+brandrail mcp doctor
+```
+
+`mcp doctor` performs an authenticated initialize handshake, verifies the core lifecycle tools, and checks inspectable resources.
 
 ## Claude Desktop / Claude Code
 

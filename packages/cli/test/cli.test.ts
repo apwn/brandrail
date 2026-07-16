@@ -32,4 +32,27 @@ describe("brandrail CLI", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("finish an asset-only run without publishing");
   });
+
+  it("prints a safe OpenClaw MCP configuration with a live probe command", () => {
+    const result = spawnSync(process.execPath, [bin, "mcp", "config", "--client", "openclaw"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("openclaw mcp set brandrail");
+    expect(result.stdout).toContain("Bearer ${BRANDRAIL_API_KEY}");
+    expect(result.stdout).toContain("openclaw mcp doctor brandrail --probe");
+  });
+
+  it("prints a native Claude Code remote MCP command", () => {
+    const result = spawnSync(process.execPath, [bin, "mcp", "config", "--client", "claude"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("claude mcp add --transport http brandrail");
+    expect(result.stdout).toContain("--header 'Authorization: Bearer brk_…'");
+    expect(result.stdout).toContain("claude mcp get brandrail");
+  });
+
+  it("exposes an authenticated MCP doctor command", () => {
+    const result = spawnSync(process.execPath, [bin, "mcp", "doctor", "--help"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("authenticated MCP handshake");
+    expect(result.stdout).toContain("--endpoint <url>");
+  });
 });

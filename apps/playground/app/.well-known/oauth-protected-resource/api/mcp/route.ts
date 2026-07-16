@@ -1,4 +1,4 @@
-import { MCP_PROTOCOL_VERSION } from "@/lib/mcp";
+import { MCP_PROTOCOL_VERSION, MCP_SCOPES } from "@/lib/mcp-meta";
 
 export function GET(req: Request) {
   const origin = new URL(req.url).origin;
@@ -6,10 +6,11 @@ export function GET(req: Request) {
     .split(",").map((value) => value.trim()).filter(Boolean);
   return Response.json({
     resource: `${origin}/api/mcp`,
+    resource_name: "Brandrail Agent Runtime",
     ...(authorizationServers.length ? { authorization_servers: authorizationServers } : {}),
     bearer_methods_supported: ["header"],
-    scopes_supported: ["brands:read", "brands:write", "assets:read", "assets:render", "reviews:read", "reviews:write", "campaigns:read", "campaigns:write", "calendar:read", "publish:schedule", "publish:immediate", "analytics:read", "audit:read"],
-    resource_documentation: `${origin}/agents`,
+    scopes_supported: MCP_SCOPES,
+    resource_documentation: `${origin}/docs#mcp`,
     protocol_version: MCP_PROTOCOL_VERSION,
   }, { headers: { "cache-control": "public, max-age=300" } });
 }

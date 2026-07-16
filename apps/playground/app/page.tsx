@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BrandSpec } from "@brandrail/spec";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
+import { WorkspaceLockup } from "./components/workspace-lockup";
 import { MarketingLanding } from "./marketing";
+import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
 
 type Step = "landing" | "loading" | "compiling" | "sheet" | "rendering" | "result";
 
@@ -514,11 +516,7 @@ function removedPhotoCount(edits: Record<string, string>): number {
 function Header() {
   return (
     <header className="mb-14 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="rail w-10" aria-hidden />
-        <span className="font-display font-bold text-lg tracking-tight">brandrail</span>
-        <span className="eyebrow mt-[2px]">PLAYGROUND · V0</span>
-      </div>
+      <WorkspaceLockup context="Playground · V0" />
       <div className="flex gap-5">
         <a href="/dashboard" className="eyebrow hover:text-bone">WORKSPACE</a>
         <a href="/review" className="eyebrow hover:text-bone">BATCH REVIEW →</a>
@@ -810,7 +808,7 @@ function ResultGrid({
       <div className="relative mt-10 overflow-hidden border border-signal/60 bg-panel p-6 sm:p-8">
         <div className="surface-grid absolute inset-0 opacity-20" aria-hidden />
         <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-          <div><p className="eyebrow text-signal">DON&rsquo;T REBUILD THIS NEXT WEEK</p><h3 className="mt-3 font-display text-2xl font-bold">Give this BrandSpec to your agent.</h3><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Connect a compatible agent. Ask for the campaign outcome; Brandrail keeps the identity, returns inspectable assets, pauses for approval and records every action.</p><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-bone"><span>✓ 1 FREE CONNECTION</span><span>✓ 29 MCP TOOLS</span><span>✓ SCOPED AUTHORITY</span></div></div>
+          <div><p className="eyebrow text-signal">DON&rsquo;T REBUILD THIS NEXT WEEK</p><h3 className="mt-3 font-display text-2xl font-bold">Give this BrandSpec to your agent.</h3><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Connect a compatible agent. Ask for the campaign outcome; Brandrail keeps the identity, returns inspectable assets, pauses for approval and records every action.</p><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-bone"><span>✓ 1 FREE CONNECTION</span><span>✓ {MCP_TOOL_COUNT} MCP TOOLS</span><span>✓ SCOPED AUTHORITY</span></div></div>
           <a className="btn whitespace-nowrap" href={unlocked ? "/dashboard#agent" : "/login?agent=1"}>Connect your agent →</a>
         </div>
       </div>

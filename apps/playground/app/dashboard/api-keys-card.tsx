@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { McpSetupGuide } from "../components/mcp-setup-guide";
+import { MCP_PROTOCOL_VERSION, MCP_REQUIRED_TOOLS } from "@/lib/mcp-meta";
 
 interface KeyRow {
   id: string;
@@ -11,6 +13,18 @@ interface KeyRow {
   expiresAt: string | null;
   lastUsedAt: string | null;
 }
+
+type ProbeResult = {
+  protocol: string;
+  server: string;
+  toolCount: number;
+  resourceCount: number | null;
+};
+
+type RpcResponse<T> = {
+  result?: T;
+  error?: { code?: number; message?: string };
+};
 
 const SCOPE_GROUPS = [
   { id: "create", label: "Create", scopes: ["brands:read", "brands:write", "assets:read", "assets:render"] },
@@ -32,9 +46,10 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
   const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [check, setCheck] = useState<"idle" | "running" | "ok" | "failed">("idle");
+  const [checkMessage, setCheckMessage] = useState("");
+  const [probe, setProbe] = useState<ProbeResult | null>(null);
   const [scopes, setScopes] = useState<string[]>(SAFE_SCOPES);
   const [expiresInDays, setExpiresInDays] = useState("90");
-  const [toolCount, setToolCount] = useState(0);
 
   async function load() {
     const res = await fetch("/api/keys");
@@ -57,6 +72,9 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
       const body = (await res.json()) as { key?: string; error?: string };
       if (!res.ok || !body.key) throw new Error(body.error ?? "couldn't create the key");
       setMinted(body.key);
+      setCheck("idle");
+      setProbe(null);
+      setCheckMessage("");
       setLabel("");
       await load();
     } catch (e) {
@@ -81,25 +99,68 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
   async function testConnection() {
     if (!minted) return;
     setCheck("running");
+    setCheckMessage("");
+    setProbe(null);
     try {
-      const res = await fetch(mcpPath, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${minted}` },
-        body: JSON.stringify({ jsonrpc: "2.0", id: "dashboard-check", method: "tools/list" }),
+      async function call<T>(id: string, method: string, params?: Record<string, unknown>, protocolVersion?: string): Promise<T> {
+        const response = await fetch(mcpPath, {
+          method: "POST",
+          headers: {
+            accept: "application/json, text/event-stream",
+            "content-type": "application/json",
+            authorization: `Bearer ${minted}`,
+            ...(protocolVersion ? { "mcp-protocol-version": protocolVersion } : {}),
+          },
+          body: JSON.stringify({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }),
+        });
+        const body = await response.json().catch(() => ({})) as RpcResponse<T>;
+        if (!response.ok || body.error || !body.result) {
+          throw new Error(body.error?.message ?? `MCP returned HTTP ${response.status}`);
+        }
+        return body.result;
+      }
+
+      const initialized = await call<{ protocolVersion: string; serverInfo?: { title?: string; name?: string; version?: string } }>("dashboard-init", "initialize", {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "brandrail-dashboard", version: "1.0.0" },
       });
-      const body = await res.json() as { result?: { tools?: Array<{ name: string }> } };
-      const count = body.result?.tools?.length ?? 0;
-      setToolCount(count);
-      setCheck(res.ok && count >= 29 ? "ok" : "failed");
-    } catch {
+      await fetch(mcpPath, {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+          authorization: `Bearer ${minted}`,
+          "mcp-protocol-version": initialized.protocolVersion,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+      });
+      const toolsResult = await call<{ tools?: Array<{ name: string }> }>("dashboard-tools", "tools/list", undefined, initialized.protocolVersion);
+      const tools = toolsResult.tools ?? [];
+      const names = new Set(tools.map((tool) => tool.name));
+      const missing = MCP_REQUIRED_TOOLS.filter((name) => !names.has(name));
+      if (missing.length) throw new Error(`Connection is missing required tools: ${missing.join(", ")}`);
+      let resourceCount: number | null = null;
+      try {
+        const resourcesResult = await call<{ resources?: unknown[] }>("dashboard-resources", "resources/list", undefined, initialized.protocolVersion);
+        resourceCount = resourcesResult.resources?.length ?? 0;
+      } catch {
+        // A deliberately narrow key may omit assets:read while remaining a valid MCP connection.
+      }
+      setProbe({
+        protocol: initialized.protocolVersion,
+        server: initialized.serverInfo?.title ?? initialized.serverInfo?.name ?? "Brandrail",
+        toolCount: tools.length,
+        resourceCount,
+      });
+      setCheck("ok");
+    } catch (cause) {
       setCheck("failed");
+      setCheckMessage(cause instanceof Error ? cause.message : "Connection probe failed");
     }
   }
 
   const remoteUrl = `${origin}${mcpPath}`;
-  const snippet = (key: string) => JSON.stringify({
-    mcpServers: { brandrail: { type: "http", url: remoteUrl, headers: { Authorization: `Bearer ${key}` } } },
-  }, null, 2);
 
   return (
     <section id="agent" className="relative overflow-hidden border border-signal/60 bg-panel p-5 mt-8 sm:p-7">
@@ -125,17 +186,11 @@ export function ApiKeysCard({ verified, mcpPath = "/api/mcp", keyLimit }: { veri
                   {copied === "key" ? "copied ✓" : "copy key"}
                 </button>
               </div>
-              <p className="font-mono text-[11px] text-muted mt-3 mb-1">Remote Streamable HTTP MCP config:</p>
-              <div className="flex items-start gap-2">
-                <code className="font-mono text-[11px] text-muted break-all flex-1">{snippet(minted)}</code>
-                <button className="btn-ghost !py-1 !px-2 text-xs whitespace-nowrap" onClick={() => copy(snippet(minted), "snippet")}>
-                  {copied === "snippet" ? "copied ✓" : "copy"}
-                </button>
-              </div>
+              <McpSetupGuide endpoint={remoteUrl} apiKey={minted} compact />
               <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
-                <button className="btn-ghost !px-3 !py-1.5 text-xs" onClick={testConnection} disabled={check === "running"}>{check === "running" ? "Checking…" : check === "ok" ? `${toolCount} tools + resources reachable ✓` : "Test hosted connection"}</button>
-                {check === "failed" && <span className="font-mono text-[10px] text-signal">Connection check failed. Confirm the endpoint and credential, then retry.</span>}
-                {check === "ok" && <span className="font-mono text-[10px] text-green">Authenticated · scoped · protocol current · ready</span>}
+                <button className="btn-ghost !px-3 !py-1.5 text-xs" onClick={testConnection} disabled={check === "running"}>{check === "running" ? "Running MCP handshake…" : check === "ok" ? "Probe again" : "Test hosted connection"}</button>
+                {check === "failed" && <span className="font-mono text-[10px] text-signal">{checkMessage}. Check the endpoint, expiry, and selected scopes, then retry.</span>}
+                {check === "ok" && probe && <span className="font-mono text-[10px] text-green">✓ {probe.server} · protocol {probe.protocol} · {probe.toolCount} tools · {probe.resourceCount === null ? "resources scoped off" : `${probe.resourceCount} resources`}</span>}
               </div>
             </div>
           )}

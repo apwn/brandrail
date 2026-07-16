@@ -1,4 +1,5 @@
 import { LoginForm } from "./login-form";
+import { BrandWordmark } from "../components/brand-wordmark";
 
 export const metadata = { title: "Sign in — Brandrail" };
 
@@ -9,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="min-h-screen grid lg:grid-cols-[1.05fr_.95fr]">
       <section className="hidden border-r border-hairline bg-panel p-12 lg:flex lg:flex-col lg:justify-between">
-        <a href="/" className="font-display text-xl font-bold">brandrail</a>
+        <a href="/" aria-label="Brandrail home" className="inline-flex"><BrandWordmark /></a>
         <div className="max-w-lg">
           <div className="rail w-14 mb-7" />
           <p className="eyebrow text-signal">YOUR BRAND SYSTEM, STILL YOURS</p>
