@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trackConversion } from "@/lib/conversion";
 
-export function LoginForm({ plan, agent }: { plan?: "studio" | "agency"; agent?: boolean }) {
+export function LoginForm({ plan, agent, returnTo }: { plan?: "studio" | "agency"; agent?: boolean; returnTo?: string }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function LoginForm({ plan, agent }: { plan?: "studio" | "agency"; agent?:
       const res = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, next: plan ? `/dashboard?checkout=${plan}` : agent ? "/dashboard?welcome=agent#agent" : "/dashboard" }),
+        body: JSON.stringify({ email, next: plan ? `/dashboard?checkout=${plan}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}` : agent ? "/dashboard?welcome=agent#agent" : "/dashboard" }),
       });
       const body = (await res.json()) as { error?: string; devLink?: string };
       if (!res.ok) throw new Error(body.error ?? "Couldn't send the link");

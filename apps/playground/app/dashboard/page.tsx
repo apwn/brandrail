@@ -6,7 +6,6 @@ import { ChannelsCard } from "./channels-card";
 import { OnboardingChecklist } from "./onboarding";
 import { ApiKeysCard } from "./api-keys-card";
 import { MembersCard } from "./members-card";
-import { AutopilotCard } from "./autopilot-card";
 import { QueueCard } from "./queue-card";
 import { BrandActions } from "./brand-actions";
 import { CheckoutIntent } from "./checkout-intent";
@@ -35,8 +34,9 @@ async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
   }
 }
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string; checkout?: string; upgraded?: string; connected?: string; channelError?: string }> }) {
-  const { welcome, checkout, upgraded, connected, channelError } = await searchParams;
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ welcome?: string; checkout?: string; upgraded?: string; connected?: string; channelError?: string; return?: string }> }) {
+  const { welcome, checkout, upgraded, connected, channelError, return: requestedReturn } = await searchParams;
+  const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//") ? requestedReturn : undefined;
   const uid = await getUserId();
 
   if (!uid) {
@@ -54,7 +54,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
     load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
     load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }),
-    load<{ programs: Array<{ brand: string }> }>("/v0/content-programs", uid, { programs: [] }),
+    load<{ programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; plannedPosts?: Array<unknown> }> }>("/v0/content-programs", uid, { programs: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -76,7 +76,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
           {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
-          {owner && has("autopilot") && <a href="/program" className="text-signal hover:text-bone">PROGRAM</a>}
+          {owner && <a href="/program" className="text-signal hover:text-bone">PROGRAM</a>}
           {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
           {owner && has("planner") && <a href="/analytics" className="hover:text-bone">SIGNAL</a>}
           <a href="/activity" className="hover:text-bone">ACTIVITY</a>
@@ -93,7 +93,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {connected && <div className="panel border-green/50 mt-4 px-4 py-3 text-sm"><span className="font-mono text-green">✓</span> {connected} connected. It is ready in the calendar.</div>}
       {channelError && <div className="panel border-signal/50 mt-4 px-4 py-3 text-sm text-signal">Channel connection failed: {channelError}</div>}
 
-      <CheckoutIntent checkout={checkout} upgraded={upgraded} currentPlan={usage.user.plan} />
+      <CheckoutIntent checkout={checkout} upgraded={upgraded} currentPlan={usage.user.plan} returnTo={returnTo} />
 
       {!owner && (
         <div className="panel border-green/40 mt-8 px-4 py-3 text-sm">
@@ -180,6 +180,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         )}
       </section>
 
+      {owner && <ProgramRail
+        plan={usage.user.plan}
+        verified={Boolean(usage.user.emailVerified)}
+        hasBrand={Boolean(firstBrand)}
+        programs={programs.programs}
+      />}
+
       <section className="mt-10">
         <div className="flex items-center justify-between mb-3">
           <p className="eyebrow text-bone">RECENT ASSETS ({renders.renders.length})</p>
@@ -208,7 +215,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {owner && usage.user.plan === "free" ? <UpgradeRail verified={Boolean(usage.user.emailVerified)} /> : (
         <>
-          {owner && has("autopilot") && <AutopilotCard verified={Boolean(usage.user.emailVerified)} />}
           {has("batchReview") ? <QueueCard /> : !owner ? <LockedFeature title="BATCH REVIEW" plan="Studio" /> : null}
           {owner && has("publishing") && <ChannelsCard />}
           {owner && <MembersCard plan={usage.user.plan} members={usage.user.members ?? []} />}
@@ -244,12 +250,42 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   );
 }
 
+function ProgramRail({ plan, verified, hasBrand, programs }: {
+  plan: "free" | "studio" | "agency";
+  verified: boolean;
+  hasBrand: boolean;
+  programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; plannedPosts?: Array<unknown> }>;
+}) {
+  const active = programs[0];
+  const next = active?.nextRunAt ? new Date(active.nextRunAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : "—";
+  return (
+    <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
+      <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
+        <div>
+          <div className="flex flex-wrap items-center gap-3"><p className="eyebrow text-signal">YOUR CONTENT PROGRAM</p>{active && <span className={`font-mono text-[9px] uppercase ${active.status === "active" ? "text-green" : "text-muted"}`}>● {active.status}</span>}</div>
+          <h2 className="mt-3 max-w-2xl font-display text-2xl font-bold">{active ? active.name : hasBrand ? "Stop planning from zero every week." : "One brand system unlocks the whole content engine."}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{active
+            ? `${active.perWeek} posts each week · ${active.plannedPosts?.length ?? 0} ideas kept ahead · next production ${next}. Open the program to review the strategy, calendar and controls.`
+            : hasBrand
+              ? plan === "free" ? "Turn one outcome into a personalized, exportable 30-day calendar. Previewing costs zero assets and needs no card." : "Set the outcome once. Brandrail plans the month, produces the next week and adapts what follows."
+              : "Compile your website once so every future plan, caption and asset starts inside the same brand rules."}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a href={hasBrand ? "/program" : "/"} className="btn whitespace-nowrap">{active ? "Open program →" : hasBrand ? "Plan my next 30 days →" : "Compile my brand →"}</a>
+          {active && <a href="/review" className="btn-ghost whitespace-nowrap">Review queue →</a>}
+          {!active && plan === "free" && hasBrand && <a href={verified ? "/dashboard?checkout=studio&return=%2Fprogram" : "/login?plan=studio&return=%2Fprogram"} className="btn-ghost whitespace-nowrap">See Studio →</a>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function UpgradeRail({ verified }: { verified: boolean }) {
   return (
     <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
       <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div><p className="eyebrow text-signal">WHEN THE AGENT NEEDS TO OPERATE</p><h2 className="font-display text-2xl font-bold mt-3">Turn a free agent key into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free lets one agent compile, inspect and render one brand. Studio unlocks the operational rail: campaign planning, human approval pauses, signed events, direct publishing and the performance loop.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ WEBHOOKS</span></div></div>
-        <a href={verified ? "/dashboard?checkout=studio" : "/login?plan=studio"} className="btn whitespace-nowrap">Start Studio →</a>
+        <div><p className="eyebrow text-signal">WHEN A CALENDAR SHOULD RUN ITSELF</p><h2 className="font-display text-2xl font-bold mt-3">Turn the free plan into finished content every week.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Studio keeps the next 30 days full, renders the next production week, pauses for approval and schedules the work you accept. Your agent can operate the same rail without bypassing you.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN MONTH</span><span>✓ PRODUCE WEEK</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ LEARN</span></div></div>
+        <a href={verified ? "/dashboard?checkout=studio&return=%2Fprogram" : "/login?plan=studio&return=%2Fprogram"} className="btn whitespace-nowrap">Activate my content program →</a>
       </div>
     </section>
   );

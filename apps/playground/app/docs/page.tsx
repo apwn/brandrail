@@ -298,11 +298,11 @@ function ContentProgramsSection() {
   return (
     <section>
       <DocHeading id="programs" eyebrow="ONGOING OUTCOME">Content programs</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">A Content Program stores the strategy behind ongoing production: objective, audience, pillars, offer, important dates, cadence, channels and approval mode. Brandrail plans the full one- or four-week horizon for coherence, but renders only the next week so later work can adapt to approvals and performance.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">A Content Program stores the strategy behind ongoing production: objective, audience, pillars, offer, important dates, cadence, channels and approval mode. Brandrail plans the full one- or four-week horizon for coherence, but renders only the next week so later work can adapt to approvals and performance. The free workspace can preview and export the full calendar without spending an asset.</p>
       <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-3">
         {[
           ["PREVIEW", "Plans dated ideas for the full horizon. Saves nothing and renders nothing."],
-          ["RUN", "Produces the next week, creates the review batch and uses selected channels—or all connected channels when none are specified."],
+          ["RUN", "Produces the next week, creates the review batch and prepares native copy and matching visuals for each selected channel—or every connected channel when none are specified."],
           ["REPEAT", "Keeps the strategy stable while refreshing angles with recent performance."],
         ].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-signal">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
       </div>

@@ -553,7 +553,7 @@ contentOptions(content.command("create").description("create or update a rolling
   });
 
 content.command("run").description("produce the next week now").argument("<brand>").action(async (brand: string) => {
-  try { const result = await client().runContentProgram(brand); if (isJson()) console.log(JSON.stringify({ ok: true, ...result })); else console.log(`${result.batches} week generated · ${result.rendered} assets · ${result.queued ? `${result.queued} scheduled` : "waiting for review"}`); } catch (e) { handleError(e); }
+  try { const result = await client().runContentProgram(brand); if (isJson()) console.log(JSON.stringify({ ok: true, ...result })); else console.log(`${result.batches} week generated · ${result.rendered} assets · ${result.queued ? `${result.queued} channel deliveries scheduled` : "waiting for review"}`); } catch (e) { handleError(e); }
 });
 content.command("pause").description("pause future production without deleting the program").argument("<brand>").action(async (brand: string) => {
   try { const result = await client().setContentProgramPaused(brand, true); if (isJson()) console.log(JSON.stringify({ ok: true, program: result })); else console.log(`paused  ${result.name}`); } catch (e) { handleError(e); }

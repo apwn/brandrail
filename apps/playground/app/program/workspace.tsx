@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { trackConversion } from "@/lib/conversion";
 
 export type ChannelOption = { id: string; platform: string; handle: string };
 type ImportantDate = { date: string; label: string };
@@ -13,6 +14,14 @@ export type ContentProgram = {
 };
 type Draft = Omit<ContentProgram, "id" | "status" | "nextRunAt" | "lastRunAt" | "plannedPosts">;
 type Preview = { posts: PreviewPost[]; totalPosts: number; renderStrategy: string };
+
+const DRAFT_KEY = "brandrail:content-program:draft:v1";
+const GOAL_STARTERS = [
+  { label: "Launch something", objective: "Build demand for our next launch and turn interest into signups", pillars: ["Education", "Product proof", "Launch story"], offer: "Join the launch list" },
+  { label: "Own the category", objective: "Become the trusted voice for the problem our product solves", pillars: ["Expert education", "Contrarian perspective", "Customer proof"], offer: "See how we solve it" },
+  { label: "Grow a founder brand", objective: "Build a distinct founder voice that earns trust with future customers", pillars: ["Founder perspective", "Lessons learned", "Building in public"], offer: "Follow the journey" },
+  { label: "Stay consistently visible", objective: "Keep our brand useful and visible without repeating the same ideas", pillars: ["Practical education", "Behind the scenes", "Proof and progress"], offer: "Start a conversation" },
+] as const;
 
 const emptyDraft = (brand: string): Draft => ({
   brand, name: "", objective: "", audience: "", pillars: [], offer: "", importantDates: [], perWeek: 3, horizonWeeks: 4,
@@ -44,7 +53,28 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [restored, setRestored] = useState(false);
   const saved = programs.find((program) => program.brand === draft.brand);
+
+  useEffect(() => {
+    if (initialProgram) { setRestored(true); return; }
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as { draft?: Draft; preview?: Preview | null };
+        if (stored.draft && brands.includes(stored.draft.brand) && typeof stored.draft.objective === "string") {
+          setDraft(stored.draft);
+          if (stored.preview?.posts?.length) setPreview(stored.preview);
+        }
+      }
+    } catch { /* A malformed local draft should never block the workspace. */ }
+    setRestored(true);
+  }, [brands, initialProgram]);
+
+  useEffect(() => {
+    if (!restored || initialProgram) return;
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, preview })); } catch { /* Draft persistence is a convenience, never a blocker. */ }
+  }, [draft, initialProgram, preview, restored]);
 
   function change(patch: Partial<Draft>) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -112,7 +142,7 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
       setPrograms((current) => [program, ...current.filter((candidate) => candidate.brand !== program.brand)]);
       setDraft(fromProgram(program));
       setPreview(fromProgramPlan(program));
-      setNotice(action === "run" ? `${Number(body.batches ?? 0)} week generated · ${Number(body.rendered ?? 0)} finished assets · ${Number(body.queued ?? 0) ? `${Number(body.queued)} scheduled` : "waiting for review"}` : action === "pause" ? "Future production paused. Existing work is untouched." : "Program resumed.");
+      setNotice(action === "run" ? `${Number(body.batches ?? 0)} week generated · ${Number(body.rendered ?? 0)} finished assets · ${Number(body.queued ?? 0) ? `${Number(body.queued)} channel deliveries scheduled` : "waiting for review"}` : action === "pause" ? "Future production paused. Existing work is untouched." : "Program resumed.");
     } catch (cause) { setError((cause as Error).message); } finally { setBusy(null); }
   }
 
@@ -124,6 +154,26 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
       setPrograms((current) => current.filter((candidate) => candidate.brand !== draft.brand));
       setDraft(emptyDraft(draft.brand)); setPreview(null); setNotice("Program deleted. Existing assets and calendar items remain intact."); setConfirmDelete(false);
     } catch (cause) { setError((cause as Error).message); } finally { setBusy(null); }
+  }
+
+  function exportCalendar() {
+    if (!preview) return;
+    const quote = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const rows = [
+      ["Week", "Date", "Format", "Template", "Brief", "Rationale"],
+      ...preview.posts.map((post) => [post.week, post.scheduledFor.slice(0, 10), post.format, post.archetype, post.brief, post.rationale]),
+    ];
+    const blob = new Blob([rows.map((row) => row.map(quote).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${draft.brand || "brandrail"}-content-plan.csv`;
+    anchor.hidden = true;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    trackConversion("content_program_exported", { horizon: draft.horizonWeeks, posts: preview.totalPosts });
   }
 
   if (!brands.length) return <EmptyBrand />;
@@ -142,6 +192,7 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
           <div className="mt-6 grid gap-4">
             <label><span className="eyebrow text-bone">BRAND</span><select className="field mt-2" value={draft.brand} onChange={(event) => selectBrand(event.target.value)}>{brands.map((brand) => <option key={brand}>{brand}</option>)}</select></label>
             <label><span className="eyebrow text-bone">WHAT SHOULD THE CONTENT ACHIEVE?</span><textarea className="field mt-2 min-h-24 resize-y" maxLength={500} value={draft.objective} onChange={(event) => change({ objective: event.target.value })} placeholder="Build demand for our analytics launch and make the founder a trusted voice" /></label>
+            <div><p className="font-mono text-[9px] uppercase tracking-[.08em] text-muted">Start with a goal—or write your own</p><div className="mt-2 flex flex-wrap gap-2">{GOAL_STARTERS.map((starter) => <button key={starter.label} type="button" onClick={() => change({ objective: starter.objective, pillars: [...starter.pillars], offer: starter.offer })} className="border border-hairline px-2.5 py-1.5 text-[11px] text-muted hover:border-signal hover:text-bone">{starter.label}</button>)}</div></div>
             <label><span className="eyebrow text-bone">WHO IS IT FOR?</span><input className="field mt-2" value={draft.audience ?? ""} onChange={(event) => change({ audience: event.target.value })} placeholder="Product leaders at growing SaaS companies" /></label>
             <label><span className="eyebrow text-bone">CONTENT PILLARS <span className="text-muted">· comma separated</span></span><input className="field mt-2" value={draft.pillars.join(", ")} onChange={(event) => change({ pillars: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} placeholder="Education, customer proof, founder perspective" /></label>
             <label><span className="eyebrow text-bone">CURRENT OFFER OR CTA <span className="text-muted">· optional</span></span><input className="field mt-2" value={draft.offer ?? ""} onChange={(event) => change({ offer: event.target.value })} placeholder="Join the launch list" /></label>
@@ -166,11 +217,11 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
         </section>
 
         <section className="min-w-0">
-          <div className="border border-hairline bg-panel p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow text-signal">02 · CALENDAR PREVIEW</p><h2 className="mt-2 font-display text-2xl font-bold">Plan the month. Produce the week.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">The full horizon prevents repetition. Only week one renders now; later weeks refresh with new performance and priorities.</p></div>{preview && <span className="font-mono text-[10px] text-green">✓ {preview.totalPosts} IDEAS · 0 ASSETS SPENT</span>}</div>
+          <div className="border border-hairline bg-panel p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow text-signal">02 · CALENDAR PREVIEW</p><h2 className="mt-2 font-display text-2xl font-bold">Plan the month. Produce the week.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">The full horizon prevents repetition. Only week one renders now; later weeks refresh with new performance and priorities.</p></div>{preview && <div className="flex flex-wrap items-center gap-3"><span className="font-mono text-[10px] text-green">✓ {preview.totalPosts} IDEAS · 0 ASSETS SPENT</span><button type="button" onClick={exportCalendar} className="btn-ghost !px-3 !py-1.5 text-[10px]">Export .csv ↓</button></div>}</div>
             {preview ? <div className="mt-6 grid gap-3 sm:grid-cols-2">{weeks.map((week) => <article key={week} className="border border-hairline"><div className="flex items-center justify-between border-b border-hairline px-3 py-2"><b className="font-mono text-[10px] text-bone">WEEK {String(week).padStart(2, "0")}</b><span className={`font-mono text-[8px] ${week === 1 ? "text-green" : "text-muted"}`}>{week === 1 ? "NEXT TO PRODUCE" : "PLANNED · ADAPTIVE"}</span></div><div className="divide-y divide-hairline-soft">{preview.posts.filter((post) => post.week === week).map((post) => <div key={`${post.scheduledFor}-${post.brief}`} className="p-3"><div className="flex justify-between gap-3 font-mono text-[8px] uppercase text-muted"><span>{shortDate(post.scheduledFor, true)}</span><span>{post.format} · {post.archetype}</span></div><h3 className="mt-2 text-sm font-semibold leading-snug text-bone">{post.brief}</h3><p className="mt-1 text-[11px] leading-relaxed text-muted">{post.rationale}</p></div>)}</div></article>)}</div> : <div className="mt-6 grid min-h-[430px] place-items-center border border-dashed border-hairline p-8 text-center"><div><span className="font-display text-6xl text-hairline">30</span><h3 className="mt-3 font-display text-xl font-bold">Your calendar appears here.</h3><p className="mx-auto mt-2 max-w-sm text-sm text-muted">Add the outcome and cadence, then preview a complete plan before Brandrail saves or renders anything.</p></div></div>}
           </div>
 
-          {preview && <div className="mt-4 border border-signal/50 bg-panel p-5"><p className="eyebrow text-signal">03 · ACTIVATE</p><div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-display text-xl font-bold">Approve the strategy, not a black box.</h2><p className="mt-1 text-sm text-muted">{canActivate ? "Activation saves this program. Review mode remains fail-closed every week." : "Your full preview is free. Studio turns it into rolling weekly production, approval and scheduling."}</p></div>{canActivate ? <button type="button" className="btn shrink-0" onClick={() => void save()} disabled={busy !== null}>{busy === "save" ? "Activating…" : saved ? "Update program →" : "Activate program →"}</button> : <a href="/login?plan=studio" className="btn shrink-0">Activate with Studio →</a>}</div></div>}
+          {preview && <div className="mt-4 border border-signal/50 bg-panel p-5"><p className="eyebrow text-signal">03 · ACTIVATE</p><div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-display text-xl font-bold">Approve the strategy, not a black box.</h2><p className="mt-1 text-sm text-muted">{canActivate ? "Activation saves this program. Review mode remains fail-closed every week." : "Your full preview is free and exportable. Studio turns this exact calendar into rolling weekly production, approval and scheduling."}</p></div>{canActivate ? <button type="button" className="btn shrink-0" onClick={() => void save()} disabled={busy !== null}>{busy === "save" ? "Activating…" : saved ? "Update program →" : "Activate program →"}</button> : <a href="/login?plan=studio&return=%2Fprogram" className="btn shrink-0">Activate this plan →</a>}</div></div>}
 
           {saved && <div className="mt-4 border border-hairline bg-panel p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="eyebrow text-bone">PROGRAM CONTROL</p><h2 className="mt-2 font-display text-xl font-bold">{saved.name}</h2><p className="mt-1 text-sm text-muted">{saved.perWeek} posts/week · {saved.approvalMode === "review" ? "weekly approval" : "automatic scheduling"} · last run {saved.lastRunAt ? shortDate(saved.lastRunAt) : "never"}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="btn !px-4 !py-2 text-xs" onClick={() => void act("run")} disabled={busy !== null || saved.status === "paused"}>{busy === "run" ? "Producing…" : "Produce next week now →"}</button><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => void act(saved.status === "paused" ? "resume" : "pause")} disabled={busy !== null}>{saved.status === "paused" ? "Resume" : "Pause"}</button><button type="button" className={`btn-ghost !px-4 !py-2 text-xs ${confirmDelete ? "!border-signal !text-signal" : ""}`} onClick={() => void remove()} disabled={busy !== null}>{confirmDelete ? "Confirm delete" : "Delete"}</button></div></div></div>}
         </section>

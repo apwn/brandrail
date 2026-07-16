@@ -353,7 +353,7 @@ export function buildServer(): McpServer {
 
   server.registerTool(
     "run_content_program",
-    { description: "Produce the next week for one active content program now. Review-mode programs pause in the human queue; auto-mode programs schedule only to their selected connected channels.", inputSchema: { brand: z.string().min(1) } },
+    { description: "Produce the next week with channel-native copy and matching visual formats. Review-mode programs pause in the human queue; auto-mode programs schedule only to their selected connected channels.", inputSchema: { brand: z.string().min(1) } },
     async ({ brand }) => { try { const data = await api.runContentProgram(brand); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 

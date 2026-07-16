@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const EVENTS = new Set([
   "landing_view", "url_submitted", "compile_completed", "compile_failed",
   "render_completed", "render_failed", "agent_cta_clicked", "pricing_cta_clicked",
-  "content_program_cta_clicked",
+  "content_program_cta_clicked", "content_program_exported",
   "creative_mode_selected", "template_preview_selected", "audience_selected",
   "login_submitted", "login_link_sent", "login_failed",
 ]);

@@ -71,6 +71,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
           </p>
           <div className="mt-7 max-w-[660px]">
             <UrlBox id="hero-client-url" placement="hero" url={url} setUrl={setUrl} onSubmit={onSubmit} />
+            <p className="mt-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">01 · Scan your site&nbsp;&nbsp; 02 · Review the brand rules&nbsp;&nbsp; 03 · Plan a week or month</p>
             {error && <p className="mt-3 border-l-2 border-signal pl-3 font-mono text-xs text-signal" role="alert">{error}</p>}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -128,7 +129,7 @@ function UrlBox({ id, placement, url, setUrl, onSubmit }: Omit<LandingProps, "er
         className="min-w-0 flex-1 border-0 bg-transparent px-4 py-4 font-mono text-sm text-bone outline-none placeholder:text-muted/60"
       />
       <button type="submit" className="btn min-h-14 !rounded-none border-t border-signal !px-5 sm:border-l sm:border-t-0">
-        Build my brand system →
+        See my brand system →
       </button>
     </form>
   );
@@ -290,11 +291,11 @@ function ContentProgram() {
           <div>
             <p className="eyebrow text-signal">Your always-on content program</p>
             <h2 className="mt-4 font-display text-[clamp(34px,4.2vw,52px)] font-bold leading-[1.02] tracking-[-.04em]">Plan the month. Produce the next week. Learn before the next one.</h2>
-            <p className="mt-5 text-[16px] leading-relaxed text-muted">Give Brandrail the outcome, audience and content pillars once. It maps a coherent 30-day plan, turns the next week into finished channel assets, then refreshes what comes next with performance and your feedback.</p>
+            <p className="mt-5 text-[16px] leading-relaxed text-muted">Give Brandrail the outcome, audience and content pillars once. It maps a coherent 30-day plan, turns the next week into channel-native copy and finished assets, then refreshes what comes next with performance and your feedback.</p>
             <ol className="mt-7 border-y border-hairline-soft">
               {[
                 ["01", "Set the strategy", "Objective, audience, pillars, offer and important dates."],
-                ["02", "Preview before spending", "See the whole month before any asset is rendered."],
+                ["02", "Preview before spending", "See and export the whole month before any asset is rendered."],
                 ["03", "Choose the control level", "Approve each week by default, or explicitly enable auto-publishing."],
               ].map(([number, title, body]) => (
                 <li key={number} className="grid grid-cols-[32px_1fr] gap-3 border-b border-hairline-soft py-4 last:border-b-0">
@@ -304,7 +305,7 @@ function ContentProgram() {
               ))}
             </ol>
             <div className="mt-7 flex flex-wrap items-center gap-4">
-              <a href="/login?plan=studio" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Plan my next 30 days →</a>
+              <a href="#try" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Preview my next 30 days free →</a>
               <a href="/agents#tools" className="text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Let my agent run it</a>
             </div>
           </div>
@@ -482,8 +483,8 @@ function Pricing() {
   const plans = [
     {
       name: "Free", audience: "Prove the loop on one real brand", price: "$0", suffix: "forever",
-      outcome: "Compile your brand and create the first channel set before paying.",
-      items: ["1 active brand · 1 agent key", "50 finished assets / month", "All 10 templates + saved recipes", "Brand checks and audit trail"],
+      outcome: "Compile your brand, preview the next 30 days and create the first channel set before paying.",
+      items: ["1 active brand · 1 agent key", "Free 30-day calendar preview + CSV export", "50 finished assets / month", "All 10 templates + saved recipes", "Brand checks and audit trail"],
       cta: "Try it with my website", href: "#try",
     },
     {

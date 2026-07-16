@@ -587,7 +587,10 @@ function ActiveBrandSummary({ spec }: { spec: BrandSpec }) {
             BrandSpec v{spec.meta.version} · {visual.family} · {visual.background} · {spec.imagery.photos.length} brand photo{spec.imagery.photos.length === 1 ? "" : "s"}
           </p>
         </div>
-        <a href={`/brands/${encodeURIComponent(spec.meta.name)}`} className="btn-ghost">Edit brand system →</a>
+        <div className="flex flex-wrap gap-2">
+          <a href="/program" className="btn">Plan my next 30 days →</a>
+          <a href={`/brands/${encodeURIComponent(spec.meta.name)}`} className="btn-ghost">Edit brand system →</a>
+        </div>
       </div>
     </section>
   );
@@ -620,6 +623,7 @@ function Header() {
     <header className="mb-14 flex items-center justify-between">
       <WorkspaceLockup context="Playground · V0" />
       <div className="flex gap-5">
+        <a href="/program" className="eyebrow text-signal hover:text-bone">PLAN 30 DAYS</a>
         <a href="/dashboard" className="eyebrow hover:text-bone">WORKSPACE</a>
         <a href="/review" className="eyebrow hover:text-bone">BATCH REVIEW →</a>
       </div>

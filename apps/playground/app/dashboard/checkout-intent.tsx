@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Plan = "free" | "studio" | "agency";
 
-export function CheckoutIntent({ checkout, upgraded, currentPlan }: { checkout?: string; upgraded?: string; currentPlan: Plan }) {
+export function CheckoutIntent({ checkout, upgraded, currentPlan, returnTo }: { checkout?: string; upgraded?: string; currentPlan: Plan; returnTo?: string }) {
   const [state, setState] = useState<"idle" | "starting" | "waiting" | "done" | "error">(upgraded ? "waiting" : "idle");
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
@@ -16,7 +16,7 @@ export function CheckoutIntent({ checkout, upgraded, currentPlan }: { checkout?:
     fetch("/api/billing/checkout", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ plan: checkout }),
+      body: JSON.stringify({ plan: checkout, ...(returnTo ? { returnTo } : {}) }),
     }).then(async (res) => {
       const body = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !body.url) throw new Error(body.error ?? "Checkout is temporarily unavailable");
@@ -31,6 +31,7 @@ export function CheckoutIntent({ checkout, upgraded, currentPlan }: { checkout?:
     if (upgraded !== "studio" && upgraded !== "agency") return;
     if (currentPlan === upgraded || (upgraded === "studio" && currentPlan === "agency")) {
       setState("done");
+      if (returnTo) location.replace(returnTo);
       return;
     }
     let tries = 0;
@@ -41,7 +42,7 @@ export function CheckoutIntent({ checkout, upgraded, currentPlan }: { checkout?:
       if (body.user?.plan === upgraded || (upgraded === "studio" && body.user?.plan === "agency")) {
         clearInterval(timer);
         setState("done");
-        location.replace("/dashboard?welcome=upgraded");
+        location.replace(returnTo || "/dashboard?welcome=upgraded");
       } else if (tries >= 12) {
         clearInterval(timer);
         setError("Payment succeeded, but activation is still syncing. Refresh in a moment; you will not be charged twice.");
@@ -49,7 +50,7 @@ export function CheckoutIntent({ checkout, upgraded, currentPlan }: { checkout?:
       }
     }, 1500);
     return () => clearInterval(timer);
-  }, [upgraded, currentPlan]);
+  }, [upgraded, currentPlan, returnTo]);
 
   if (checkout === "cancelled") return <Notice tone="muted">Checkout cancelled — nothing was charged. Your workspace is unchanged.</Notice>;
   if (state === "starting") return <Notice tone="signal">Opening secure checkout…</Notice>;
