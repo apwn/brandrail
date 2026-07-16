@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/agents" },
   openGraph: {
     title: "Your agent can write. Now it can operate safely.",
-    description: "Thirty lifecycle tools, durable runs, visible assets, scoped authority, and human approval before publishing.",
+    description: `${MCP_TOOL_COUNT} lifecycle tools, durable runs, visible assets, scoped authority, and human approval before publishing.`,
     url: "/agents",
     images: [{ url: "/og-agent.png", width: 1731, height: 909, alt: "Brandrail agent execution rail" }],
   },
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 const TOOL_GROUPS = [
   ["UNDERSTAND", "list_brands · compile_brand · get_brand · diff_brand_spec"],
   ["RUN", "start_campaign_run · get_agent_run · complete_agent_run · retry_agent_run · cancel_agent_run"],
-  ["CREATE", "render_assets · list_templates · list_renders · get_render · create_campaign"],
+  ["CREATE", "render_assets · list_templates · list_recipes · save_recipe · rename_recipe · delete_recipe · list_renders · get_render · create_campaign"],
   ["REVIEW", "create_review_batch · get_review_status · add_review_comment"],
   ["OPERATE", "list_channels · schedule_post · reschedule_post · cancel_post · list_calendar"],
   ["LEARN", "get_analytics · get_usage · get_audit_log"],
@@ -190,7 +190,7 @@ function ToolSection() {
     <section id="tools" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div><p className="eyebrow text-signal">THE FULL LOOP</p><h2 className="mt-3 font-display text-[clamp(32px,4vw,46px)] font-bold leading-tight">Tools organized around outcomes, not endpoints.</h2><p className="mt-3 max-w-2xl text-muted">Thirty focused tools cover the lifecycle from observed brand to measured campaign. The agent receives compact state, inspectable resources and explicit next actions.</p></div>
+          <div><p className="eyebrow text-signal">THE FULL LOOP</p><h2 className="mt-3 font-display text-[clamp(32px,4vw,46px)] font-bold leading-tight">Tools organized around outcomes, not endpoints.</h2><p className="mt-3 max-w-2xl text-muted">{MCP_TOOL_COUNT} focused tools cover the lifecycle from observed brand to measured campaign. Rendering can stay on agent-directed auto, or use a selected visual template with named dynamic fields while brand objects remain locked.</p></div>
           <a href="/docs" className="font-mono text-[10px] text-signal hover:text-bone">READ THE REFERENCE →</a>
         </div>
         <div className="mt-8 grid gap-px border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-3">

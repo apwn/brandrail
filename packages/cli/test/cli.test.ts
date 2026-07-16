@@ -17,6 +17,27 @@ describe("brandrail CLI", () => {
     const body = JSON.parse(result.stdout) as { ok: boolean; templates: Record<string, unknown> };
     expect(body.ok).toBe(true);
     expect(Object.keys(body.templates)).toContain("hero-statement");
+    expect(body.templates["hero-statement"]).toMatchObject({ slots: { hook: { maxChars: 90 } }, locked: expect.arrayContaining(["colors", "type"]) });
+  });
+
+  it("offers the template-first render flag while keeping the compatibility alias", () => {
+    const result = spawnSync(process.execPath, [bin, "render", "--help"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("--template <id>");
+    expect(result.stdout).toContain("--recipe <id>");
+    expect(result.stdout).toContain("--templates <plan>");
+    expect(result.stdout).toContain("--media <slots>");
+    expect(result.stdout).toContain("--archetype <name>");
+  });
+
+  it("exposes the reusable recipe lifecycle with explicit delete confirmation", () => {
+    const root = spawnSync(process.execPath, [bin, "recipes", "--help"], { encoding: "utf8" });
+    const remove = spawnSync(process.execPath, [bin, "recipes", "delete", "--help"], { encoding: "utf8" });
+    expect(root.stdout).toContain("list");
+    expect(root.stdout).toContain("save");
+    expect(root.stdout).toContain("rename");
+    expect(root.stdout).toContain("delete");
+    expect(remove.stdout).toContain("--confirm");
   });
 
   it("exposes run lineage across render, review, and delivery commands", () => {

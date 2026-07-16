@@ -78,9 +78,9 @@ The rendering/compiling engine runs server-side (`RENDER_API_URL`); everything a
 
 ## Templates
 
-Ten hand-designed, rationale-documented archetypes — `hero-statement`, `cta-card`, `split-stat`, `quote`, `list-3`, `promo-card`, `feature-grid`, `testimonial`, `announcement`, `before-after` — each rendered across all five formats and each verified by a vision-model art-director gate ("would a designer sign this?"). Every one consumes BrandSpec tokens only; hardcoded design values are lint errors.
+Ten hand-designed, rationale-documented templates — `hero-statement`, `cta-card`, `split-stat`, `quote`, `list-3`, `promo-card`, `feature-grid`, `testimonial`, `announcement`, `before-after` — each rendered across all five formats and each verified by a vision-model art-director gate ("would a designer sign this?"). Every template exposes named dynamic text fields and, where relevant, approved BrandSpec image slots. Colors, type, spacing, logos, crop and image treatment remain locked. Hardcoded design values are lint errors.
 
-Richness that reads like a designer made it: **brand photo zones** (harvested from your site, saliency-cropped so the subject survives), **offer badges**, **CTA chips**, **star ratings**, and **scan-to-shop QR codes** — all token-locked and contrast-safe. Photos never sit under text, so the on-brand guarantee holds. The playground's **studio** lets you swap the template or edit the words on any post and re-render it live.
+Richness that reads like a designer made it: **brand photo zones** (harvested from your site, saliency-cropped so the subject survives), **offer badges**, **CTA chips**, **star ratings**, and **scan-to-shop QR codes** — all token-locked and contrast-safe. Photos never sit under text, so the on-brand guarantee holds. Use the agent-directed auto mix for speed, choose templates globally or per format, then save the proven visual system as a versioned BrandSpec recipe. Recipes preserve design and approved-image decisions while every new brief receives fresh copy.
 
 ## Why deterministic?
 

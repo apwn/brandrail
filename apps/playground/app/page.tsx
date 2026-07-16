@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { BrandSpec } from "@brandrail/spec";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import type { BrandSpec, FormatId, TemplateRecipe, TemplateSlotInfo, TemplateSlotName } from "@brandrail/spec";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
 import { WorkspaceLockup } from "./components/workspace-lockup";
+import { TemplatePicker } from "./components/template-picker";
 import { MarketingLanding } from "./marketing";
 import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
 
@@ -53,6 +54,7 @@ interface RenderResponse {
   manifest: {
     warnings: string[];
     artDirection?: Record<string, ArtDirectionDecision>;
+    mediaSelections?: Record<string, { primary?: number; secondary?: number }>;
   };
   plan?: Record<string, string>;
   copy?: Record<string, SlideCopy[]>;
@@ -67,6 +69,13 @@ interface AccountState {
 }
 
 const SUGGESTED_BRIEFS = ["Summer promotion", "We're hiring", "Announce our new product"];
+const FORMAT_OPTIONS: Array<{ id: FormatId; label: string }> = [
+  { id: "ig-carousel", label: "Carousel" },
+  { id: "li-image", label: "LinkedIn" },
+  { id: "story", label: "Story" },
+  { id: "x-graphic", label: "X graphic" },
+  { id: "og-image", label: "Link preview" },
+];
 
 async function readApiJson<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -80,9 +89,6 @@ async function readApiJson<T>(res: Response): Promise<T> {
     );
   }
 }
-
-// the studio's template list is the spec's shared catalog — one source of truth
-const ARCHETYPES = Object.keys(ARCHETYPE_INFO);
 
 export default function Playground() {
   const [step, setStep] = useState<Step>("landing");
@@ -234,7 +240,12 @@ export default function Playground() {
     return body.spec!.meta.name;
   }
 
-  async function doRender(chosenBrief: string) {
+  async function doRender(
+    chosenBrief: string,
+    chosenTemplate?: string,
+    chosenTemplates?: Partial<Record<FormatId, string>>,
+    chosenRecipe?: string,
+  ) {
     if (!spec) return;
     setBrief(chosenBrief);
     setError(null);
@@ -244,7 +255,13 @@ export default function Playground() {
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ brand, brief: chosenBrief }),
+        body: JSON.stringify({
+          brand,
+          brief: chosenBrief,
+          ...(chosenTemplate ? { template: chosenTemplate } : {}),
+          ...(chosenTemplates && Object.keys(chosenTemplates).length ? { templates: chosenTemplates } : {}),
+          ...(chosenRecipe ? { recipe: chosenRecipe } : {}),
+        }),
       });
       const body = await readApiJson<RenderResponse>(res);
       if (!res.ok) {
@@ -262,12 +279,73 @@ export default function Playground() {
     }
   }
 
+  async function saveCurrentRecipe(name: string): Promise<void> {
+    if (!spec || !render?.plan) return;
+    const base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 54) || "saved-look";
+    const existing = new Set(spec.composition.recipes.map((recipe) => recipe.id));
+    let id = base;
+    let suffix = 2;
+    while (existing.has(id)) id = `${base}-${suffix++}`;
+    const media = Object.entries(render.manifest.mediaSelections ?? {}).flatMap(([format, selection]) =>
+      Object.entries(selection).map(([slot, photoIndex]) => ({ format: format as FormatId, name: slot as "primary" | "secondary", photoIndex })),
+    );
+    const recipe: TemplateRecipe = {
+      id,
+      name: name.trim(),
+      templates: render.plan as Partial<Record<FormatId, keyof typeof ARCHETYPE_INFO>>,
+      ...(media.length ? { media } : {}),
+    };
+    const res = await fetch("/api/recipes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ brand: spec.meta.name, recipe }),
+    });
+    const body = await readApiJson<{ recipe?: TemplateRecipe; specVersion?: number; error?: string }>(res);
+    if (!res.ok || !body.recipe || !body.specVersion) throw new Error(body.error ?? "recipe could not be saved");
+    setCompiled((current) => current ? { ...current, spec: { ...current.spec, meta: { ...current.spec.meta, version: body.specVersion! }, composition: { ...current.spec.composition, recipes: [...current.spec.composition.recipes, body.recipe!] } } } : current);
+  }
+
+  async function deleteRecipe(id: string): Promise<void> {
+    if (!spec) return;
+    const res = await fetch("/api/recipes", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ brand: spec.meta.name, id }) });
+    const body = await readApiJson<{ deleted?: string; specVersion?: number; error?: string }>(res);
+    if (!res.ok || !body.deleted || !body.specVersion) throw new Error(body.error ?? "recipe could not be deleted");
+    setCompiled((current) => current ? { ...current, spec: { ...current.spec, meta: { ...current.spec.meta, version: body.specVersion! }, composition: { ...current.spec.composition, recipes: current.spec.composition.recipes.filter((recipe) => recipe.id !== id) } } } : current);
+  }
+
+  async function renameRecipe(id: string, name: string): Promise<void> {
+    if (!spec) return;
+    const res = await fetch("/api/recipes", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ brand: spec.meta.name, id, name: name.trim() }),
+    });
+    const body = await readApiJson<{ recipe?: TemplateRecipe; specVersion?: number; error?: string }>(res);
+    if (!res.ok || !body.recipe || !body.specVersion) throw new Error(body.error ?? "recipe could not be renamed");
+    setCompiled((current) => current ? {
+      ...current,
+      spec: {
+        ...current.spec,
+        meta: { ...current.spec.meta, version: body.specVersion! },
+        composition: {
+          ...current.spec.composition,
+          recipes: current.spec.composition.recipes.map((recipe) => recipe.id === id ? body.recipe! : recipe),
+        },
+      },
+    } : current);
+  }
+
   const [restyling, setRestyling] = useState<string | null>(null);
 
   /** studio: re-render one format with a chosen template and/or edited copy.
    * Anonymous visitors get 2 free restyles — enough to feel the studio, not
    * enough to run a production workflow without an account. */
-  async function restyleFormat(format: string, archetype: string, copyOverride?: SlideCopy[]) {
+  async function restyleFormat(
+    format: string,
+    archetype: string,
+    copyOverride?: SlideCopy[],
+    mediaOverride?: { primary?: number; secondary?: number },
+  ) {
     if (!render || !spec) return;
     if (!verified && restyles >= 2) {
       setGate("restyle");
@@ -286,6 +364,9 @@ export default function Playground() {
           archetype,
           replaceRenderId: render.id,
           ...(copyOverride ? { copy: { [format]: copyOverride } } : {}),
+          ...(mediaOverride !== undefined ? {
+            media: Object.entries(mediaOverride).map(([name, photoIndex]) => ({ format, name, photoIndex })),
+          } : {}),
         }),
       });
       const body = await readApiJson<RenderResponse>(res);
@@ -304,6 +385,9 @@ export default function Playground() {
         const merged = [...others, ...body.assets].sort(
           (a, b) => order.indexOf(a.format) - order.indexOf(b.format) || a.slide - b.slide,
         );
+        const nextMedia = { ...(prev.manifest.mediaSelections ?? {}) };
+        if (mediaOverride !== undefined) delete nextMedia[format];
+        if (body.manifest.mediaSelections?.[format]) nextMedia[format] = body.manifest.mediaSelections[format];
         return {
           ...prev,
           assets: merged,
@@ -317,6 +401,7 @@ export default function Playground() {
                 ? { [format]: body.manifest.artDirection[format] }
                 : {}),
             },
+            mediaSelections: nextMedia,
           },
         };
       });
@@ -418,7 +503,16 @@ export default function Playground() {
             ? <ActiveBrandSummary spec={spec} />
             : <BrandSheet spec={spec} lowConfidence={lowConfidence} edits={edits} setEdits={setEdits} warnings={compiled?.warnings ?? []} />}
           {step === "sheet" ? (
-            <BriefBar existingBrand={existingBrand} initialValue={brief} onRender={doRender} />
+            <BriefBar
+              existingBrand={existingBrand}
+              initialValue={brief}
+              allowedTemplates={spec.composition.layoutArchetypes}
+              photoCount={spec.imagery.photos.length}
+              recipes={spec.composition.recipes}
+              onDeleteRecipe={deleteRecipe}
+              onRenameRecipe={renameRecipe}
+              onRender={doRender}
+            />
           ) : (
             <Working
               label="RENDERING"
@@ -438,6 +532,8 @@ export default function Playground() {
           render={render}
           brand={spec.meta.name}
           brief={brief}
+          allowedTemplates={spec.composition.layoutArchetypes}
+          brandPhotos={spec.imagery.photos}
           unlocked={verified}
           canReview={canReview}
           zipping={zipping}
@@ -448,6 +544,7 @@ export default function Playground() {
           onDownload={() => (verified ? void downloadZip() : setGate("download"))}
           onReview={() => void sendToReview()}
           onAgain={() => setStep("sheet")}
+          onSaveRecipe={saveCurrentRecipe}
         />
       )}
 
@@ -677,8 +774,45 @@ function BrandSheet({
   );
 }
 
-function BriefBar({ existingBrand, initialValue, onRender }: { existingBrand?: boolean; initialValue?: string; onRender: (brief: string) => void }) {
+function BriefBar({
+  existingBrand,
+  initialValue,
+  allowedTemplates,
+  photoCount,
+  recipes,
+  onDeleteRecipe,
+  onRenameRecipe,
+  onRender,
+}: {
+  existingBrand?: boolean;
+  initialValue?: string;
+  allowedTemplates: readonly string[];
+  photoCount: number;
+  recipes: readonly TemplateRecipe[];
+  onDeleteRecipe: (id: string) => Promise<void>;
+  onRenameRecipe: (id: string, name: string) => Promise<void>;
+  onRender: (brief: string, template?: string, templates?: Partial<Record<FormatId, string>>, recipe?: string) => void;
+}) {
   const [value, setValue] = useState(initialValue ?? "");
+  const [template, setTemplate] = useState<string | null>(null);
+  const [mode, setMode] = useState<"auto" | "template" | "plan" | "recipe">("auto");
+  const [recipe, setRecipe] = useState<string | null>(null);
+  const [deletingRecipe, setDeletingRecipe] = useState<string | null>(null);
+  const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState<string | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
+  const [recipeName, setRecipeName] = useState("");
+  const [renamingRecipe, setRenamingRecipe] = useState(false);
+  const [recipeError, setRecipeError] = useState<string | null>(null);
+  const [activeFormat, setActiveFormat] = useState<FormatId>("ig-carousel");
+  const [templatePlan, setTemplatePlan] = useState<Partial<Record<FormatId, string>>>({});
+  const selectedInfo = template ? ARCHETYPE_INFO[template as keyof typeof ARCHETYPE_INFO] : null;
+  const submit = (brief: string) => onRender(
+    brief,
+    mode === "template" ? template ?? undefined : undefined,
+    mode === "plan" ? templatePlan : undefined,
+    mode === "recipe" ? recipe ?? undefined : undefined,
+  );
+  const selectionReady = (mode !== "template" || Boolean(template)) && (mode !== "recipe" || Boolean(recipe));
   return (
     <section>
       <p className="eyebrow mb-4">{existingBrand ? "01 / WHAT SHOULD WE CREATE?" : "03 / WHAT SHOULD IT SAY?"}</p>
@@ -686,20 +820,181 @@ function BriefBar({ existingBrand, initialValue, onRender }: { existingBrand?: b
         className="flex max-w-xl gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          if (value.trim()) onRender(value.trim());
+          if (value.trim()) submit(value.trim());
         }}
       >
         <input className="field" placeholder='e.g. "Summer promotion"' value={value} onChange={(e) => setValue(e.target.value)} aria-label="Brief" />
-        <button className="btn whitespace-nowrap" type="submit" disabled={!value.trim()}>
+        <button className="btn whitespace-nowrap" type="submit" disabled={!value.trim() || !selectionReady}>
           Render 5 formats →
         </button>
       </form>
       <div className="mt-3 flex gap-2 flex-wrap">
         {SUGGESTED_BRIEFS.map((s) => (
-          <button key={s} className="btn-ghost !px-3 !py-1.5 text-xs" onClick={() => onRender(s)}>
+          <button key={s} disabled={!selectionReady} className="btn-ghost !px-3 !py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40" onClick={() => submit(s)}>
             {s}
           </button>
         ))}
+      </div>
+      <div className="mt-6 max-w-3xl border border-hairline bg-panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="eyebrow text-bone">ART DIRECTION</p><p className="mt-1 text-xs leading-relaxed text-muted">Keep it automatic, use one design everywhere, or direct individual channels.</p></div>
+          <span className="font-mono text-[9px] text-green">BRANDSPEC LOCKED</span>
+        </div>
+        {recipes.length > 0 && (
+          <div className="mt-3 border-t border-hairline pt-3">
+            <p className="mb-2 font-mono text-[9px] text-muted">SAVED VISUAL RECIPES</p>
+            <div className="flex flex-wrap gap-2">
+              {recipes.map((item) => {
+                const selected = mode === "recipe" && recipe === item.id;
+                const confirming = confirmDeleteRecipe === item.id;
+                return (
+                  <span key={item.id} className={`inline-flex min-h-9 border bg-ink ${selected ? "border-signal" : "border-hairline"}`}>
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setMode("recipe");
+                        setRecipe(item.id);
+                        setTemplate(null);
+                        setRecipeError(null);
+                        setConfirmDeleteRecipe(null);
+                        setEditingRecipe(null);
+                      }}
+                      className={`px-3 text-xs ${selected ? "text-bone" : "text-muted hover:text-bone"}`}
+                    >
+                      {item.name}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Rename recipe ${item.name}`}
+                      onClick={() => {
+                        setEditingRecipe(item.id);
+                        setRecipeName(item.name);
+                        setRecipeError(null);
+                        setConfirmDeleteRecipe(null);
+                      }}
+                      className="border-l border-hairline px-2 font-mono text-[9px] text-muted hover:text-bone"
+                    >
+                      edit
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${confirming ? "Confirm deletion of" : "Delete"} recipe ${item.name}`}
+                      disabled={deletingRecipe === item.id}
+                      onClick={async () => {
+                        if (!confirming) {
+                          setConfirmDeleteRecipe(item.id);
+                          return;
+                        }
+                        setDeletingRecipe(item.id);
+                        setRecipeError(null);
+                        try {
+                          await onDeleteRecipe(item.id);
+                          if (recipe === item.id) {
+                            setRecipe(null);
+                            setMode("auto");
+                          }
+                        } catch (error) {
+                          setRecipeError((error as Error).message);
+                        } finally {
+                          setDeletingRecipe(null);
+                          setConfirmDeleteRecipe(null);
+                        }
+                      }}
+                      className={`min-w-9 border-l border-hairline px-2 font-mono text-[9px] hover:text-signal disabled:opacity-40 ${confirming ? "text-signal" : "text-muted"}`}
+                    >
+                      {deletingRecipe === item.id ? "…" : confirming ? "sure?" : "×"}
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+            {editingRecipe && (
+              <form
+                className="mt-3 flex max-w-sm gap-2"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  if (!recipeName.trim() || renamingRecipe) return;
+                  setRenamingRecipe(true);
+                  setRecipeError(null);
+                  try {
+                    await onRenameRecipe(editingRecipe, recipeName);
+                    setEditingRecipe(null);
+                    setRecipeName("");
+                  } catch (error) {
+                    setRecipeError((error as Error).message);
+                  } finally {
+                    setRenamingRecipe(false);
+                  }
+                }}
+              >
+                <input
+                  autoFocus
+                  aria-label="Recipe name"
+                  className="field !min-h-9 !py-1.5 text-xs"
+                  maxLength={64}
+                  value={recipeName}
+                  onChange={(event) => setRecipeName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setEditingRecipe(null);
+                      setRecipeName("");
+                    }
+                  }}
+                />
+                <button type="submit" disabled={!recipeName.trim() || renamingRecipe} className="btn !min-h-9 !px-3 !py-1.5 text-xs disabled:opacity-40">
+                  {renamingRecipe ? "Saving…" : "Save"}
+                </button>
+                <button type="button" onClick={() => { setEditingRecipe(null); setRecipeName(""); }} className="btn-ghost !min-h-9 !px-3 !py-1.5 text-xs">
+                  Cancel
+                </button>
+              </form>
+            )}
+            {mode === "recipe" && recipe && <p className="mt-2 font-mono text-[9px] text-green">RECIPE APPLIES THE SAVED VISUAL SYSTEM · COPY STAYS FRESH</p>}
+            {recipeError && <p role="status" aria-live="polite" className="mt-2 font-mono text-[9px] text-signal">{recipeError}</p>}
+          </div>
+        )}
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <button type="button" aria-pressed={mode === "auto"} onClick={() => { setMode("auto"); setTemplate(null); }} className={`border p-3 text-left ${mode === "auto" ? "border-signal bg-signal/5" : "border-hairline"}`}>
+            <span className="block text-sm font-semibold text-bone">Auto mix <span className="font-mono text-[9px] text-green">RECOMMENDED</span></span>
+            <span className="mt-1 block text-xs text-muted">Best-fit composition per format and carousel slide.</span>
+          </button>
+          <button type="button" aria-pressed={mode === "template"} onClick={() => setMode("template")} className={`border p-3 text-left ${mode === "template" ? "border-signal bg-signal/5" : "border-hairline"}`}>
+            <span className="block text-sm font-semibold text-bone">One template</span>
+            <span className="mt-1 block text-xs text-muted">{selectedInfo ? `${selectedInfo.label} selected` : `${allowedTemplates.length} brand-approved designs`}</span>
+          </button>
+          <button type="button" aria-pressed={mode === "plan"} onClick={() => { setMode("plan"); setTemplate(null); }} className={`border p-3 text-left ${mode === "plan" ? "border-signal bg-signal/5" : "border-hairline"}`}>
+            <span className="block text-sm font-semibold text-bone">Channel plan</span>
+            <span className="mt-1 block text-xs text-muted">Direct key formats; leave the rest on auto.</span>
+          </button>
+        </div>
+        {mode === "template" && <div className="mt-3 border-t border-hairline pt-3"><TemplatePicker selected={template} allowed={allowedTemplates} photoCount={photoCount} onSelect={setTemplate} /></div>}
+        {mode === "template" && selectedInfo && <p className="mt-3 border-l-2 border-signal pl-3 text-xs leading-relaxed text-muted"><span className="font-semibold text-bone">{selectedInfo.label}.</span> {selectedInfo.description} Dynamic: {Object.values(selectedInfo.slots).map((slot) => slot.label.toLowerCase()).join(", ")}. Brand-locked: {selectedInfo.locked.join(", ")}.</p>}
+        {mode === "plan" && (
+          <div className="mt-3 border-t border-hairline pt-3">
+            <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Choose a channel format">
+              {FORMAT_OPTIONS.map((format) => (
+                <button key={format.id} type="button" aria-pressed={activeFormat === format.id} onClick={() => setActiveFormat(format.id)} className={`border px-2.5 py-1.5 text-left ${activeFormat === format.id ? "border-signal text-bone" : "border-hairline text-muted"}`}>
+                  <span className="block text-[10px] font-semibold">{format.label}</span>
+                  <span className={`block font-mono text-[8px] ${templatePlan[format.id] ? "text-signal" : "text-green"}`}>{templatePlan[format.id] ?? "auto"}</span>
+                </button>
+              ))}
+            </div>
+            <TemplatePicker
+              selected={templatePlan[activeFormat] ?? null}
+              allowed={allowedTemplates}
+              photoCount={photoCount}
+              allowAuto
+              onSelect={(value) => setTemplatePlan((current) => {
+                const next = { ...current };
+                if (value) next[activeFormat] = value;
+                else delete next[activeFormat];
+                return next;
+              })}
+            />
+            <p className="mt-2 font-mono text-[9px] text-muted">{Object.keys(templatePlan).length} OF {FORMAT_OPTIONS.length} DIRECTED · UNSPECIFIED FORMATS STAY AUTO</p>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -709,6 +1004,8 @@ function ResultGrid({
   render,
   brand,
   brief,
+  allowedTemplates,
+  brandPhotos,
   unlocked,
   canReview,
   zipping,
@@ -719,22 +1016,45 @@ function ResultGrid({
   onDownload,
   onReview,
   onAgain,
+  onSaveRecipe,
 }: {
   render: RenderResponse;
   brand: string;
   brief: string;
+  allowedTemplates: readonly string[];
+  brandPhotos: BrandSpec["imagery"]["photos"];
   unlocked: boolean;
   canReview: boolean;
   zipping: boolean;
   reviewing: boolean;
   handoffError: string | null;
   restyling: string | null;
-  onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
+  onRestyle: (format: string, archetype: string, copy?: SlideCopy[], media?: { primary?: number; secondary?: number }) => void;
   onDownload: () => void;
   onReview: () => void;
   onAgain: () => void;
+  onSaveRecipe: (name: string) => Promise<void>;
 }) {
   const formats = [...new Set(render.assets.map((a) => a.format))];
+  const [recipeOpen, setRecipeOpen] = useState(false);
+  const [recipeName, setRecipeName] = useState("");
+  const [recipeSaving, setRecipeSaving] = useState(false);
+  const [recipeStatus, setRecipeStatus] = useState<string | null>(null);
+  async function saveRecipe() {
+    if (!recipeName.trim()) return;
+    setRecipeSaving(true);
+    setRecipeStatus(null);
+    try {
+      await onSaveRecipe(recipeName.trim());
+      setRecipeStatus("Saved to this BrandSpec");
+      setRecipeName("");
+      setRecipeOpen(false);
+    } catch (error) {
+      setRecipeStatus((error as Error).message);
+    } finally {
+      setRecipeSaving(false);
+    }
+  }
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
@@ -744,12 +1064,15 @@ function ResultGrid({
           <p className="text-muted text-sm mt-1">One idea, adapted to every channel format. Swap a template or edit the words without breaking the set.</p>
         </div>
         <div className="flex gap-3">
+          <button className="btn-ghost" onClick={() => setRecipeOpen((current) => !current)}>Save as recipe</button>
           <button className="btn-ghost" onClick={onAgain}>← another brief</button>
           <button className="btn" onClick={onDownload} disabled={zipping}>
             {zipping ? "zipping…" : unlocked ? "Download all (.zip)" : "Download all →"}
           </button>
         </div>
       </div>
+      {recipeOpen && <form className="mb-5 flex max-w-md gap-2" onSubmit={(event) => { event.preventDefault(); void saveRecipe(); }}><input className="field !py-2" value={recipeName} onChange={(event) => setRecipeName(event.target.value)} maxLength={64} placeholder="e.g. Weekly product launch" aria-label="Recipe name" autoFocus /><button className="btn !py-2 whitespace-nowrap" disabled={!recipeName.trim() || recipeSaving}>{recipeSaving ? "saving…" : "Save →"}</button></form>}
+      {recipeStatus && <p role="status" aria-live="polite" className={`mb-4 font-mono text-[10px] ${recipeStatus.startsWith("Saved") ? "text-green" : "text-signal"}`}>{recipeStatus}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {formats.map((format) => (
           <StudioCard
@@ -759,6 +1082,9 @@ function ResultGrid({
             archetype={render.plan?.[format] ?? ""}
             direction={render.manifest.artDirection?.[format]}
             copy={render.copy?.[format] ?? []}
+            allowedTemplates={allowedTemplates}
+            brandPhotos={brandPhotos}
+            mediaSelection={render.manifest.mediaSelections?.[format]}
             busy={restyling === format}
             onRestyle={onRestyle}
           />
@@ -816,14 +1142,15 @@ function ResultGrid({
   );
 }
 
-const SLOTS: Array<keyof SlideCopy> = ["kicker", "hook", "body", "cta", "badge", "rating"];
-
 function StudioCard({
   format,
   render,
   archetype,
   direction,
   copy,
+  allowedTemplates,
+  brandPhotos,
+  mediaSelection,
   busy,
   onRestyle,
 }: {
@@ -832,25 +1159,38 @@ function StudioCard({
   archetype: string;
   direction?: ArtDirectionDecision;
   copy: SlideCopy[];
+  allowedTemplates: readonly string[];
+  brandPhotos: BrandSpec["imagery"]["photos"];
+  mediaSelection?: { primary?: number; secondary?: number };
   busy: boolean;
-  onRestyle: (format: string, archetype: string, copy?: SlideCopy[]) => void;
+  onRestyle: (format: string, archetype: string, copy?: SlideCopy[], media?: { primary?: number; secondary?: number }) => void;
 }) {
   const assets = render.assets.filter((a) => a.format === format).sort((a, b) => a.slide - b.slide);
   const [open, setOpen] = useState(false);
   const [arch, setArch] = useState(archetype);
   const [draft, setDraft] = useState<SlideCopy[]>(copy);
+  const [media, setMedia] = useState<{ primary?: number; secondary?: number }>(mediaSelection ?? {});
   const isCarousel = assets.length > 1;
 
-  // keep local state in sync when a re-render replaces this format
-  const sig = archetype + "|" + JSON.stringify(copy);
-  const [lastSig, setLastSig] = useState(sig);
-  if (sig !== lastSig) {
+  // Keep local state in sync when a re-render replaces this format.
+  const sig = archetype + "|" + JSON.stringify(copy) + "|" + JSON.stringify(mediaSelection ?? {});
+  useEffect(() => {
     setArch(archetype);
     setDraft(copy);
-    setLastSig(sig);
-  }
+    setMedia(mediaSelection ?? {});
+  }, [sig, archetype, copy, mediaSelection]);
 
-  const dirty = arch !== archetype || JSON.stringify(draft) !== JSON.stringify(copy);
+  const dirty = arch !== archetype || JSON.stringify(draft) !== JSON.stringify(copy) || JSON.stringify(media) !== JSON.stringify(mediaSelection ?? {});
+  const templateInfo = ARCHETYPE_INFO[arch as keyof typeof ARCHETYPE_INFO];
+  const templateSlots = Object.entries(templateInfo?.slots ?? {}) as Array<[TemplateSlotName, TemplateSlotInfo]>;
+  const mediaSlots = Object.entries(templateInfo?.mediaSlots ?? {}) as Array<["primary" | "secondary", { label: string; required?: boolean }]>;
+  const invalidFields = draft.flatMap((slide, slideIndex) => templateSlots.flatMap(([slot, field]) => {
+    const value = slide[slot] ?? "";
+    if (field.required && value.trim().length < (field.minChars ?? 1)) return [`Slide ${slideIndex + 1} · ${field.label} is required`];
+    if (value.length > field.maxChars) return [`Slide ${slideIndex + 1} · ${field.label} is ${value.length - field.maxChars} characters over`];
+    return [];
+  }));
+  if (media.primary !== undefined && media.primary === media.secondary) invalidFields.push("Choose two different photos for this comparison");
 
   return (
     <div className="panel overflow-hidden flex flex-col">
@@ -887,73 +1227,61 @@ function StudioCard({
       )}
       {open && (
         <div className="px-3 pb-3 pt-1 border-t border-hairline flex flex-col gap-3">
-          <label className="eyebrow block">template</label>
-          <select
-            className="field !py-2"
-            value={arch}
-            onChange={(e) => setArch(e.target.value)}
-          >
-            {ARCHETYPES.map((a) => {
-              const info = ARCHETYPE_INFO[a as keyof typeof ARCHETYPE_INFO];
-              const hint = info?.needsPhotos ? " · photo" : info?.optIn ? " · needs real content" : "";
-              return (
-                <option key={a} value={a} className="bg-panel">
-                  {a}
-                  {hint}
-                </option>
-              );
-            })}
-          </select>
-          {direction && direction.candidates.length > 1 && (
-            <div>
-              <p className="eyebrow mb-2">auto-ranked</p>
-              <div className="flex flex-wrap gap-1.5">
-                {direction.candidates.map((candidate) => (
-                  <button
-                    key={candidate.archetype}
-                    type="button"
-                    disabled={candidate.valid === false}
-                    className={`border px-2 py-1 font-mono text-[10px] disabled:cursor-not-allowed disabled:opacity-40 ${arch === candidate.archetype ? "border-signal text-signal" : "border-hairline text-muted hover:text-bone"}`}
-                    onClick={() => setArch(candidate.archetype)}
-                    title={[...candidate.reasons, ...(candidate.rejectedBy ?? [])].join("; ")}
-                  >
-                    {candidate.archetype}{" "}
-                    {candidate.valid === false
-                      ? "rejected"
-                      : `${candidate.score}${candidate.visualScore !== undefined ? ` · ${candidate.visualScore}v` : ""}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {!isCarousel && draft[0] && (
-            <div className="flex flex-col gap-2">
-              <label className="eyebrow block">copy</label>
-              {SLOTS.filter((s) => draft[0]![s] !== undefined || s === "hook").map((slot) => (
-                <input
-                  key={slot}
-                  className="field !py-2 text-xs"
-                  placeholder={slot}
-                  value={draft[0]![slot] ?? ""}
-                  onChange={(e) =>
-                    setDraft((d) => [{ ...d[0]!, [slot]: e.target.value }, ...d.slice(1)])
-                  }
-                />
+          <div className="flex items-end justify-between gap-2"><div><p className="eyebrow">template library</p><p className="mt-1 text-xs text-muted">Choose the composition. Brand tokens stay locked.</p></div><span className="font-mono text-[9px] text-green">{allowedTemplates.length} ALLOWED</span></div>
+          <TemplatePicker selected={arch} allowed={allowedTemplates} candidates={direction?.candidates ?? []} photoCount={brandPhotos.length} onSelect={(value) => { if (value) { setArch(value); setMedia({}); } }} />
+          {templateInfo && <div className="border-l-2 border-signal pl-3"><p className="text-xs font-semibold text-bone">{templateInfo.label}</p><p className="mt-1 text-[11px] leading-relaxed text-muted">{templateInfo.description}</p><p className="mt-1 font-mono text-[9px] text-muted">LOCKED · {templateInfo.locked.join(" · ")}</p></div>}
+          {mediaSlots.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div><p className="eyebrow">approved imagery</p><p className="mt-1 text-xs text-muted">Choose from this BrandSpec only. Crop and treatment remain locked.</p></div>
+              {brandPhotos.length === 0 ? (
+                <p className="border border-hairline p-3 text-xs text-muted">No approved photography yet. Add photos in the brand workspace or use a typographic template.</p>
+              ) : mediaSlots.map(([slot, field]) => (
+                <fieldset key={slot} className="border border-hairline p-3">
+                  <legend className="px-1 font-mono text-[9px] text-muted">{field.label.toUpperCase()}</legend>
+                  <div className="grid grid-cols-5 gap-2">
+                    <button type="button" aria-pressed={media[slot] === undefined} onClick={() => setMedia((current) => { const next = { ...current }; delete next[slot]; return next; })} className={`aspect-square border font-mono text-[8px] ${media[slot] === undefined ? "border-signal text-signal" : "border-hairline text-muted"}`}>AUTO</button>
+                    {brandPhotos.map((photo, index) => (
+                      <button key={(typeof photo === "string" ? photo : photo.ref).slice(0, 80) + index} type="button" aria-label={`Use brand photo ${index + 1} for ${field.label}`} aria-pressed={media[slot] === index} onClick={() => setMedia((current) => ({ ...current, [slot]: index }))} className={`aspect-square overflow-hidden border ${media[slot] === index ? "border-signal" : "border-hairline"}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photoSrc(photo)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
               ))}
             </div>
           )}
-          {isCarousel && (
-            <p className="font-mono text-[11px] text-muted">carousel copy edits regenerate on the new template</p>
-          )}
+          <div className="flex flex-col gap-3">
+            <div><p className="eyebrow">dynamic fields</p><p className="mt-1 text-xs text-muted">Edit named fields like a design API. Limits protect the layout.</p></div>
+            {draft.map((slide, slideIndex) => (
+              <div key={slideIndex} className="border border-hairline p-3">
+                {isCarousel && <p className="mb-2 font-mono text-[9px] text-signal">SLIDE {String(slideIndex + 1).padStart(2, "0")}</p>}
+                <div className="flex flex-col gap-2">
+                  {templateSlots.map(([slot, field]) => {
+                    if (!field) return null;
+                    const value = slide[slot] ?? "";
+                    const shared = {
+                      className: "field !py-2 text-xs",
+                      value,
+                      maxLength: field.maxChars,
+                      "aria-required": field.required || undefined,
+                      placeholder: field.placeholder,
+                      onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: event.target.value } : item)),
+                    };
+                    return <label key={slot} className="block"><span className="mb-1 flex items-center justify-between font-mono text-[9px] text-muted"><span>{field.label}{field.required ? " *" : ""}</span><span className={value.length > field.maxChars * 0.9 ? "text-signal" : ""}>{value.length}/{field.maxChars}</span></span>{field.multiline ? <textarea {...shared} rows={3} /> : <input {...shared} />}</label>;
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
           <button
             className="btn !py-2"
-            disabled={busy || !dirty}
-            onClick={() =>
-              onRestyle(format, arch, !isCarousel && dirty ? draft : undefined)
-            }
+            disabled={busy || !dirty || invalidFields.length > 0}
+            onClick={() => onRestyle(format, arch, draft, mediaSlots.length > 0 || mediaSelection ? media : undefined)}
           >
             {busy ? "re-rendering…" : "Re-render this →"}
           </button>
+          {invalidFields[0] && <p className="font-mono text-[10px] text-signal">FIX · {invalidFields[0]}</p>}
         </div>
       )}
     </div>

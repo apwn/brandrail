@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 const SECTIONS = [
   ["#quickstart", "Quickstart"],
   ["#auth", "Auth & keys"],
+  ["#templates", "Templates"],
   ["#mcp", "MCP"],
   ["#api", "REST API"],
   ["#sdk", "SDK"],
@@ -51,6 +52,11 @@ const API_SURFACE = `POST   /v0/compile                 website → versioned Br
 GET    /v0/specs                   list active brands
 GET    /v0/specs/:name             fetch one spec or version
 PATCH  /v0/specs/:name             edit → new version
+GET    /v0/specs/:name/recipes     list reusable visual systems
+POST   /v0/specs/:name/recipes     save recipe → new spec version
+PATCH  /v0/specs/:name/recipes/:id rename recipe → new spec version
+DELETE /v0/specs/:name/recipes/:id remove recipe → new spec version
+GET    /v0/templates               visual library + dynamic field contracts
 POST   /v0/render                  brief → gated assets + art direction
 GET    /v0/renders/:id             manifest + asset URLs
 POST   /v0/agent/plan              dry-run objective → blockers + steps
@@ -74,7 +80,16 @@ const { spec } = await brandrail.compile("https://acme.com");
 const render = await brandrail.render(
   spec.meta.name,
   "Summer promotion",
-  { formats: ["ig-carousel", "li-image"] },
+  {
+    formats: ["li-image"],
+    template: "hero-statement",
+    modifications: [
+      { format: "li-image", name: "hook", text: "The exact headline" },
+    ],
+    media: [
+      { format: "li-image", name: "primary", photoIndex: 0 },
+    ],
+  },
 );
 
 console.log(render.assets);`;
@@ -82,7 +97,13 @@ console.log(render.assets);`;
 const CLI_EXAMPLE = `pnpm install && pnpm build
 
 node packages/cli/dist/index.js compile https://acme.com
-node packages/cli/dist/index.js render "Summer promotion" --brand acme --json
+node packages/cli/dist/index.js templates
+node packages/cli/dist/index.js recipes list --brand acme
+node packages/cli/dist/index.js recipes save ./weekly-launch.json --brand acme
+node packages/cli/dist/index.js recipes rename weekly-launch --brand acme --name "Weekly launch"
+node packages/cli/dist/index.js recipes delete weekly-launch --brand acme --confirm
+node packages/cli/dist/index.js render "Summer promotion" --brand acme --recipe weekly-launch --json
+node packages/cli/dist/index.js render "Launch" --brand acme --template promo-card --media x-graphic.primary=0
 node packages/cli/dist/index.js mcp config --client openclaw
 node packages/cli/dist/index.js mcp doctor
 node packages/cli/dist/index.js agent start "Launch campaign" --brand acme --json
@@ -110,6 +131,7 @@ export default function DocsPage() {
           <div className="mb-8 overflow-x-auto border-y border-hairline py-3 lg:hidden"><DocsNav horizontal /></div>
           <QuickstartSection />
           <AuthSection />
+          <TemplatesSection />
           <McpSection />
           <ApiSection />
           <SdkSection />
@@ -145,7 +167,7 @@ function DocsHero() {
         <h1 className="mt-4 max-w-[790px] font-display text-[clamp(40px,6vw,66px)] font-bold leading-[.98] tracking-[-.045em]">Build brand-safe content operations.</h1>
         <p className="mt-5 max-w-[720px] text-[17px] leading-relaxed text-muted">Connect an agent with one hosted MCP endpoint, or use the REST API, TypeScript SDK and CLI directly. Every surface shares the same BrandSpec, permissions and fail-closed render gate.</p>
         <div className="mt-7 flex flex-wrap gap-3"><a href="#quickstart" className="btn">Start in two minutes ↓</a><a href="/login?agent=1" className="btn-ghost">Create a free key →</a></div>
-        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-muted"><span className="text-green">● HOSTED MCP</span><span>REST API · V0</span><span>SDK + CLI · PRE-RELEASE</span><span>30 LIFECYCLE TOOLS</span></div>
+        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] text-muted"><span className="text-green">● HOSTED MCP</span><span>REST API · V0</span><span>SDK + CLI · PRE-RELEASE</span><span>{MCP_TOOL_COUNT} LIFECYCLE TOOLS</span></div>
       </div>
     </section>
   );
@@ -200,6 +222,61 @@ function AuthSection() {
   );
 }
 
+function TemplatesSection() {
+  return (
+    <section>
+      <DocHeading id="templates" eyebrow="AUTO + CONTROL">Hybrid templates</DocHeading>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">Use <strong className="text-bone">auto</strong> to let Brandrail art-direct a varied campaign, pass one stable <code className="text-bone">template</code> ID everywhere, or provide a <code className="text-bone">templates</code> plan for selected formats. Designs publish named text and image fields. Image choices are indexes from the approved BrandSpec library—arbitrary URLs are rejected—while colors, type, spacing, logo, crops and treatments remain locked. Photo-led templates stay unavailable until the BrandSpec contains enough approved imagery, so an empty image zone can never reach a render.</p>
+      <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-5">
+        {[['AUTO MIX', 'Best-fit template per format and carousel slide.'], ['ONE TEMPLATE', 'One explicit composition across requested formats.'], ['CHANNEL PLAN', 'Direct selected formats; omitted formats stay automatic.'], ['RECIPE', 'Reuse a versioned visual system with fresh campaign copy.'], ['MODIFICATIONS', 'Change named fields; the same voice and layout gates still run.']].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-signal">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
+      </div>
+      <CopyCode label="Template + named fields">{`curl -X POST https://api.brandrail.dev/v0/render \\
+  -H "Authorization: Bearer brk_…" \\
+  -H "content-type: application/json" \\
+  -d '{
+    "brand":"acme",
+    "brief":"Summer promotion",
+    "formats":["li-image"],
+    "template":"promo-card",
+    "modifications":[
+      {"format":"li-image","name":"badge","text":"-20%"},
+      {"format":"li-image","name":"hook","text":"Summer starts here"}
+    ]
+  }'`}</CopyCode>
+      <CopyCode label="Per-format template plan">{`{
+  "brand": "acme",
+  "brief": "Launch the summer collection",
+  "templates": {
+    "story": "cta-card",
+    "og-image": "announcement"
+  }
+}`}</CopyCode>
+      <CopyCode label="Approved image field">{`{
+  "brand": "acme",
+  "brief": "Summer product offer",
+  "formats": ["x-graphic"],
+  "template": "promo-card",
+  "media": [
+    {"format":"x-graphic","name":"primary","photoIndex":0}
+  ]
+}`}</CopyCode>
+      <CopyCode label="Reusable recipe file">{`{
+  "id": "weekly-launch",
+  "name": "Weekly launch",
+  "templates": {
+    "ig-carousel": "hero-statement",
+    "story": "cta-card",
+    "li-image": "split-stat"
+  },
+  "media": [
+    {"format":"story","name":"primary","photoIndex":0}
+  ]
+}`}</CopyCode>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Save a finished visual plan as a recipe from Studio. Recipes live in <code className="text-bone">composition.recipes</code>, create a new BrandSpec version, and can be applied with <code className="text-bone">{'{"recipe":"weekly-launch"}'}</code>. They preserve template and approved-image decisions—not old campaign copy.</p>
+    </section>
+  );
+}
+
 function McpSection() {
   return (
     <section>
@@ -207,9 +284,9 @@ function McpSection() {
       <p className="mt-4 text-[15px] leading-relaxed text-muted">The hosted Streamable HTTP endpoint exposes {MCP_TOOL_COUNT} lifecycle tools and inspectable PNG resources: brands, durable runs, planning, rendering, campaigns, review pauses, scoped publishing, calendar, analytics, usage and audit.</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-green">REMOTE</p><h3 className="mt-2 font-display text-lg font-bold">Hosted Streamable HTTP</h3><p className="mt-2 text-sm leading-relaxed text-muted">No local process. Best for clients that support remote MCP and persistent credentials.</p></article>
-        <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-signal">LOCAL</p><h3 className="mt-2 font-display text-lg font-bold">Stdio package</h3><p className="mt-2 text-sm leading-relaxed text-muted">Claude Desktop and Claude Code can run the source-built MCP package against cloud or self-hosted APIs.</p></article>
+        <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-signal">LOCAL</p><h3 className="mt-2 font-display text-lg font-bold">Local stdio server</h3><p className="mt-2 text-sm leading-relaxed text-muted">Claude Desktop and Claude Code can run the source-built MCP package against cloud or self-hosted APIs.</p></article>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can stay automatic, apply a BrandSpec <code className="text-bone">recipe</code>, choose templates, or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
       <div className="mt-5 border-l-2 border-green pl-4 text-sm leading-relaxed text-muted"><span className="font-mono text-[10px] text-green">OPENCLAW READY</span><br />Save the remote server with <code className="text-bone">openclaw mcp set</code>, keep the key in <code className="text-bone">BRANDRAIL_API_KEY</code>, then run <code className="text-bone">openclaw mcp doctor brandrail --probe</code>. No Brandrail-specific adapter is required.</div>
     </section>
   );

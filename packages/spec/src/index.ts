@@ -16,6 +16,7 @@ export {
   AssetRef,
   IsoDate,
   LayoutArchetype,
+  TemplateRecipeSchema,
   LAYOUT_ARCHETYPES,
   SPEC_SCHEMA_URL,
   SPEC_VERSION,
@@ -28,6 +29,7 @@ export type {
   VisualLanguage,
   PhotoAsset,
   Composition,
+  TemplateRecipe,
   Imagery,
   Voice,
   Judgment,
@@ -65,4 +67,4 @@ export {
 export { acme, acmeInput } from "./fixtures/acme.js";
 
 export { ARCHETYPE_INFO } from "./archetypes.js";
-export type { ArchetypeInfo } from "./archetypes.js";
+export type { ArchetypeInfo, TemplateMediaSlotName, TemplateSlotInfo, TemplateSlotName } from "./archetypes.js";

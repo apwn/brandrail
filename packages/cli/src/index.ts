@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
-import { Brandrail, BrandrailError } from "@brandrail/sdk";
+import { Brandrail, BrandrailError, type TemplateMediaSelection } from "@brandrail/sdk";
 import { stringify, formatDiff, isFormatId, ARCHETYPE_INFO, type FormatId } from "@brandrail/spec";
 
 /**
@@ -216,13 +216,17 @@ program
   .argument("<brief>", 'e.g. "Summer promotion"')
   .requiredOption("--brand <name>", "brand (a compiled spec name)")
   .option("--formats <list>", "comma-separated: ig-carousel,li-image,story,x-graphic,og-image")
-  .option("--archetype <name>", "layout archetype (default: brand's first allowed)")
+  .option("--recipe <id>", "saved visual recipe from the BrandSpec")
+  .option("--template <id>", "template from `brandrail templates` (default: auto mix)")
+  .option("--templates <plan>", "per-format plan: story=cta-card,og-image=announcement")
+  .option("--media <slots>", "approved photos: x-graphic.primary=0,story.primary=2")
+  .option("--archetype <name>", "compatibility alias for --template")
   .option("--run <runId>", "durable agent run to advance")
   .option("--out <dir>", "output directory", "./assets")
   .action(
     async (
       brief: string,
-      opts: { brand: string; formats?: string; archetype?: string; run?: string; out: string },
+      opts: { brand: string; formats?: string; recipe?: string; template?: string; templates?: string; media?: string; archetype?: string; run?: string; out: string },
     ) => {
       try {
         let formats: FormatId[] | undefined;
@@ -232,10 +236,34 @@ program
           if (bad.length) fail(`unknown formats: ${bad.join(", ")}`);
           formats = parts as FormatId[];
         }
+        if (opts.template && opts.archetype && opts.template !== opts.archetype) fail("--template and --archetype must match when both are supplied");
+        const selectedTemplate = opts.template ?? opts.archetype;
+        if (selectedTemplate && opts.templates) fail("use --template or --templates, not both");
+        const templatePlan: Partial<Record<FormatId, keyof typeof ARCHETYPE_INFO>> = {};
+        for (const entry of opts.templates?.split(",").filter(Boolean) ?? []) {
+          const [format, template, extra] = entry.split("=");
+          if (!format || !template || extra) fail(`invalid template plan entry: ${entry}`);
+          if (!isFormatId(format)) fail(`unknown format in template plan: ${format}`);
+          if (!(template in ARCHETYPE_INFO)) fail(`unknown template in plan: ${template}`);
+          templatePlan[format as FormatId] = template as keyof typeof ARCHETYPE_INFO;
+        }
+        const media = (opts.media?.split(",").filter(Boolean) ?? []).map((entry): TemplateMediaSelection => {
+          const [target, index, extra] = entry.split("=");
+          const [format, name, targetExtra] = target?.split(".") ?? [];
+          if (!format || !name || index === undefined || extra || targetExtra) fail(`invalid media selection: ${entry}`);
+          if (!isFormatId(format)) fail(`unknown format in media selection: ${format}`);
+          if (name !== "primary" && name !== "secondary") fail(`unknown media slot: ${name}`);
+          const photoIndex = Number(index);
+          if (!Number.isInteger(photoIndex) || photoIndex < 0 || photoIndex > 11) fail(`photo index must be 0–11: ${index}`);
+          return { format, name, photoIndex };
+        });
         const api = client();
         const res = await api.render(opts.brand, brief, {
           formats,
-          archetype: opts.archetype as never,
+          ...(opts.recipe ? { recipe: opts.recipe } : {}),
+          template: selectedTemplate as never,
+          ...(Object.keys(templatePlan).length ? { templates: templatePlan as never } : {}),
+          ...(media.length ? { media } : {}),
           ...(opts.run ? { runId: opts.run } : {}),
         });
         await mkdir(opts.out, { recursive: true });
@@ -276,8 +304,60 @@ program
         .join(" · ");
       console.log(`${name}${tags ? `  [${tags}]` : ""}`);
       console.log(`  ${info.description}`);
-      console.log(`  best for: ${info.bestFor}\n`);
+      console.log(`  best for: ${info.bestFor}`);
+      console.log(`  dynamic: ${Object.values(info.slots).map((slot) => `${slot.label}≤${slot.maxChars}`).join(", ")}`);
+      if (info.mediaSlots) console.log(`  imagery: ${Object.values(info.mediaSlots).map((slot) => `${slot.label} (BrandSpec library)`).join(", ")}`);
+      console.log(`  locked: ${info.locked.join(", ")}\n`);
     }
+  });
+
+const recipes = program.command("recipes").description("manage reusable BrandSpec visual systems");
+
+recipes.command("list").requiredOption("--brand <name>").action(async (opts: { brand: string }) => {
+  try {
+    const result = await client().listRecipes(opts.brand);
+    if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+    else if (!result.recipes.length) console.log("No saved recipes.");
+    else for (const recipe of result.recipes) console.log(`${recipe.id}  ${recipe.name}`);
+  } catch (e) { handleError(e); }
+});
+
+recipes.command("save")
+  .description("save a recipe JSON file as a new BrandSpec version")
+  .argument("<file>", "JSON file containing one recipe object")
+  .requiredOption("--brand <name>")
+  .action(async (file: string, opts: { brand: string }) => {
+    try {
+      const recipe = JSON.parse(await readFile(file, "utf8"));
+      const result = await client().createRecipe(opts.brand, recipe);
+      if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else console.log(`${result.recipe.id}  saved · BrandSpec v${result.specVersion}`);
+    } catch (e) { handleError(e); }
+  });
+
+recipes.command("rename")
+  .argument("<id>")
+  .requiredOption("--brand <name>")
+  .requiredOption("--name <name>")
+  .action(async (id: string, opts: { brand: string; name: string }) => {
+    try {
+      const result = await client().renameRecipe(opts.brand, id, opts.name);
+      if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else console.log(`${id}  renamed · BrandSpec v${result.specVersion}`);
+    } catch (e) { handleError(e); }
+  });
+
+recipes.command("delete")
+  .argument("<id>")
+  .requiredOption("--brand <name>")
+  .option("--confirm", "confirm permanent removal", false)
+  .action(async (id: string, opts: { brand: string; confirm: boolean }) => {
+    try {
+      if (!opts.confirm) fail("recipe deletion requires --confirm");
+      const result = await client().deleteRecipe(opts.brand, id);
+      if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
+      else console.log(`${result.deleted}  deleted · BrandSpec v${result.specVersion}`);
+    } catch (e) { handleError(e); }
   });
 
 const spec = program.command("spec").description("inspect and manage BrandSpecs");
@@ -477,15 +557,18 @@ review.command("create")
   .description("render an item into a human review batch")
   .requiredOption("--brand <name>", "BrandSpec name")
   .option("--title <title>", "review batch title")
-  .option("--archetype <name>", "layout archetype")
+  .option("--template <id>", "template from `brandrail templates`")
+  .option("--archetype <name>", "compatibility alias for --template")
   .option("--render <renderId>", "attach an existing render without generating it again")
   .option("--run <runId>", "durable agent run to advance")
-  .action(async (brief: string, opts: { brand: string; title?: string; archetype?: string; render?: string; run?: string }) => {
+  .action(async (brief: string, opts: { brand: string; title?: string; template?: string; archetype?: string; render?: string; run?: string }) => {
     try {
+      if (opts.template && opts.archetype && opts.template !== opts.archetype) fail("--template and --archetype must match when both are supplied");
+      const selectedTemplate = opts.template ?? opts.archetype;
       const batch = await client().createReviewBatch({
         ...(opts.title ? { title: opts.title } : {}),
         ...(opts.run ? { runId: opts.run } : {}),
-        items: [{ brand: opts.brand, brief, ...(opts.archetype ? { archetype: opts.archetype as never } : {}), ...(opts.render ? { renderId: opts.render } : {}) }],
+        items: [{ brand: opts.brand, brief, ...(selectedTemplate ? { archetype: selectedTemplate as never } : {}), ...(opts.render ? { renderId: opts.render } : {}) }],
       });
       if (isJson()) console.log(JSON.stringify({ ok: true, batch }));
       else {

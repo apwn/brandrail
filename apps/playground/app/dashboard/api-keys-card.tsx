@@ -28,7 +28,7 @@ type RpcResponse<T> = {
 
 const SCOPE_GROUPS = [
   { id: "create", label: "Create", scopes: ["brands:read", "brands:write", "assets:read", "assets:render"] },
-  { id: "operate", label: "Operate", scopes: ["reviews:read", "reviews:write", "campaigns:read", "campaigns:write", "calendar:read", "publish:schedule"] },
+  { id: "operate", label: "Operate", scopes: ["reviews:read", "reviews:write", "campaigns:read", "campaigns:write", "calendar:read", "channels:read", "publish:schedule"] },
   { id: "measure", label: "Measure", scopes: ["analytics:read", "audit:read"] },
   { id: "webhooks", label: "Manage hooks", scopes: ["webhooks:read", "webhooks:write"], warning: true },
   { id: "publish", label: "Publish now", scopes: ["publish:immediate"], warning: true },

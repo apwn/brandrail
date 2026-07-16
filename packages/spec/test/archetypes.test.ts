@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import { ARCHETYPE_INFO, LAYOUT_ARCHETYPES, acme, parse } from "../src/index.js";
+
+describe("template catalog", () => {
+  it("publishes dynamic-field contracts and locked brand objects for every template", () => {
+    expect(Object.keys(ARCHETYPE_INFO).sort()).toEqual([...LAYOUT_ARCHETYPES].sort());
+    for (const archetype of LAYOUT_ARCHETYPES) {
+      const template = ARCHETYPE_INFO[archetype];
+      expect(template.slots.hook).toMatchObject({ required: true });
+      expect(template.slots.hook!.maxChars).toBeGreaterThan(0);
+      expect(template.locked).toEqual(expect.arrayContaining(["colors", "type", "spacing", "logo"]));
+    }
+  });
+
+  it("keeps reusable visual recipes portable and mutually exclusive", () => {
+    const withRecipe = parse({
+      ...acme,
+      composition: {
+        ...acme.composition,
+        recipes: [{ id: "weekly-launch", name: "Weekly launch", templates: { story: "cta-card" } }],
+      },
+    });
+    expect(withRecipe.composition.recipes[0]).toMatchObject({ id: "weekly-launch", templates: { story: "cta-card" } });
+    expect(() => parse({
+      ...acme,
+      composition: {
+        ...acme.composition,
+        recipes: [{ id: "bad", name: "Bad", template: "quote", templates: { story: "cta-card" } }],
+      },
+    })).toThrow();
+  });
+
+  it("rejects empty and ambiguous visual recipes", () => {
+    expect(() => parse({
+      ...acme,
+      composition: { ...acme.composition, recipes: [{ id: "empty", name: "Empty" }] },
+    })).toThrow(/at least one template, modification, or media decision/);
+    expect(() => parse({
+      ...acme,
+      imagery: { ...acme.imagery, photos: ["https://example.com/photo.jpg"] },
+      composition: {
+        ...acme.composition,
+        recipes: [{
+          id: "ambiguous",
+          name: "Ambiguous",
+          media: [
+            { format: "story", name: "primary", photoIndex: 0 },
+            { format: "story", name: "primary", photoIndex: 0 },
+          ],
+        }],
+      },
+    })).toThrow(/media targets must be unique/);
+  });
+
+  it("rejects recipe fields that the selected template cannot render", () => {
+    expect(() => parse({
+      ...acme,
+      composition: {
+        ...acme.composition,
+        recipes: [{ id: "missing-product-photo", name: "Missing product photo", template: "promo-card" }],
+      },
+    })).toThrow(/promo-card requires 1 approved brand photo/);
+    expect(() => parse({
+      ...acme,
+      composition: {
+        ...acme.composition,
+        recipes: [{
+          id: "ignored-badge",
+          name: "Ignored badge",
+          template: "hero-statement",
+          modifications: [{ format: "story", slide: 0, name: "badge", text: "NEW" }],
+        }],
+      },
+    })).toThrow(/hero-statement does not expose the named text field "badge"/);
+    expect(() => parse({
+      ...acme,
+      imagery: { ...acme.imagery, photos: ["https://example.com/photo.jpg"] },
+      composition: {
+        ...acme.composition,
+        recipes: [{
+          id: "ignored-photo",
+          name: "Ignored photo",
+          templates: { story: "cta-card" },
+          media: [{ format: "story", name: "primary", photoIndex: 0 }],
+        }],
+      },
+    })).toThrow(/cta-card does not expose the named image field "primary"/);
+    expect(() => parse({
+      ...acme,
+      composition: {
+        ...acme.composition,
+        recipes: [{
+          id: "overlong-cta",
+          name: "Overlong CTA",
+          template: "cta-card",
+          modifications: [{ format: "story", slide: 0, name: "cta", text: "This call to action is far too long for the component" }],
+        }],
+      },
+    })).toThrow(/Call to action exceeds the cta-card limit of 24 characters/);
+  });
+});

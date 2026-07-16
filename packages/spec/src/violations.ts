@@ -15,6 +15,8 @@ export type ViolationCode =
   | "min-size"
   | "signal-area"
   | "overflow"
+  | "unsupported-template-field"
+  | "required-brand-asset"
   | "archetype-not-allowed"
   | "raw-design-value";
 

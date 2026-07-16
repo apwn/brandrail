@@ -5,8 +5,9 @@ The Brandrail MCP server. Gives compatible agents the full controlled content li
 | Tool | What it does | Comes back |
 |---|---|---|
 | `compile_brand(url)` | website → stored BrandSpec | ~150-token summary + low-confidence fields |
-| `list_templates()` | the 10 brand-locked templates + what each is best for | readable list (~250 tokens) |
-| `render_assets(brand, brief, formats?, archetype?)` | brief → finished brand-locked PNGs on disk | file paths (~100 tokens) |
+| `list_templates()` | 10 visual templates + dynamic fields + locked brand objects | readable catalog |
+| `list_recipes(brand)` / `save_recipe` / `rename_recipe` / `delete_recipe` | manage reusable BrandSpec visual systems | versioned recipe state |
+| `render_assets(brand, brief, formats?, recipe?, template?, templates?, modifications?, media?)` | brief + reusable or one-off visual direction → finished brand-locked PNGs | files + art direction |
 | `get_brand(brand, version?)` | fetch the full spec | canonical JSON (~600–1200 tokens) |
 | `diff_brand_spec(brand, from, to)` | semantic diff between versions | readable diff (~50–200 tokens) |
 | `list_brands()` | inspect workspace brands | names + versions |
@@ -28,7 +29,7 @@ The Brandrail MCP server. Gives compatible agents the full controlled content li
 | `get_usage()` | inspect plan and allowances | entitlements + remaining usage |
 | `get_audit_log()` | inspect mutations | actor + route + status |
 
-`render_assets` ranks content-compatible templates across the requested formats, composes and BrandSpec-gates the finalists, then returns semantic/visual scores, rejected alternatives, the selected intent, and rationale in `manifest.artDirection`; pass `archetype` (from `list_templates`) to override the ranking.
+`render_assets` ranks content-compatible templates across the requested formats, composes and BrandSpec-gates the finalists, then returns semantic/visual scores, rejected alternatives, the selected intent, and rationale in `manifest.artDirection`. Pass `recipe` to reuse a visual system stored in the BrandSpec, `template` to use one design everywhere, or `templates` to direct selected formats. Pass `modifications` for named text and `media` for approved BrandSpec imagery. Arbitrary image URLs never enter the contract; all voice, media and layout gates still run.
 
 Spec violations fail loudly with structured errors — the agent never receives a degraded render.
 

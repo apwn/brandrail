@@ -1,4 +1,4 @@
-import type { BrandSpec, DiffEntry, FormatId, LayoutArchetype, Violation } from "@brandrail/spec";
+import type { ArchetypeInfo, BrandSpec, DiffEntry, FormatId, LayoutArchetype, TemplateRecipe, TemplateSlotName, Violation } from "@brandrail/spec";
 
 export interface BrandrailOptions {
   /** API base URL. Defaults to $BRANDRAIL_API_URL / $RENDER_API_URL / https://api.brandrail.dev */
@@ -50,10 +50,12 @@ export interface RenderResponse {
   manifest: {
     brand: string;
     brief: string;
+    recipe?: string;
     formats: FormatId[];
     archetype: LayoutArchetype;
     plan?: Partial<Record<FormatId, LayoutArchetype>>;
     artDirection?: Partial<Record<FormatId, ArtDirectionDecision>>;
+    mediaSelections?: Partial<Record<FormatId, { primary?: number; secondary?: number }>>;
     warnings: string[];
   };
 }
@@ -62,6 +64,20 @@ export interface RenderHistoryEntry {
   id: string;
   createdAt: string;
   manifest: RenderResponse["manifest"] & { assets: RenderAssetRef[] };
+}
+
+export interface TemplateModification {
+  format: FormatId;
+  slide?: number;
+  name: TemplateSlotName;
+  text: string;
+}
+
+export interface TemplateMediaSelection {
+  format: FormatId;
+  name: "primary" | "secondary";
+  /** Zero-based index in the active BrandSpec imagery.photos library. */
+  photoIndex: number;
 }
 
 export interface ScheduledPost {
@@ -199,6 +215,22 @@ export class Brandrail {
     return this.request(`/v0/specs/${name}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 
+  listRecipes(brand: string): Promise<{ brand: string; specVersion: number; recipes: TemplateRecipe[] }> {
+    return this.request(`/v0/specs/${encodeURIComponent(brand)}/recipes`);
+  }
+
+  createRecipe(brand: string, recipe: TemplateRecipe): Promise<{ recipe: TemplateRecipe; specVersion: number }> {
+    return this.request(`/v0/specs/${encodeURIComponent(brand)}/recipes`, { method: "POST", body: JSON.stringify({ recipe }) });
+  }
+
+  renameRecipe(brand: string, id: string, name: string): Promise<{ recipe: TemplateRecipe; specVersion: number }> {
+    return this.request(`/v0/specs/${encodeURIComponent(brand)}/recipes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }) });
+  }
+
+  deleteRecipe(brand: string, id: string): Promise<{ deleted: string; specVersion: number }> {
+    return this.request(`/v0/specs/${encodeURIComponent(brand)}/recipes/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
   async forkSpec(parent: string, name: string, overrides: object = {}): Promise<BrandSpec> {
     const res = await this.request<{ spec: BrandSpec }>(`/v0/specs/${parent}/fork`, {
       method: "POST",
@@ -217,16 +249,31 @@ export class Brandrail {
     brief: string,
     opts: {
       formats?: FormatId[];
+      /** Reusable visual system stored in the active BrandSpec. */
+      recipe?: string;
+      /** Preferred public selector for a fixed catalog design. */
+      template?: LayoutArchetype;
+      /** Per-format manual choices. Formats omitted from the map stay automatic. */
+      templates?: Partial<Record<FormatId, LayoutArchetype>>;
+      /** Compatibility alias for template. */
       archetype?: LayoutArchetype;
       version?: number;
       copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string }>>;
       runId?: string;
+      /** Named dynamic-field changes applied after copy generation. */
+      modifications?: TemplateModification[];
+      /** Named image slots may only select an existing BrandSpec photo. */
+      media?: TemplateMediaSelection[];
     } = {},
   ): Promise<RenderResponse> {
     return this.request("/v0/render", {
       method: "POST",
       body: JSON.stringify({ brand, brief, ...opts }),
     });
+  }
+
+  listTemplates(): Promise<{ templates: Array<{ id: LayoutArchetype } & ArchetypeInfo>; modes: string[]; rule: string }> {
+    return this.request("/v0/templates");
   }
 
   async listRenders(limit = 24): Promise<RenderHistoryEntry[]> {

@@ -2,13 +2,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Brandrail, BrandrailError } from "@brandrail/sdk";
+import { Brandrail, BrandrailError, type TemplateMediaSelection, type TemplateModification } from "@brandrail/sdk";
 import {
   stringify,
   ALL_FORMATS,
   ARCHETYPE_INFO,
   type FormatId,
   type LayoutArchetype,
+  type TemplateRecipe,
 } from "@brandrail/spec";
 
 const ARCHETYPES = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
@@ -73,26 +74,49 @@ export function buildServer(): McpServer {
   server.registerTool(
     "render_assets",
     {
-      description: `Render finished, brand-locked social assets from a one-line brief. Formats: ${ALL_FORMATS.join(", ")} (default: all five). Writes PNG files to disk and returns their paths plus inspectable content intent and art-direction choices (~150 tokens). Takes ~10-20s. By default Brandrail ranks content-compatible templates while preserving campaign variety; pass "archetype" to force one (see list_templates). Violations of the brand spec fail loudly instead of rendering degraded output.`,
+      description: `Render finished, brand-locked social assets from a one-line brief. Formats: ${ALL_FORMATS.join(", ")} (default: all five). Writes PNG files to disk and returns their paths plus inspectable content intent and art-direction choices (~150 tokens). Takes ~10-20s. By default Brandrail ranks content-compatible templates while preserving campaign variety; pass "template" to force one and "modifications" to set named dynamic fields (see list_templates). Violations of the brand spec fail loudly instead of rendering degraded output.`,
       inputSchema: {
         brand: z.string().describe("a compiled brand name (from compile_brand)"),
         brief: z.string().describe('what to make, e.g. "Summer promotion"'),
+        recipe: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64).optional().describe("reusable visual recipe stored in the BrandSpec"),
         formats: z
           .array(z.enum(ALL_FORMATS as unknown as [string, ...string[]]))
           .optional()
           .describe("subset of formats; omit for all five"),
-        archetype: z
+        template: z
           .enum(ARCHETYPES as unknown as [string, ...string[]])
           .optional()
           .describe("force one template for every format; omit for the auto mix (see list_templates)"),
+        templates: z.record(
+          z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+          z.enum(ARCHETYPES as unknown as [string, ...string[]]),
+        ).optional().describe("per-format template plan; omitted formats stay automatic and this cannot be combined with template"),
+        archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional().describe("compatibility alias for template"),
+        modifications: z.array(z.object({
+          format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+          slide: z.number().int().min(0).optional(),
+          name: z.enum(["kicker", "hook", "body", "cta", "badge", "rating"]),
+          text: z.string().max(500),
+        })).max(100).optional().describe("named text-field changes applied after copy generation; slide is zero-based"),
+        media: z.array(z.object({
+          format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+          name: z.enum(["primary", "secondary"]),
+          photoIndex: z.number().int().min(0).max(11),
+        })).max(10).optional().describe("named image-slot selections using zero-based indexes from the active BrandSpec photo library"),
         runId: z.string().optional().describe("durable run to advance after rendering"),
       },
     },
-    async ({ brand, brief, formats, archetype, runId }) => {
+    async ({ brand, brief, recipe, formats, template, templates, archetype, modifications, media, runId }) => {
       try {
+        if (template && archetype && template !== archetype) throw new Error("template and archetype must match when both are supplied");
+        if ((template || archetype) && templates) throw new Error("use template or templates, not both");
         const res = await api.render(brand, brief, {
+          recipe,
           formats: formats as FormatId[] | undefined,
-          archetype: archetype as LayoutArchetype | undefined,
+          template: (template ?? archetype) as LayoutArchetype | undefined,
+          templates: templates as Partial<Record<FormatId, LayoutArchetype>> | undefined,
+          modifications: modifications as TemplateModification[] | undefined,
+          media: media as TemplateMediaSelection[] | undefined,
           runId,
         });
         await mkdir(outDir, { recursive: true });
@@ -140,10 +164,78 @@ export function buildServer(): McpServer {
   );
 
   server.registerTool(
+    "list_recipes",
+    {
+      description: "List reusable visual recipes stored in a BrandSpec. Use a matching recipe before inventing a new template plan.",
+      inputSchema: { brand: z.string() },
+    },
+    async ({ brand }) => {
+      try {
+        const result = await api.listRecipes(brand);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "save_recipe",
+    {
+      description: "Save a reusable visual system as a new BrandSpec version. Preserve template and approved-image decisions; keep campaign copy out of the recipe unless explicitly requested.",
+      inputSchema: {
+        brand: z.string(),
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64),
+        name: z.string().min(1).max(64),
+        template: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional(),
+        templates: z.record(z.enum(ALL_FORMATS as unknown as [string, ...string[]]), z.enum(ARCHETYPES as unknown as [string, ...string[]])).optional(),
+        media: z.array(z.object({ format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]), name: z.enum(["primary", "secondary"]), photoIndex: z.number().int().min(0).max(11) })).max(10).optional(),
+      },
+    },
+    async ({ brand, id, name, template, templates, media }) => {
+      try {
+        const recipe = { id, name, template, templates, media } as TemplateRecipe;
+        const result = await api.createRecipe(brand, recipe);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "rename_recipe",
+    {
+      description: "Rename a saved visual recipe and create a new BrandSpec version without changing its visual decisions.",
+      inputSchema: {
+        brand: z.string(),
+        recipeId: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64),
+        name: z.string().min(1).max(64),
+      },
+    },
+    async ({ brand, recipeId, name }) => {
+      try {
+        const result = await api.renameRecipe(brand, recipeId, name);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "delete_recipe",
+    {
+      description: "Delete a saved recipe and create a new BrandSpec version. Use only after explicit user confirmation.",
+      inputSchema: { brand: z.string(), recipeId: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64) },
+    },
+    async ({ brand, recipeId }) => {
+      try {
+        const result = await api.deleteRecipe(brand, recipeId);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
     "list_templates",
     {
       description:
-        "List the brand-locked templates (archetypes) available to render_assets, with what each is best for. Call this before forcing an archetype. Returns ~250 tokens.",
+        "List the brand-locked visual templates available to render_assets, including named dynamic fields and locked design objects. Call this before selecting a template. Returns ~250 tokens.",
       inputSchema: {},
     },
     async () => {
@@ -155,13 +247,15 @@ export function buildServer(): McpServer {
         ]
           .filter(Boolean)
           .join(", ");
-        return `- ${a} — ${info.description} Best for: ${info.bestFor}.${tags ? ` (${tags})` : ""}`;
+        const dynamic = Object.entries(info.slots).map(([name, slot]) => `${name}≤${slot.maxChars}`).join(", ");
+        const imagery = info.mediaSlots ? ` Imagery: ${Object.entries(info.mediaSlots).map(([name, slot]) => `${name} (${slot.label})`).join(", ")}.` : "";
+        return `- ${a} — ${info.description} Best for: ${info.bestFor}. Dynamic: ${dynamic}.${imagery} Locked: ${info.locked.join(", ")}.${tags ? ` (${tags})` : ""}`;
       });
       return {
         content: [
           {
             type: "text" as const,
-            text: `Templates (pass as render_assets archetype):\n${lines.join("\n")}\n\nOmit archetype to let Brandrail pick a fitting mix across the 5 formats.`,
+            text: `Templates (pass as render_assets template):\n${lines.join("\n")}\n\nOmit template to let Brandrail pick a fitting mix across formats and carousel slides.`,
           },
         ],
       };

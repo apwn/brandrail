@@ -24,7 +24,7 @@ Use Brandrail when the user asks for branded social content, a repeatable conten
 
 `list_brands` → `get_brand` → `start_campaign_run` → `render_assets` or `create_review_batch` → human review → `get_review_status` → `schedule_post(dryRun=true)` → explicit confirmation → `schedule_post` → `get_analytics`
 
-When `render_assets` is left on auto, inspect `manifest.artDirection`: it reports the inferred content intent, selected layout, semantic and composed-canvas scores, rejected alternatives, and rationale. Only force an archetype when the user asks for a specific treatment or the supplied content makes the automatic interpretation wrong.
+When `render_assets` is left on auto, inspect `manifest.artDirection`: it reports the inferred content intent, selected layout, semantic and composed-canvas scores, rejected alternatives, and rationale. Prefer a user-selected BrandSpec `recipe` when one matches the job; it reuses visual decisions while copy stays fresh. Only force a `template` when the user asks for a specific treatment or the supplied content makes the automatic interpretation wrong. Use `list_templates` first for named text/image fields, required photo counts, and locked objects. Use `modifications` for text and `media` for a BrandSpec photo index. Never choose a photo-required template without enough approved BrandSpec imagery, pass arbitrary image URLs, or override locked colors, type, spacing, logos, crops, or treatments.
 
 ## CLI fallback
 

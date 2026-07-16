@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALL_FORMATS, type FormatId } from "./formats.js";
 
 export const SPEC_SCHEMA_URL = "https://brandrail.dev/spec/v0.1.json";
 export const SPEC_VERSION = "0.1";
@@ -37,6 +38,42 @@ export const LAYOUT_ARCHETYPES = [
 ] as const;
 export const LayoutArchetype = z.enum(LAYOUT_ARCHETYPES);
 export type LayoutArchetype = z.infer<typeof LayoutArchetype>;
+const FormatIdSchema = z.enum(ALL_FORMATS as unknown as [FormatId, ...FormatId[]]);
+
+export const TemplateRecipeSchema = z.object({
+  id: Slug,
+  name: z.string().trim().min(1).max(64),
+  template: LayoutArchetype.optional(),
+  templates: z.record(FormatIdSchema, LayoutArchetype).optional(),
+  modifications: z.array(z.object({
+    format: FormatIdSchema,
+    slide: z.number().int().min(0).max(20).default(0),
+    name: z.enum(["kicker", "hook", "body", "cta", "badge", "rating"]),
+    text: z.string().max(500),
+  })).max(100).optional(),
+  media: z.array(z.object({
+    format: FormatIdSchema,
+    name: z.enum(["primary", "secondary"]),
+    photoIndex: z.number().int().min(0).max(11),
+  })).max(10).optional(),
+}).superRefine((value, ctx) => {
+  if (value.template && value.templates) ctx.addIssue({ code: "custom", message: "recipe uses template or templates, not both" });
+  const hasDecision = Boolean(
+    value.template
+    || Object.keys(value.templates ?? {}).length
+    || value.modifications?.length
+    || value.media?.length,
+  );
+  if (!hasDecision) ctx.addIssue({ code: "custom", message: "recipe must preserve at least one template, modification, or media decision" });
+  const modificationTargets = (value.modifications ?? []).map((item) => `${item.format}:${item.slide}:${item.name}`);
+  if (new Set(modificationTargets).size !== modificationTargets.length) {
+    ctx.addIssue({ code: "custom", path: ["modifications"], message: "recipe modification targets must be unique" });
+  }
+  const mediaTargets = (value.media ?? []).map((item) => `${item.format}:${item.name}`);
+  if (new Set(mediaTargets).size !== mediaTargets.length) {
+    ctx.addIssue({ code: "custom", path: ["media"], message: "recipe media targets must be unique" });
+  }
+});
 
 export const MetaSchema = z.object({
   name: Slug,
@@ -168,6 +205,12 @@ export const CompositionSchema = z
     layoutArchetypes: z.array(LayoutArchetype).nonempty().default([...LAYOUT_ARCHETYPES]),
     whitespaceMinPct: z.number().min(0).max(80).default(30),
     alignment: z.enum(["left", "center", "mixed"]).default("left"),
+    /** Reusable visual decisions; campaign copy remains separate. */
+    recipes: z.array(TemplateRecipeSchema).max(24).default([]),
+  })
+  .superRefine((value, ctx) => {
+    const ids = value.recipes.map((recipe) => recipe.id);
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", message: "recipe ids must be unique" });
   })
   .default({});
 
@@ -232,6 +275,20 @@ export const BrandSpecSchema = z.object({
   imagery: ImagerySchema,
   voice: VoiceSchema,
   judgment: JudgmentSchema,
+}).superRefine((value, ctx) => {
+  for (const [recipeIndex, recipe] of value.composition.recipes.entries()) {
+    const selected = [recipe.template, ...Object.values(recipe.templates ?? {})].filter(Boolean) as LayoutArchetype[];
+    for (const archetype of selected) {
+      if (!value.composition.layoutArchetypes.includes(archetype)) {
+        ctx.addIssue({ code: "custom", path: ["composition", "recipes", recipeIndex], message: `recipe template ${archetype} is not allowed by this BrandSpec` });
+      }
+    }
+    for (const media of recipe.media ?? []) {
+      if (!value.imagery.photos[media.photoIndex]) {
+        ctx.addIssue({ code: "custom", path: ["composition", "recipes", recipeIndex, "media"], message: `recipe references missing brand photo ${media.photoIndex}` });
+      }
+    }
+  }
 });
 
 export type BrandSpec = z.infer<typeof BrandSpecSchema>;
@@ -241,6 +298,7 @@ export type Identity = z.infer<typeof IdentitySchema>;
 export type VisualLanguage = z.infer<typeof VisualLanguageSchema>;
 export type PhotoAsset = z.infer<typeof PhotoAssetSchema>;
 export type Composition = z.infer<typeof CompositionSchema>;
+export type TemplateRecipe = z.infer<typeof TemplateRecipeSchema>;
 export type Imagery = z.infer<typeof ImagerySchema>;
 export type Voice = z.infer<typeof VoiceSchema>;
 export type Judgment = z.infer<typeof JudgmentSchema>;
