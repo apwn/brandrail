@@ -24,6 +24,12 @@ describe("Brandrail MCP server", () => {
         "diff_brand_spec",
         "list_brands",
         "plan_campaign",
+        "list_content_programs",
+        "preview_content_program",
+        "create_content_program",
+        "run_content_program",
+        "pause_content_program",
+        "delete_content_program",
         "list_channels",
         "create_review_batch",
         "get_review_status",
@@ -54,6 +60,8 @@ describe("Brandrail MCP server", () => {
       expect(tools.get("create_review_batch")?.properties?.items?.items?.properties).toHaveProperty("renderId");
       expect(tools.get("create_review_batch")?.properties).toHaveProperty("runId");
       expect(tools.get("get_review_status")?.properties).toHaveProperty("runId");
+      expect(tools.get("preview_content_program")?.properties).toHaveProperty("horizonWeeks");
+      expect(tools.get("create_content_program")?.properties).toHaveProperty("plannedPosts");
     } finally {
       await client.close();
     }

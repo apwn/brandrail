@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Brandrail, BrandrailError, type TemplateMediaSelection, type TemplateModification } from "@brandrail/sdk";
+import { Brandrail, BrandrailError, type ContentProgramInput, type TemplateMediaSelection, type TemplateModification } from "@brandrail/sdk";
 import {
   stringify,
   ALL_FORMATS,
@@ -13,6 +13,30 @@ import {
 } from "@brandrail/spec";
 
 const ARCHETYPES = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
+const contentProgramInput = {
+  brand: z.string().min(1).describe("compiled brand name"),
+  name: z.string().min(2).max(120).optional(),
+  objective: z.string().min(3).max(500).describe("business outcome the content should advance"),
+  audience: z.string().max(240).optional(),
+  pillars: z.array(z.string().min(1).max(80)).max(6).optional(),
+  offer: z.string().max(240).optional(),
+  importantDates: z.array(z.object({ date: z.string().describe("YYYY-MM-DD"), label: z.string().min(1).max(120) })).max(12).optional(),
+  perWeek: z.number().int().min(1).max(7),
+  horizonWeeks: z.union([z.literal(1), z.literal(4)]).optional(),
+  channelIds: z.array(z.string()).max(20).optional(),
+  approvalMode: z.enum(["review", "auto"]).optional().describe("review is the safe default; auto requires connected channels"),
+  startAt: z.string().optional().describe("YYYY-MM-DD"),
+  endAt: z.string().optional().describe("YYYY-MM-DD"),
+  paused: z.boolean().optional(),
+  plannedPosts: z.array(z.object({
+    week: z.number().int().min(1).max(4),
+    scheduledFor: z.string().datetime(),
+    brief: z.string().min(2).max(120),
+    rationale: z.string().max(200),
+    archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]),
+    format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+  })).max(28).optional().describe("approved posts returned by preview_content_program; pass them to preserve that exact preview"),
+};
 
 /**
  * Tool descriptions are written for agent consumption: they state what comes
@@ -307,6 +331,42 @@ export function buildServer(): McpServer {
       try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.executionPlan(input), null, 2) }] }; }
       catch (e) { return err(e); }
     },
+  );
+
+  server.registerTool(
+    "list_content_programs",
+    { description: "List the rolling weekly or monthly content programs in this workspace, including cadence, strategy, status and next run.", inputSchema: {} },
+    async () => { try { const data = { programs: await api.listContentPrograms() }; return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "preview_content_program",
+    { description: "Plan a coherent week or month without saving or rendering. Returns dated post ideas across the full horizon. Use this before create_content_program.", inputSchema: contentProgramInput },
+    async (input) => { try { const data = await api.previewContentProgram(input as ContentProgramInput); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "create_content_program",
+    { description: "Create or update a rolling content program. Pass plannedPosts from preview_content_program to preserve the approved calendar exactly. If omitted, Brandrail plans a fresh horizon. Only the next week renders so later work can learn from performance. Studio required.", inputSchema: contentProgramInput },
+    async (input) => { try { const data = await api.saveContentProgram(input as ContentProgramInput); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "run_content_program",
+    { description: "Produce the next week for one active content program now. Review-mode programs pause in the human queue; auto-mode programs schedule only to their selected connected channels.", inputSchema: { brand: z.string().min(1) } },
+    async ({ brand }) => { try { const data = await api.runContentProgram(brand); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "pause_content_program",
+    { description: "Pause or resume a content program without deleting its strategy or prior work.", inputSchema: { brand: z.string().min(1), paused: z.boolean().default(true) } },
+    async ({ brand, paused }) => { try { const data = await api.setContentProgramPaused(brand, paused); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+  );
+
+  server.registerTool(
+    "delete_content_program",
+    { description: "Delete a content program. Existing renders, review decisions and scheduled posts remain intact.", inputSchema: { brand: z.string().min(1), confirm: z.literal(true) } },
+    async ({ brand }) => { try { const data = await api.deleteContentProgram(brand); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(

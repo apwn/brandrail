@@ -33,8 +33,32 @@ const campaignFields = {
   status: { type: "string", enum: ["draft", "active", "complete"] }, startAt: { type: "string", format: "date-time" }, endAt: { type: "string", format: "date-time" },
   brandIds: { type: "array", items: { type: "string" }, maxItems: 50 }, batchIds: { type: "array", items: { type: "string" }, maxItems: 100 }, postIds: { type: "array", items: { type: "string" }, maxItems: 500 },
 };
+const contentProgramFields = {
+  brand,
+  name: { type: "string", minLength: 2, maxLength: 120 },
+  objective: { type: "string", minLength: 3, maxLength: 500 },
+  audience: { type: "string", maxLength: 240 },
+  pillars: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 6 },
+  offer: { type: "string", maxLength: 240 },
+  importantDates: { type: "array", maxItems: 12, items: object({ date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, label: { type: "string", minLength: 1, maxLength: 120 } }, ["date", "label"]) },
+  perWeek: { type: "integer", minimum: 1, maximum: 7 },
+  horizonWeeks: { type: "integer", enum: [1, 4] },
+  channelIds: { type: "array", items: { type: "string" }, maxItems: 20 },
+  approvalMode: { type: "string", enum: ["review", "auto"] },
+  startAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+  endAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+  paused: { type: "boolean" },
+  plannedPosts: { type: "array", maxItems: 28, items: object({
+    week: { type: "integer", minimum: 1, maximum: 4 },
+    scheduledFor: { type: "string", format: "date-time" },
+    brief: { type: "string", minLength: 2, maxLength: 120 },
+    rationale: { type: "string", maxLength: 200 },
+    archetype: { type: "string" },
+    format: { type: "string" },
+  }, ["week", "scheduledFor", "brief", "rationale", "archetype", "format"]) },
+};
 
-export const MCP_INSTRUCTIONS = "Brandrail is an approval-safe execution rail. Start with list_brands, then plan_campaign or start_campaign_run. Rendered output is never published automatically. Use a review batch and wait for human approval, or obtain explicit confirmation. Always call schedule_post with dryRun=true before a real schedule or publish call. Never approve your own work.";
+export const MCP_INSTRUCTIONS = "Brandrail is an approval-safe content operating rail. Start with list_brands. For one campaign use plan_campaign or start_campaign_run; for an ongoing weekly or monthly outcome use preview_content_program before create_content_program. Rendered output is never published automatically unless the user explicitly selected auto mode with connected channels. Use review pauses by default. Always call schedule_post with dryRun=true before an individual real schedule or publish call. Never approve your own work.";
 
 export const MCP_TOOLS: Tool[] = [
   tool("list_brands", "List brands", "List BrandSpecs in this workspace. Start here unless the user supplied a brand name.", object(), { readOnlyHint: true, idempotentHint: true }),
@@ -47,6 +71,12 @@ export const MCP_TOOLS: Tool[] = [
   tool("list_templates", "List templates", "List the visual template library, named dynamic fields, and BrandSpec-locked design objects.", object(), { readOnlyHint: true, idempotentHint: true }),
   tool("diff_brand_spec", "Diff brand versions", "Review the semantic change between two BrandSpec versions.", object({ brand, from: { type: "integer", minimum: 1 }, to: { type: "integer", minimum: 1 } }, ["brand", "from", "to"]), { readOnlyHint: true, idempotentHint: true }),
   tool("plan_campaign", "Plan campaign", "Dry-run a campaign. Returns blockers, safeguards, estimated usage, and exact mutating steps.", object({ objective: { type: "string", minLength: 3, maxLength: 500 }, brand, channels: { type: "array", items: { type: "string" }, maxItems: 20 }, assetCount: { type: "integer", minimum: 1, maximum: 50 }, publishAt: { type: "string", format: "date-time" } }, ["objective"]), { readOnlyHint: true, idempotentHint: true }),
+  tool("list_content_programs", "List content programs", "List rolling content programs with their strategy, cadence, status, and next production run.", object(), { readOnlyHint: true, idempotentHint: true }),
+  tool("preview_content_program", "Preview content program", "Plan a coherent week or month without saving or rendering. Use this before creating an ongoing program.", object(contentProgramFields, ["brand", "objective", "perWeek"]), { readOnlyHint: true }),
+  tool("create_content_program", "Create content program", "Create or update an ongoing content program. Pass plannedPosts from the preview to preserve it exactly; otherwise Brandrail plans a fresh horizon. Only one adaptive week renders at a time. Studio required.", object(contentProgramFields, ["brand", "objective", "perWeek"]), { idempotentHint: true }),
+  tool("run_content_program", "Run content program", "Produce the next week now. Review mode pauses in the human queue; auto mode schedules only to selected connected channels.", object({ brand }, ["brand"])),
+  tool("pause_content_program", "Pause content program", "Pause or resume future production without deleting strategy or existing work.", object({ brand, paused: { type: "boolean" } }, ["brand", "paused"]), { idempotentHint: true }),
+  tool("delete_content_program", "Delete content program", "Delete future program execution. Existing assets, reviews, and scheduled posts remain intact.", object({ brand, confirm: { type: "boolean", const: true } }, ["brand", "confirm"]), { destructiveHint: true, idempotentHint: true }),
   tool("start_campaign_run", "Start agent run", "Create a durable, resumable campaign run. By default it pauses for plan confirmation; start=true begins work.", object({ objective: { type: "string", minLength: 3, maxLength: 500 }, brand, channels: { type: "array", items: { type: "string" }, maxItems: 20 }, assetCount: { type: "integer", minimum: 1, maximum: 50 }, publishAt: { type: "string", format: "date-time" }, start: { type: "boolean" } }, ["objective"])),
   tool("list_agent_runs", "List agent runs", "List durable campaign runs and their current progress.", object({ limit: { type: "integer", minimum: 1, maximum: 100 } }), { readOnlyHint: true, idempotentHint: true }),
   tool("get_agent_run", "Get agent run", "Retrieve one durable run after reconnecting or an approval pause.", object({ runId }, ["runId"]), { readOnlyHint: true, idempotentHint: true }),
@@ -82,6 +112,7 @@ type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: stri
 function pathFor(name: string, args: Record<string, unknown>): { path: string; init?: RequestInit } | null {
   const post = (path: string, body: unknown) => ({ path, init: { method: "POST", body: JSON.stringify(body) } });
   const patch = (path: string, body: unknown) => ({ path, init: { method: "PATCH", body: JSON.stringify(body) } });
+  const put = (path: string, body: unknown) => ({ path, init: { method: "PUT", body: JSON.stringify(body) } });
   switch (name) {
     case "list_brands": return { path: "/v0/specs" };
     case "compile_brand": return post("/v0/compile", args);
@@ -92,6 +123,12 @@ function pathFor(name: string, args: Record<string, unknown>): { path: string; i
     case "delete_recipe": return { path: `/v0/specs/${encodeURIComponent(String(args.brand))}/recipes/${encodeURIComponent(String(args.recipeId))}`, init: { method: "DELETE" } };
     case "diff_brand_spec": return { path: `/v0/specs/${encodeURIComponent(String(args.brand))}/diff?from=${Number(args.from)}&to=${Number(args.to)}` };
     case "plan_campaign": return post("/v0/agent/plan", args);
+    case "list_content_programs": return { path: "/v0/content-programs" };
+    case "preview_content_program": return post("/v0/content-programs/preview", args);
+    case "create_content_program": return put(`/v0/content-programs/${encodeURIComponent(String(args.brand))}`, args);
+    case "run_content_program": return post(`/v0/content-programs/${encodeURIComponent(String(args.brand))}/run`, {});
+    case "pause_content_program": return post(`/v0/content-programs/${encodeURIComponent(String(args.brand))}/pause`, { paused: args.paused });
+    case "delete_content_program": return { path: `/v0/content-programs/${encodeURIComponent(String(args.brand))}`, init: { method: "DELETE" } };
     case "start_campaign_run": return post("/v0/agent/runs", args);
     case "list_agent_runs": return { path: `/v0/agent/runs?limit=${Math.min(100, Math.max(1, Number(args.limit ?? 25)))}` };
     case "get_agent_run": return { path: `/v0/agent/runs/${encodeURIComponent(String(args.runId))}` };

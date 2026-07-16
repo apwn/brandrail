@@ -98,8 +98,8 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
 
   return (
     <section className="panel p-5 mt-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="eyebrow text-bone">AUTOPILOT · CONTENT THAT CREATES ITSELF</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><p className="eyebrow text-bone">CONTENT PROGRAM · ROLLING WEEKLY PRODUCTION</p><a href="/program" className="mt-2 inline-block text-sm font-semibold text-signal hover:text-bone">Plan the next 30 days →</a></div>
         {active.length > 0 && (
           <span className="font-mono text-[11px] text-green">
             {active.reduce((n, c) => n + c.perWeek, 0)} posts/wk across {active.length} brand{active.length === 1 ? "" : "s"}

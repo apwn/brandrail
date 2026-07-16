@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
-import { Brandrail, BrandrailError, type TemplateMediaSelection } from "@brandrail/sdk";
+import { Brandrail, BrandrailError, type ContentProgramInput, type TemplateMediaSelection } from "@brandrail/sdk";
 import { stringify, formatDiff, isFormatId, ARCHETYPE_INFO, type FormatId } from "@brandrail/spec";
 
 /**
@@ -48,6 +48,55 @@ function handleError(e: unknown): never {
     process.exit(EXIT_VIOLATION);
   }
   fail(e instanceof Error ? e.message : String(e));
+}
+
+type ContentOptions = {
+  brand: string; name?: string; audience?: string; pillars?: string; offer?: string; dates?: string;
+  perWeek: string; horizon: string; channels?: string; approval: "review" | "auto"; start?: string; end?: string;
+};
+
+function contentInput(objective: string, opts: ContentOptions): ContentProgramInput {
+  const importantDates = (opts.dates ?? "").split(";").map((item) => item.trim()).filter(Boolean).map((item) => {
+    const separator = item.indexOf(":");
+    if (separator < 10) fail("--dates must use YYYY-MM-DD:Label;YYYY-MM-DD:Label");
+    return { date: item.slice(0, separator), label: item.slice(separator + 1).trim() };
+  });
+  const horizon = Number(opts.horizon);
+  if (horizon !== 1 && horizon !== 4) fail("--horizon must be 1 or 4");
+  const perWeek = Number(opts.perWeek);
+  if (!Number.isInteger(perWeek) || perWeek < 1 || perWeek > 7) fail("--per-week must be between 1 and 7");
+  if (!['review', 'auto'].includes(opts.approval)) fail("--approval must be review or auto");
+  return {
+    brand: opts.brand,
+    objective,
+    perWeek,
+    horizonWeeks: horizon,
+    approvalMode: opts.approval,
+    ...(opts.name ? { name: opts.name } : {}),
+    ...(opts.audience ? { audience: opts.audience } : {}),
+    ...(opts.pillars ? { pillars: opts.pillars.split(",").map((item) => item.trim()).filter(Boolean) } : {}),
+    ...(opts.offer ? { offer: opts.offer } : {}),
+    ...(importantDates.length ? { importantDates } : {}),
+    ...(opts.channels ? { channelIds: opts.channels.split(",").map((item) => item.trim()).filter(Boolean) } : {}),
+    ...(opts.start ? { startAt: opts.start } : {}),
+    ...(opts.end ? { endAt: opts.end } : {}),
+  } as ContentProgramInput;
+}
+
+function contentOptions(command: Command): Command {
+  return command
+    .requiredOption("--brand <name>", "BrandSpec name")
+    .option("--name <name>", "program name")
+    .option("--audience <description>", "who the content is for")
+    .option("--pillars <items>", "comma-separated content pillars")
+    .option("--offer <text>", "current offer or CTA")
+    .option("--dates <items>", "important dates as YYYY-MM-DD:Label;YYYY-MM-DD:Label")
+    .option("--per-week <count>", "posts per week", "3")
+    .option("--horizon <weeks>", "preview horizon: 1 or 4 weeks", "4")
+    .option("--channels <ids>", "comma-separated channel IDs; omit for all connected channels")
+    .option("--approval <mode>", "review or auto", "review")
+    .option("--start <date>", "start date, YYYY-MM-DD")
+    .option("--end <date>", "optional end date, YYYY-MM-DD");
 }
 
 type McpRpcResponse<T> = { result?: T; error?: { code?: number; message?: string } };
@@ -464,6 +513,58 @@ program.command("schedule")
       else console.log(`${result.post.status}  ${result.post.id}  ${result.post.scheduledAt}${result.deduplicated ? "  (deduplicated)" : ""}`);
     } catch (e) { handleError(e); }
   });
+
+const content = program.command("content").description("plan and operate a rolling weekly or monthly content program");
+content.command("list").description("list content programs and next production times").action(async () => {
+  try {
+    const programs = await client().listContentPrograms();
+    if (isJson()) console.log(JSON.stringify({ ok: true, programs }));
+    else if (!programs.length) console.log("No content programs yet. Start with: brandrail content preview <objective> --brand <name>");
+    else for (const row of programs) console.log(`${row.status.padEnd(9)}  ${row.brand.padEnd(18)}  ${row.perWeek}/wk  next ${row.nextRunAt?.slice(0, 10) ?? "—"}  ${row.name}`);
+  } catch (e) { handleError(e); }
+});
+
+contentOptions(content.command("preview").description("preview a coherent week or month without saving or rendering").argument("<objective>", "business outcome"))
+  .option("--activate", "save this exact approved preview as the active program")
+  .action(async (objective: string, opts: ContentOptions & { activate?: boolean }) => {
+    try {
+      const input = contentInput(objective, opts);
+      const preview = await client().previewContentProgram(input);
+      const saved = opts.activate ? await client().saveContentProgram({ ...input, plannedPosts: preview.posts }) : null;
+      if (isJson()) console.log(JSON.stringify({ ok: true, preview, ...(saved ? { program: saved } : {}) }));
+      else {
+        console.log(`${preview.totalPosts} posts · ${preview.horizonWeeks} week${preview.horizonWeeks === 1 ? "" : "s"} · rolling weekly production`);
+        for (const post of preview.posts) console.log(`W${post.week}  ${post.scheduledFor.slice(0, 10)}  ${post.format.padEnd(11)}  ${post.brief}`);
+        console.log(saved ? `active  ${saved.name} · this exact calendar is saved` : `next  rerun with --activate to save this exact calendar`);
+      }
+    } catch (e) { handleError(e); }
+  });
+
+contentOptions(content.command("create").description("create or update a rolling content program").argument("<objective>", "business outcome"))
+  .action(async (objective: string, opts: ContentOptions) => {
+    try {
+      const saved = await client().saveContentProgram(contentInput(objective, opts));
+      if (isJson()) console.log(JSON.stringify({ ok: true, program: saved }));
+      else {
+        console.log(`${saved.status}  ${saved.name}  ${saved.perWeek}/week`);
+        console.log(`next  brandrail content run ${saved.brand}`);
+      }
+    } catch (e) { handleError(e); }
+  });
+
+content.command("run").description("produce the next week now").argument("<brand>").action(async (brand: string) => {
+  try { const result = await client().runContentProgram(brand); if (isJson()) console.log(JSON.stringify({ ok: true, ...result })); else console.log(`${result.batches} week generated · ${result.rendered} assets · ${result.queued ? `${result.queued} scheduled` : "waiting for review"}`); } catch (e) { handleError(e); }
+});
+content.command("pause").description("pause future production without deleting the program").argument("<brand>").action(async (brand: string) => {
+  try { const result = await client().setContentProgramPaused(brand, true); if (isJson()) console.log(JSON.stringify({ ok: true, program: result })); else console.log(`paused  ${result.name}`); } catch (e) { handleError(e); }
+});
+content.command("resume").description("resume a paused content program").argument("<brand>").action(async (brand: string) => {
+  try { const result = await client().setContentProgramPaused(brand, false); if (isJson()) console.log(JSON.stringify({ ok: true, program: result })); else console.log(`active  ${result.name}  next ${result.nextRunAt?.slice(0, 10) ?? "now"}`); } catch (e) { handleError(e); }
+});
+content.command("delete").description("delete future program execution; existing work stays intact").argument("<brand>").option("--confirm", "confirm deletion").action(async (brand: string, opts: { confirm?: boolean }) => {
+  if (!opts.confirm) fail("content program deletion requires --confirm");
+  try { await client().deleteContentProgram(brand); if (isJson()) console.log(JSON.stringify({ ok: true, brand })); else console.log(`deleted  ${brand} content program`); } catch (e) { handleError(e); }
+});
 
 const agent = program.command("agent").description("coordinate and inspect durable agent execution");
 agent.command("plan")

@@ -41,6 +41,7 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
       <main>
         <OutputProof />
         <HowItWorks />
+        <ContentProgram />
         <CreativeControl />
         <UseCases />
         <Pricing />
@@ -66,7 +67,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             Turn one brief into a week of <span className="text-signal">on-brand content.</span>
           </h1>
           <p className="mt-5 max-w-[620px] text-[16px] leading-relaxed text-muted sm:text-[18px]">
-            Your agent plans it. Brandrail renders every channel, checks every brand rule and waits for your approval before anything publishes.
+            Your agent plans it. Brandrail renders every channel, checks every brand rule and waits for your approval before anything publishes. Start with a week—or keep the next 30 days full.
           </p>
           <div className="mt-7 max-w-[660px]">
             <UrlBox id="hero-client-url" placement="hero" url={url} setUrl={setUrl} onSubmit={onSubmit} />
@@ -274,6 +275,70 @@ function HowItWorks() {
   );
 }
 
+function ContentProgram() {
+  const weeks = [
+    { label: "Week 1", state: "READY TO PRODUCE", tone: "green", posts: ["Launch story", "Proof carousel", "Founder POV"] },
+    { label: "Week 2", state: "PLANNED", tone: "signal", posts: ["Customer problem", "How it works", "Objection post"] },
+    { label: "Week 3", state: "PLANNED", tone: "signal", posts: ["Use case", "Behind the scenes", "Product lesson"] },
+    { label: "Week 4", state: "ADAPTS TO RESULTS", tone: "muted", posts: ["Winning angle", "Fresh proof", "Next offer"] },
+  ] as const;
+
+  return (
+    <section id="content-program" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-16 md:py-20">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-[.76fr_1.24fr] lg:items-center lg:gap-14">
+          <div>
+            <p className="eyebrow text-signal">Your always-on content program</p>
+            <h2 className="mt-4 font-display text-[clamp(34px,4.2vw,52px)] font-bold leading-[1.02] tracking-[-.04em]">Plan the month. Produce the next week. Learn before the next one.</h2>
+            <p className="mt-5 text-[16px] leading-relaxed text-muted">Give Brandrail the outcome, audience and content pillars once. It maps a coherent 30-day plan, turns the next week into finished channel assets, then refreshes what comes next with performance and your feedback.</p>
+            <ol className="mt-7 border-y border-hairline-soft">
+              {[
+                ["01", "Set the strategy", "Objective, audience, pillars, offer and important dates."],
+                ["02", "Preview before spending", "See the whole month before any asset is rendered."],
+                ["03", "Choose the control level", "Approve each week by default, or explicitly enable auto-publishing."],
+              ].map(([number, title, body]) => (
+                <li key={number} className="grid grid-cols-[32px_1fr] gap-3 border-b border-hairline-soft py-4 last:border-b-0">
+                  <span className="font-mono text-[10px] text-signal">{number}</span>
+                  <span><b className="block font-display text-sm">{title}</b><span className="mt-1 block text-sm leading-relaxed text-muted">{body}</span></span>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-7 flex flex-wrap items-center gap-4">
+              <a href="/login?plan=studio" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Plan my next 30 days →</a>
+              <a href="/agents#tools" className="text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Let my agent run it</a>
+            </div>
+          </div>
+          <div className="overflow-hidden border border-hairline bg-ink shadow-[12px_12px_0_#0A0A0B,12px_12px_0_1px_#2E2E32]">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">
+              <span>Northstar / 30-day program</span><span className="text-green">● Strategy locked</span>
+            </div>
+            <div className="grid gap-px bg-hairline sm:grid-cols-2">
+              {weeks.map((week) => (
+                <article key={week.label} className="bg-panel p-4 sm:p-5">
+                  <div className="flex items-center justify-between gap-3 font-mono text-[9px]">
+                    <span className="text-bone">{week.label}</span>
+                    <span className={week.tone === "green" ? "text-green" : week.tone === "signal" ? "text-signal" : "text-muted"}>{week.state}</span>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {week.posts.map((post, index) => (
+                      <div key={post} className="grid grid-cols-[22px_1fr_auto] items-center gap-2 border border-hairline-soft px-3 py-2.5 font-mono text-[9px]">
+                        <span className="text-muted">0{index + 1}</span><span>{post}</span><span className={week.label === "Week 1" ? "text-green" : "text-muted"}>{week.label === "Week 1" ? "✓" : "○"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 border-t border-hairline text-center font-mono text-[8px] uppercase tracking-[.08em] text-muted">
+              <span className="border-r border-hairline py-3">12 posts planned</span><span className="border-r border-hairline py-3 text-green">0 assets spent</span><span className="py-3 text-signal">Weekly refresh</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const CREATIVE_MODES = [
   ["auto", "Auto Mix", "The agent chooses the strongest valid composition for every channel."],
   ["template", "One Template", "Choose one approved direction and adapt it across formats."],
@@ -373,8 +438,8 @@ function UseCases() {
   const content = audience === "one" ? {
     eyebrow: "Creator · founder · in-house marketer",
     title: "Show up every week without rebuilding the system.",
-    body: "Bring the idea. Brandrail carries your visual identity, voice and approved direction across the channel set—then saves what worked for next week.",
-    bullets: ["One URL becomes a reusable brand system", "One brief becomes five channel formats", "One approved recipe removes the next blank canvas"],
+    body: "Bring the outcome once. Brandrail keeps the next 30 days coherent, carries your visual identity across every channel and refreshes the next production week with what worked.",
+    bullets: ["One URL becomes a reusable brand system", "One strategy becomes a rolling 30-day plan", "One approved recipe removes the next blank canvas"],
     stats: [["1", "active brand"], ["50", "free assets"], ["0", "blank canvases"]],
     cta: "Start with one brand",
     href: "#try",
@@ -423,8 +488,8 @@ function Pricing() {
     },
     {
       name: "Studio", audience: "Operate up to three growing brands", price: "$49", suffix: "/ month", badge: "MOST POPULAR",
-      outcome: "Move from brief to approved, scheduled campaign without rebuilding the workflow.",
-      items: ["3 brands · 5 scoped agent keys", "1,000 finished assets / month", "Campaigns, approvals and webhooks", "Calendar, publishing and feedback"],
+      outcome: "Keep the next 30 days planned and turn each new week into approved, scheduled content.",
+      items: ["3 brands · 5 scoped agent keys", "1,000 finished assets / month", "Rolling 30-day content programs", "Approvals, publishing and feedback"],
       cta: "Start with Studio", href: "/login?plan=studio",
     },
     {
@@ -464,7 +529,7 @@ function Pricing() {
 export const FAQ = [
   ["Is Brandrail for one brand or many?", "Both. Free proves the workflow on one brand. Studio supports three growing brands. Agency supports 25 client brands with reviewer access and reporting."],
   ["Can I choose the design, or does the agent decide?", "Either. Let Brandrail choose automatically, force one template, direct each channel separately or apply a saved recipe. Copy and approved-image fields stay editable while brand-critical design rules stay locked."],
-  ["How quickly can I get useful output?", "Paste a website to compile the initial BrandSpec, review any uncertain fields and render the first five-format set. An MCP-enabled agent can connect in about two minutes after you create a free key."],
+  ["Can Brandrail plan a full month?", "Yes. A Content Program maps one strategy into one or four weeks of dated ideas. The 30-day preview is free to generate; Brandrail produces the next week, learns from results and refreshes what follows so the plan stays coherent without becoming stale."],
   ["Which publishing channels are available?", "Bluesky and Mastodon connect directly. LinkedIn, Instagram/Facebook, X and TikTok are available when the corresponding approved platform-app credentials are configured. You can always render, review, export or use the API without connecting a channel."],
   ["Can an agent publish without my approval?", "Not silently. Agent publishing requires an approved review item or explicit confirmation. Dry-runs expose mutations first, retries are idempotent and every change stays visible in the audit trail."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable. The spec format, SDK, CLI and MCP server are open, and the full rail can be self-hosted."],
@@ -489,8 +554,8 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
       <div className="surface-grid absolute inset-0 opacity-30" aria-hidden />
       <div className="relative mx-auto max-w-[860px] px-5 sm:px-6">
         <span className="eyebrow text-signal">The agent is ready. Give it rails.</span>
-        <h2 className="mt-4 font-display text-[clamp(38px,5vw,58px)] font-bold leading-[1.02] tracking-[-0.04em]">Give your agent one brief. Get a campaign you can approve.</h2>
-        <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with your real website and see the brand system before creating an account.</p>
+        <h2 className="mt-4 font-display text-[clamp(38px,5vw,58px)] font-bold leading-[1.02] tracking-[-0.04em]">Start with one brief. Keep the month full.</h2>
+        <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with your real website, see the brand system before creating an account and produce your first week free.</p>
         <div className="mx-auto mt-8 max-w-[700px] text-left"><UrlBox id="final-client-url" placement="final" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
         <p className="mt-4 font-mono text-[10px] text-muted">Or <a href="/login?agent=1" onClick={() => trackConversion("agent_cta_clicked", { placement: "final" })} className="text-signal underline underline-offset-4">connect your agent directly</a> · {MCP_TOOL_COUNT} lifecycle tools · no card</p>
       </div>

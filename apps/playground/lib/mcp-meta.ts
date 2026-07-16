@@ -1,7 +1,7 @@
 export const MCP_PROTOCOL_VERSION = "2025-11-25";
 export const MCP_SUPPORTED_VERSIONS = [MCP_PROTOCOL_VERSION, "2025-06-18", "2025-03-26"] as const;
 export const MCP_SERVER_VERSION = "0.4.0";
-export const MCP_TOOL_COUNT = 34;
+export const MCP_TOOL_COUNT = 40;
 
 export const MCP_REQUIRED_TOOLS = [
   "list_brands",

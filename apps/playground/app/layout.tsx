@@ -8,12 +8,12 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-mono", weight
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://playground.brandrail.dev"),
-  title: "Brandrail — one brief to a week of on-brand content",
+  title: "Brandrail — one brief to a month of on-brand content",
   description:
-    "Turn one brief into a week of on-brand content. Brandrail gives your agent enforceable brand rules, finished channel assets and human approval before publishing.",
+    "Turn one brief into a rolling month of on-brand content. Plan 30 days, produce the next week and keep human approval before publishing.",
   openGraph: {
     title: "Turn one brief into a week of on-brand content.",
-    description: "Your agent plans it. Brandrail renders every channel, enforces the brand and waits for human approval before publishing.",
+    description: "Your agent plans 30 days. Brandrail produces the next week, enforces every brand rule and waits for human approval before publishing.",
     type: "website",
     url: "/",
     images: [{ url: "/og-agent.png", width: 1731, height: 909, alt: "Brandrail turns one brief into an approved, on-brand channel set" }],
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Turn one brief into a week of on-brand content.",
-    description: "Agent-planned, BrandSpec-enforced and human-approved before publishing.",
+    description: "Thirty days planned, the next week produced, BrandSpec-enforced and human-approved before publishing.",
     images: ["/og-agent.png"],
   },
 };

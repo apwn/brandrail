@@ -7,6 +7,7 @@ export type ConversionEvent =
   | "render_failed"
   | "agent_cta_clicked"
   | "pricing_cta_clicked"
+  | "content_program_cta_clicked"
   | "creative_mode_selected"
   | "template_preview_selected"
   | "audience_selected"

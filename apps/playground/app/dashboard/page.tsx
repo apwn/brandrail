@@ -43,7 +43,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     redirect("/login");
   }
 
-  const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit, runs] = await Promise.all([
+  const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit, runs, programs] = await Promise.all([
     load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
     load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
     load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
@@ -54,6 +54,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
     load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
     load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }),
+    load<{ programs: Array<{ brand: string }> }>("/v0/content-programs", uid, { programs: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -75,6 +76,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
           {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
+          {owner && has("autopilot") && <a href="/program" className="text-signal hover:text-bone">PROGRAM</a>}
           {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
           {owner && has("planner") && <a href="/analytics" className="hover:text-bone">SIGNAL</a>}
           <a href="/activity" className="hover:text-bone">ACTIVITY</a>
@@ -112,6 +114,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         hasScheduled={scheduled.posts.some((post) => post.status !== "cancelled")}
         canPublish={has("publishing")}
         canReview={has("batchReview")}
+        canProgram={has("autopilot")}
+        hasProgram={programs.programs.length > 0}
       />}
 
       {owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} />}

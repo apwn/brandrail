@@ -16,7 +16,7 @@ const AGENT_MOBILE_LINK = { href: "/docs", label: "Docs" } as const;
 
 export const metadata: Metadata = {
   title: "Connect your AI agent · Brandrail",
-  description: "Give Claude or any compatible MCP client a brand-safe rail for planning, rendering, approval, publishing, analytics, and audit.",
+  description: "Give OpenClaw, Claude or any compatible MCP client a brand-safe rail for ongoing content planning, rendering, approval, publishing, analytics, and audit.",
   alternates: { canonical: "/agents" },
   openGraph: {
     title: "Your agent can write. Now it can operate safely.",
@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 
 const TOOL_GROUPS = [
   ["UNDERSTAND", "list_brands · compile_brand · get_brand · diff_brand_spec"],
+  ["PROGRAM", "list_content_programs · preview_content_program · create_content_program · run_content_program · pause_content_program · delete_content_program"],
   ["RUN", "start_campaign_run · get_agent_run · complete_agent_run · retry_agent_run · cancel_agent_run"],
   ["CREATE", "render_assets · list_templates · list_recipes · save_recipe · rename_recipe · delete_recipe · list_renders · get_render · create_campaign"],
   ["REVIEW", "create_review_batch · get_review_status · add_review_comment"],
@@ -72,7 +73,7 @@ function AgentHero() {
             Your agent can write.<br /><span className="text-signal">Now it can operate.</span>
           </h1>
           <p className="mt-5 max-w-[620px] text-[17px] leading-relaxed text-muted">
-            Give OpenClaw, Claude, or any compatible MCP client the ability to plan, render, route approval, publish and learn—without letting it break the brand or bypass your judgment.
+            Give OpenClaw, Claude, or any compatible MCP client the ability to plan a month, produce each week, route approval, publish and learn—without letting it break the brand or bypass your judgment.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a className="btn min-h-12" href="/login?agent=1">Connect your agent free →</a>
@@ -101,7 +102,7 @@ function AgentRunProof() {
           <span>AGENT / CAMPAIGN RUN</span><span className="text-green">● CONTROLLED</span>
         </div>
         <div className="p-4 sm:p-5">
-          <p className="font-mono text-[11px] leading-relaxed text-bone"><span className="text-signal">you ›</span> Turn the launch brief into five posts. Get approval before anything goes live.</p>
+          <p className="font-mono text-[11px] leading-relaxed text-bone"><span className="text-signal">you ›</span> Keep the next 30 days full. Produce three posts a week and get my approval before scheduling.</p>
           <div className="mt-4 border border-hairline">
             {steps.map(([number, label, status, state]) => (
               <div key={number} className="grid grid-cols-[28px_1fr_auto] gap-2 border-b border-hairline-soft px-3 py-2.5 font-mono text-[9px] last:border-b-0 sm:text-[10px]">
@@ -163,7 +164,7 @@ function ConnectionSection() {
             {[
               ["01", "Mint a scoped key", "Open Workspace → Agent connection after verifying your email."],
               ["02", "Add the MCP endpoint", "Paste the configuration into a supported client."],
-              ["03", "Ask for the outcome", "Start with: “Compile our site and plan a five-post launch.”"],
+              ["03", "Ask for the outcome", "Start with: “Plan the next 30 days, three posts a week. Show me the plan before producing.”"],
             ].map(([number, title, body]) => (
               <li key={number} className="grid grid-cols-[30px_1fr] gap-3 border-b border-hairline-soft py-4 last:border-b-0">
                 <span className="font-mono text-[10px] text-signal">{number}</span>
@@ -193,8 +194,15 @@ function ToolSection() {
           <div><p className="eyebrow text-signal">THE FULL LOOP</p><h2 className="mt-3 font-display text-[clamp(32px,4vw,46px)] font-bold leading-tight">Tools organized around outcomes, not endpoints.</h2><p className="mt-3 max-w-2xl text-muted">{MCP_TOOL_COUNT} focused tools cover the lifecycle from observed brand to measured campaign. Rendering can stay on agent-directed auto, or use a selected visual template with named dynamic fields while brand objects remain locked.</p></div>
           <a href="/docs" className="font-mono text-[10px] text-signal hover:text-bone">READ THE REFERENCE →</a>
         </div>
-        <div className="mt-8 grid gap-px border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-px border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
           {TOOL_GROUPS.map(([phase, tools]) => <article key={phase} className="bg-ink p-5"><span className="font-mono text-[10px] text-signal">{phase}</span><p className="mt-3 font-mono text-xs leading-relaxed text-muted">{tools}</p></article>)}
+        </div>
+        <div className="mt-6 grid gap-px border border-hairline bg-hairline md:grid-cols-3">
+          {[
+            ["1 · PREVIEW", "The agent plans the whole horizon without rendering or spending asset allowance."],
+            ["2 · PRODUCE", "Brandrail renders only the next week so content stays current and coherent."],
+            ["3 · CONTROL", "Review is the default. Auto mode must be explicit and have connected channels."],
+          ].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-green">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
         </div>
       </div>
     </section>
@@ -225,8 +233,8 @@ function AgentCta() {
       <div className="surface-grid absolute inset-0 opacity-40" aria-hidden />
       <div className="relative mx-auto max-w-2xl px-5 sm:px-6">
         <p className="eyebrow text-signal">START WITH THE AGENT YOU ALREADY USE</p>
-        <h2 className="mt-4 font-display text-[clamp(36px,5vw,54px)] font-bold leading-tight">Give it a brand. Keep the final say.</h2>
-        <p className="mt-4 text-muted">Free includes one scoped agent key, one active BrandSpec and 50 finished assets each month.</p>
+        <h2 className="mt-4 font-display text-[clamp(36px,5vw,54px)] font-bold leading-tight">Give it the outcome. Keep the final say.</h2>
+        <p className="mt-4 text-muted">Preview a week or month through MCP. Studio activates the rolling program; review remains the default.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn">Connect free →</a><a href="/docs#quickstart" className="btn-ghost">Read the quickstart</a><a href="https://github.com/apwn/brandrail/tree/main/skills/brandrail" className="btn-ghost">Install the skill</a></div>
       </div>
     </section>

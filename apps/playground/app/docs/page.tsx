@@ -28,6 +28,7 @@ const SECTIONS = [
   ["#quickstart", "Quickstart"],
   ["#auth", "Auth & keys"],
   ["#templates", "Templates"],
+  ["#programs", "Content programs"],
   ["#mcp", "MCP"],
   ["#api", "REST API"],
   ["#sdk", "SDK"],
@@ -61,6 +62,12 @@ DELETE /v0/specs/:name/recipes/:id remove recipe → new spec version
 GET    /v0/templates               visual library + dynamic field contracts
 POST   /v0/render                  brief → gated assets + art direction
 GET    /v0/renders/:id             manifest + asset URLs
+GET    /v0/content-programs        rolling program strategy + state
+POST   /v0/content-programs/preview plan a week or month without rendering
+PUT    /v0/content-programs/:brand create or update a Studio program
+POST   /v0/content-programs/:brand/run produce the next week now
+POST   /v0/content-programs/:brand/pause pause or resume future production
+DELETE /v0/content-programs/:brand stop future production
 POST   /v0/agent/plan              dry-run objective → blockers + steps
 POST   /v0/agent/runs              start reconnect-safe work
 GET    /v0/agent/runs/:id          resume from durable state
@@ -106,6 +113,11 @@ node packages/cli/dist/index.js recipes rename weekly-launch --brand acme --name
 node packages/cli/dist/index.js recipes delete weekly-launch --brand acme --confirm
 node packages/cli/dist/index.js render "Summer promotion" --brand acme --recipe weekly-launch --json
 node packages/cli/dist/index.js render "Launch" --brand acme --template promo-card --media x-graphic.primary=0
+node packages/cli/dist/index.js content preview "Own the category" --brand acme --audience "Operations leaders" --pillars "Proof,Education,Product" --per-week 3 --horizon 4
+# Approve the ideas, then save that exact calendar:
+node packages/cli/dist/index.js content preview "Own the category" --brand acme --audience "Operations leaders" --pillars "Proof,Education,Product" --per-week 3 --horizon 4 --activate
+node packages/cli/dist/index.js content run acme
+node packages/cli/dist/index.js content pause acme
 node packages/cli/dist/index.js mcp config --client openclaw
 node packages/cli/dist/index.js mcp doctor
 node packages/cli/dist/index.js agent start "Launch campaign" --brand acme --json
@@ -135,6 +147,7 @@ export default function DocsPage() {
           <QuickstartSection />
           <AuthSection />
           <TemplatesSection />
+          <ContentProgramsSection />
           <McpSection />
           <ApiSection />
           <SdkSection />
@@ -281,16 +294,52 @@ function TemplatesSection() {
   );
 }
 
+function ContentProgramsSection() {
+  return (
+    <section>
+      <DocHeading id="programs" eyebrow="ONGOING OUTCOME">Content programs</DocHeading>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">A Content Program stores the strategy behind ongoing production: objective, audience, pillars, offer, important dates, cadence, channels and approval mode. Brandrail plans the full one- or four-week horizon for coherence, but renders only the next week so later work can adapt to approvals and performance.</p>
+      <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-3">
+        {[
+          ["PREVIEW", "Plans dated ideas for the full horizon. Saves nothing and renders nothing."],
+          ["RUN", "Produces the next week, creates the review batch and uses selected channels—or all connected channels when none are specified."],
+          ["REPEAT", "Keeps the strategy stable while refreshing angles with recent performance."],
+        ].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-signal">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
+      </div>
+      <CopyCode label="Preview, then activate with the SDK">{`const input = {
+  brand: "acme",
+  objective: "Own the category before our September launch",
+  audience: "Operations leaders at growing teams",
+  pillars: ["Proof", "Education", "Product"],
+  offer: "Start a 14-day trial",
+  perWeek: 3,
+  horizonWeeks: 4 as const,
+  approvalMode: "review" as const,
+};
+
+const preview = await brandrail.previewContentProgram(input);
+// inspect preview.posts — no assets have been rendered
+
+const program = await brandrail.saveContentProgram({
+  ...input,
+  plannedPosts: preview.posts,
+});
+await brandrail.runContentProgram(program.brand);`}</CopyCode>
+      <p className="mt-4 border-l-2 border-signal pl-4 text-sm leading-relaxed text-muted"><strong className="text-bone">Review is the safe default.</strong> Auto mode is accepted only when selected explicitly and at least one chosen publishing channel is connected. Pausing or deleting a program never removes existing assets, reviews or scheduled work.</p>
+    </section>
+  );
+}
+
 function McpSection() {
   return (
     <section>
       <DocHeading id="mcp" eyebrow="AGENT-NATIVE">MCP server</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">The hosted Streamable HTTP endpoint exposes {MCP_TOOL_COUNT} lifecycle tools and inspectable PNG resources: brands, durable runs, planning, rendering, campaigns, review pauses, scoped publishing, calendar, analytics, usage and audit.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">The hosted Streamable HTTP endpoint exposes {MCP_TOOL_COUNT} lifecycle tools and inspectable PNG resources: brands, content programs, durable runs, planning, rendering, campaigns, review pauses, scoped publishing, calendar, analytics, usage and audit.</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-green">REMOTE</p><h3 className="mt-2 font-display text-lg font-bold">Hosted Streamable HTTP</h3><p className="mt-2 text-sm leading-relaxed text-muted">No local process. Best for clients that support remote MCP and persistent credentials.</p></article>
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-signal">LOCAL</p><h3 className="mt-2 font-display text-lg font-bold">Local stdio server</h3><p className="mt-2 text-sm leading-relaxed text-muted">Claude Desktop and Claude Code can run the source-built MCP package against cloud or self-hosted APIs.</p></article>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can stay automatic, apply a BrandSpec <code className="text-bone">recipe</code>, choose templates, or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can preview and operate rolling content programs, stay automatic within a campaign, apply a BrandSpec <code className="text-bone">recipe</code>, choose templates, or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
       <div className="mt-5 border-l-2 border-green pl-4 text-sm leading-relaxed text-muted"><span className="font-mono text-[10px] text-green">OPENCLAW READY</span><br />Save the remote server with <code className="text-bone">openclaw mcp set</code>, keep the key in <code className="text-bone">BRANDRAIL_API_KEY</code>, then run <code className="text-bone">openclaw mcp doctor brandrail --probe</code>. No Brandrail-specific adapter is required.</div>
     </section>
   );
@@ -311,7 +360,7 @@ function SdkSection() {
   return (
     <section>
       <DocHeading id="sdk" eyebrow="TYPESCRIPT">SDK</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted"><code className="text-bone">@brandrail/sdk</code> provides typed methods for specs, renders, agent runs, review, scheduling, campaigns, usage and analytics. Until the first npm release, import it from a source checkout.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted"><code className="text-bone">@brandrail/sdk</code> provides typed methods for specs, renders, content programs, agent runs, review, scheduling, campaigns, usage and analytics. Until the first npm release, import it from a source checkout.</p>
       <CopyCode label="TypeScript SDK">{SDK_EXAMPLE}</CopyCode>
     </section>
   );

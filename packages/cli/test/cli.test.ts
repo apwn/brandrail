@@ -76,4 +76,17 @@ describe("brandrail CLI", () => {
     expect(result.stdout).toContain("authenticated MCP handshake");
     expect(result.stdout).toContain("--endpoint <url>");
   });
+
+  it("exposes the full content-program lifecycle with a safe review default", () => {
+    const root = spawnSync(process.execPath, [bin, "content", "--help"], { encoding: "utf8" });
+    const preview = spawnSync(process.execPath, [bin, "content", "preview", "--help"], { encoding: "utf8" });
+    const remove = spawnSync(process.execPath, [bin, "content", "delete", "--help"], { encoding: "utf8" });
+    expect(root.status).toBe(0);
+    for (const command of ["list", "preview", "create", "run", "pause", "resume", "delete"]) expect(root.stdout).toContain(command);
+    expect(preview.stdout).toContain("--horizon <weeks>");
+    expect(preview.stdout).toContain("--approval <mode>");
+    expect(preview.stdout).toContain("--activate");
+    expect(preview.stdout).toContain("review");
+    expect(remove.stdout).toContain("--confirm");
+  });
 });

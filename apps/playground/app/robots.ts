@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
         "/runs",
         "/calendar",
         "/campaigns",
+        "/program",
         "/analytics",
         "/brands",
         "/share/",

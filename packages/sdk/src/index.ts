@@ -94,6 +94,47 @@ export interface Campaign {
   progress: { batches: number; assets: number; approved: number; posts: number; scheduled: number; published: number; impressions: number; engagements: number };
 }
 
+export interface ContentProgramInput {
+  brand: string;
+  name?: string;
+  objective: string;
+  audience?: string;
+  pillars?: string[];
+  offer?: string;
+  importantDates?: Array<{ date: string; label: string }>;
+  perWeek: number;
+  horizonWeeks?: 1 | 4;
+  channelIds?: string[];
+  approvalMode?: "review" | "auto";
+  startAt?: string;
+  endAt?: string;
+  paused?: boolean;
+  /** Optional approved preview. When omitted, activation plans a fresh horizon. */
+  plannedPosts?: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId }>;
+}
+
+export interface ContentProgram extends ContentProgramInput {
+  id: string;
+  name: string;
+  horizonWeeks: 1 | 4;
+  channelIds: string[];
+  approvalMode: "review" | "auto";
+  pillars: string[];
+  importantDates: Array<{ date: string; label: string }>;
+  status: "active" | "paused" | "scheduled" | "complete";
+  nextRunAt: string | null;
+  lastRunAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ContentProgramPreview extends ContentProgram {
+  posts: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId }>;
+  totalPosts: number;
+  renderStrategy: "rolling-weekly";
+  firstProductionWindow: string[];
+}
+
 export interface AnalyticsSummary {
   totals: { posts: number; scheduled: number; published: number; failed: number; measured: number; impressions: number; engagements: number; engagementRate: number | null };
   byChannel: Array<{ platform: string; handle: string; posts: number; impressions: number; engagements: number }>;
@@ -384,6 +425,34 @@ export class Brandrail {
   async updateCampaign(id: string, input: Partial<Omit<Campaign, "id" | "createdAt" | "updatedAt" | "progress">>): Promise<Campaign> {
     const { campaign } = await this.request<{ campaign: Campaign }>(`/v0/campaigns/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
     return campaign;
+  }
+
+  async listContentPrograms(): Promise<ContentProgram[]> {
+    const { programs } = await this.request<{ programs: ContentProgram[] }>("/v0/content-programs");
+    return programs;
+  }
+
+  async previewContentProgram(input: ContentProgramInput): Promise<ContentProgramPreview> {
+    const { preview } = await this.request<{ preview: ContentProgramPreview }>("/v0/content-programs/preview", { method: "POST", body: JSON.stringify(input) });
+    return preview;
+  }
+
+  async saveContentProgram(input: ContentProgramInput): Promise<ContentProgram> {
+    const { program } = await this.request<{ program: ContentProgram }>(`/v0/content-programs/${encodeURIComponent(input.brand)}`, { method: "PUT", body: JSON.stringify(input) });
+    return program;
+  }
+
+  async setContentProgramPaused(brand: string, paused: boolean): Promise<ContentProgram> {
+    const { program } = await this.request<{ program: ContentProgram }>(`/v0/content-programs/${encodeURIComponent(brand)}/pause`, { method: "POST", body: JSON.stringify({ paused }) });
+    return program;
+  }
+
+  runContentProgram(brand: string): Promise<{ batches: number; rendered: number; queued: number; skipped: string[]; program: ContentProgram }> {
+    return this.request(`/v0/content-programs/${encodeURIComponent(brand)}/run`, { method: "POST", body: "{}" });
+  }
+
+  deleteContentProgram(brand: string): Promise<{ ok: boolean }> {
+    return this.request(`/v0/content-programs/${encodeURIComponent(brand)}`, { method: "DELETE" });
   }
 
   async getRender(id: string): Promise<{ id: string; manifest: RenderHistoryEntry["manifest"] }> {
