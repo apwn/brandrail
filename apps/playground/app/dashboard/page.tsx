@@ -244,7 +244,7 @@ function UpgradeRail({ verified }: { verified: boolean }) {
   return (
     <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
       <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div><p className="eyebrow text-signal">WHEN THE AGENT NEEDS TO OPERATE</p><h2 className="font-display text-2xl font-bold mt-3">Turn a free agent connection into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free lets one agent compile, inspect and render one brand. Studio unlocks the operational rail: campaign planning, human approval pauses, signed events, direct publishing and the performance loop.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ WEBHOOKS</span></div></div>
+        <div><p className="eyebrow text-signal">WHEN THE AGENT NEEDS TO OPERATE</p><h2 className="font-display text-2xl font-bold mt-3">Turn a free agent key into a production system.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Free lets one agent compile, inspect and render one brand. Studio unlocks the operational rail: campaign planning, human approval pauses, signed events, direct publishing and the performance loop.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ AUTOMATE</span><span>✓ WEBHOOKS</span></div></div>
         <a href={verified ? "/dashboard?checkout=studio" : "/login?plan=studio"} className="btn whitespace-nowrap">Start Studio →</a>
       </div>
     </section>

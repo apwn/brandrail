@@ -226,7 +226,7 @@ function AgentCta() {
       <div className="relative mx-auto max-w-2xl px-5 sm:px-6">
         <p className="eyebrow text-signal">START WITH THE AGENT YOU ALREADY USE</p>
         <h2 className="mt-4 font-display text-[clamp(36px,5vw,54px)] font-bold leading-tight">Give it a brand. Keep the final say.</h2>
-        <p className="mt-4 text-muted">Free includes one agent connection, one active BrandSpec and 50 finished assets each month.</p>
+        <p className="mt-4 text-muted">Free includes one scoped agent key, one active BrandSpec and 50 finished assets each month.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn">Connect free →</a><a href="/docs#quickstart" className="btn-ghost">Read the quickstart</a><a href="https://github.com/apwn/brandrail/tree/main/skills/brandrail" className="btn-ghost">Install the skill</a></div>
       </div>
     </section>

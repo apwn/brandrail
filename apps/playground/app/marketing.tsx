@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
+import { ARCHETYPE_INFO, type LayoutArchetype } from "@brandrail/spec";
 import { PublicFooter } from "./components/public-footer";
 import { PublicNav } from "./components/public-nav";
 import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
@@ -32,6 +35,7 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
       <main>
         <AgentWorkflowSection />
         <OutputSection />
+        <CreativeControlSection />
         <MechanismSection />
         <UseCasesSection />
         <ComparisonSection />
@@ -47,7 +51,7 @@ export function MarketingLanding({ url, setUrl, onSubmit, error }: LandingProps)
 function Announcement() {
   return (
     <div className="border-b border-hairline bg-panel px-4 py-2 text-center font-mono text-[11px] text-muted sm:text-xs">
-      <span className="text-bone">NEW · Hosted MCP.</span><span className="hidden sm:inline"> One free, scoped agent connection with durable runs and human approval built in.</span>{" "}
+      <span className="text-bone">NEW · Hosted MCP.</span><span className="hidden sm:inline"> One free, scoped agent key with durable runs and human approval built in.</span>{" "}
       <a className="text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone" href="/agents">
         Connect free →
       </a>
@@ -85,7 +89,7 @@ function Hero() {
             <a href="#agent-workflow" className="btn-ghost min-h-12">See it run ↓</a>
           </div>
           <div className="mt-5 flex max-w-[620px] flex-wrap items-center gap-x-5 gap-y-2 border-t border-hairline-soft pt-4 font-mono text-[10px] text-muted sm:text-[11px]">
-            <span><b className="font-medium text-green">Free</b> · 1 connection · 50 assets · no card</span>
+            <span><b className="font-medium text-green">Free</b> · 1 agent key · 50 assets · no card</span>
             <span>Hosted MCP · CLI · API</span>
           </div>
         </div>
@@ -153,7 +157,7 @@ function HeroBoard() {
         <div className="p-5 sm:p-6">
           <p className="font-mono text-[12px] leading-relaxed text-bone"><span className="text-signal">you ›</span> Turn the launch brief into five posts. Keep the brand strict and get my approval before scheduling.</p>
           <div className="mt-6 space-y-0 border border-hairline">
-            {[["01", "BrandSpec loaded", "northstar@12", "done"], ["02", "Execution plan", "0 blockers", "done"], ["03", "Assets rendered", "5 · 0 violations", "done"], ["04", "Human approval", "waiting", "wait"], ["05", "Schedule + measure", "paused", "wait"]].map(([number, label, meta, state]) => <div key={number} className="grid grid-cols-[30px_1fr_auto] gap-2 border-b border-hairline-soft px-3 py-3 last:border-b-0 font-mono text-[10px]"><span className="text-muted">{number}</span><span className="text-bone">{label}</span><span className={state === "done" ? "text-green" : "text-signal"}>{state === "done" ? `✓ ${meta}` : `◷ ${meta}`}</span></div>)}
+            {[["01", "BrandSpec loaded", "northstar@12", "done"], ["02", "Execution plan", "0 blockers", "done"], ["03", "Assets rendered", "5 formats · 0 violations", "done"], ["04", "Human approval", "waiting", "wait"], ["05", "Schedule + measure", "paused", "wait"]].map(([number, label, meta, state]) => <div key={number} className="grid grid-cols-[30px_1fr_auto] gap-2 border-b border-hairline-soft px-3 py-3 last:border-b-0 font-mono text-[10px]"><span className="text-muted">{number}</span><span className="text-bone">{label}</span><span className={state === "done" ? "text-green" : "text-signal"}>{state === "done" ? `✓ ${meta}` : `◷ ${meta}`}</span></div>)}
           </div>
           <p className="mt-4 border-l-2 border-signal pl-3 font-mono text-[10px] leading-relaxed text-muted">The agent may plan and render. Publishing requires an approved item or explicit confirmation.</p>
         </div>
@@ -233,7 +237,7 @@ function OutputSection() {
   const checks = [
     ["01", "INPUT", "1 campaign brief"],
     ["02", "SYSTEM", "Acme BrandSpec · v3"],
-    ["03", "OUTPUT", "6 finished canvases"],
+    ["03", "OUTPUT", "5 channel formats"],
     ["04", "GATE", "0 rule violations"],
   ];
   return (
@@ -353,6 +357,221 @@ function OutputSection() {
   );
 }
 
+const CREATIVE_MODES = [
+  {
+    id: "auto",
+    number: "01",
+    label: "Auto Mix",
+    short: "Agent-directed",
+    description: "Brandrail chooses the strongest valid composition for each channel and explains every decision.",
+    formats: [["Carousel", "Editorial sequence"], ["LinkedIn", "Proof card"], ["Story", "Image lead"], ["X graphic", "Quote card"], ["Link preview", "Split launch"]],
+  },
+  {
+    id: "template",
+    number: "02",
+    label: "One Template",
+    short: "One clear direction",
+    description: "Choose one approved composition and let the engine adapt it—not stretch it—across every format.",
+    formats: [["Carousel", "Bold typographic"], ["LinkedIn", "Bold typographic"], ["Story", "Bold typographic"], ["X graphic", "Bold typographic"], ["Link preview", "Bold typographic"]],
+  },
+  {
+    id: "plan",
+    number: "03",
+    label: "Channel Plan",
+    short: "Per-format control",
+    description: "Direct the channels that need judgment. Leave the rest on auto and keep one coherent campaign system.",
+    formats: [["Carousel", "Editorial sequence"], ["LinkedIn", "Proof card"], ["Story", "Image lead"], ["X graphic", "Auto"], ["Link preview", "Split launch"]],
+  },
+  {
+    id: "recipe",
+    number: "04",
+    label: "Saved Recipe",
+    short: "Repeat what works",
+    description: "Save the template plan and approved imagery as a reusable direction. The structure returns; the copy stays fresh.",
+    formats: [["Carousel", "Editorial sequence"], ["LinkedIn", "Proof card"], ["Story", "Image lead"], ["X graphic", "Quote card"], ["Link preview", "Split launch"]],
+  },
+] as const;
+
+const TEMPLATE_SHOWCASE = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
+
+function CreativeControlSection() {
+  const [activeMode, setActiveMode] = useState<(typeof CREATIVE_MODES)[number]["id"]>("recipe");
+  const [activeTemplate, setActiveTemplate] = useState<LayoutArchetype>("hero-statement");
+  const active = CREATIVE_MODES.find((mode) => mode.id === activeMode) ?? CREATIVE_MODES[0];
+  const template = ARCHETYPE_INFO[activeTemplate];
+
+  return (
+    <section id="creative-control" className="scroll-mt-20 border-b border-hairline-soft py-16 md:py-24">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
+        <SectionHead
+          eyebrow="Creative control without drift"
+          title={<>Let the agent art-direct.<br />Take over only where judgment matters.</>}
+          body="Template-level precision when you want it. Campaign operations when you do not. Every mode uses the same BrandSpec, approved media and fail-closed render gate."
+        />
+
+        <div className="grid overflow-hidden border border-hairline bg-panel lg:grid-cols-[.82fr_1.18fr]">
+          <div className="border-b border-hairline p-5 sm:p-6 lg:border-b-0 lg:border-r">
+            <div className="flex items-end justify-between gap-4 border-b border-hairline-soft pb-4">
+              <div>
+                <span className="eyebrow text-signal">Choose the control level</span>
+                <h3 className="mt-2 font-display text-2xl font-bold">One studio. Four ways to direct it.</h3>
+              </div>
+              <span className="hidden font-mono text-[9px] uppercase tracking-[.12em] text-green sm:block">10 production templates</span>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1" role="group" aria-label="Creative control modes">
+              {CREATIVE_MODES.map((mode) => {
+                const selected = mode.id === activeMode;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setActiveMode(mode.id)}
+                    className={`group grid grid-cols-[34px_1fr_auto] items-center gap-3 border p-3.5 text-left transition-colors ${selected ? "border-signal bg-signal/5" : "border-hairline-soft hover:border-muted"}`}
+                  >
+                    <span className={`font-mono text-[10px] ${selected ? "text-signal" : "text-muted"}`}>{mode.number}</span>
+                    <span>
+                      <b className="block font-display text-sm text-bone">{mode.label}</b>
+                      <span className="mt-0.5 block text-xs text-muted">{mode.short}</span>
+                    </span>
+                    <span className={`font-mono text-xs ${selected ? "text-signal" : "text-muted group-hover:text-bone"}`} aria-hidden>{selected ? "●" : "○"}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 border-l-2 border-signal pl-3 text-sm leading-relaxed text-muted">{active.description}</p>
+          </div>
+
+          <div className="bg-ink p-5 sm:p-6">
+            <div className="border border-hairline bg-panel shadow-[10px_10px_0_#0A0A0B,10px_10px_0_1px_#2E2E32]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[10px] uppercase tracking-[.1em] text-muted">
+                <span>Northstar / campaign studio</span>
+                <span className="text-green">● Brand locked · v12</span>
+              </div>
+              <div className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <span className="font-mono text-[9px] uppercase tracking-[.12em] text-signal">Active direction</span>
+                    <h4 className="mt-1 font-display text-xl font-bold">{active.label}</h4>
+                  </div>
+                  {active.id === "recipe" && <span className="border border-green/50 bg-green/5 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-green">Weekly launch · v4</span>}
+                </div>
+                <div className="mt-5 overflow-hidden border border-hairline">
+                  {active.formats.map(([format, template], index) => (
+                    <div key={format} className="grid grid-cols-[26px_1fr_auto] items-center gap-3 border-b border-hairline-soft px-3 py-3 last:border-b-0">
+                      <span className="font-mono text-[9px] text-muted">0{index + 1}</span>
+                      <span className="text-xs font-medium text-bone">{format}</span>
+                      <span className={`font-mono text-[9px] uppercase tracking-[.06em] ${template === "Auto" ? "text-green" : "text-signal"}`}>{template}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  {["Typography locked", "Approved media only", "Copy stays editable"].map((rule, index) => (
+                    <span key={rule} className={`border px-3 py-2 text-center font-mono text-[8px] uppercase tracking-[.08em] ${index === 2 ? "border-signal/50 text-signal" : "border-hairline text-muted"}`}>{index < 2 ? "✓" : "↳"} {rule}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-px grid gap-px border border-hairline bg-hairline md:grid-cols-2">
+          <div className="bg-ink p-5 sm:p-6">
+            <span className="font-mono text-[10px] text-signal">01 / TEMPLATE LIBRARY</span>
+            <h3 className="mt-3 font-display text-xl font-bold">Flexible compositions. Inflexible brand rules.</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Pick the composition, edit named copy fields and choose imagery already approved in the BrandSpec. Typography, palette, logo behavior, crop rules and spacing remain protected.</p>
+          </div>
+          <div className="bg-ink p-5 sm:p-6">
+            <span className="font-mono text-[10px] text-signal">02 / REUSABLE RECIPES</span>
+            <h3 className="mt-3 font-display text-xl font-bold">Save the direction—not last week&rsquo;s words.</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Turn an approved campaign into a named recipe. Your agent can apply the same visual system next week while generating fresh, brief-specific copy for every channel.</p>
+          </div>
+        </div>
+
+        <div id="templates" className="scroll-mt-20 border-x border-b border-hairline bg-panel">
+          <div className="flex flex-col gap-4 border-b border-hairline p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+            <div>
+              <span className="eyebrow text-signal">Browse the actual library</span>
+              <h3 className="mt-2 font-display text-2xl font-bold">Ten starting points. One enforceable system.</h3>
+              <p className="mt-2 max-w-[680px] text-sm leading-relaxed text-muted">Choose like a template tool, then let Brandrail adapt the approved composition across channels. Named text and image fields stay editable; brand-critical objects stay locked.</p>
+            </div>
+            <a href="/login" className="shrink-0 font-mono text-[11px] text-signal underline decoration-signal/50 underline-offset-4 hover:text-bone">Open the full Studio →</a>
+          </div>
+
+          <div className="grid lg:grid-cols-[1.25fr_.75fr]">
+            <div className="border-b border-hairline p-3 sm:p-5 lg:border-b-0 lg:border-r">
+              <div className="relative aspect-[40/21] overflow-hidden border border-hairline bg-bone">
+                <Image
+                  key={activeTemplate}
+                  src={`/proof/templates/${activeTemplate}.png`}
+                  alt={`${template.label} template rendered by Brandrail`}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 680px, 100vw"
+                  className="object-cover"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-[.1em] text-muted">
+                <span>Synthetic Acme proof · production renderer</span>
+                <span className="text-green">✓ BrandSpec gate passed</span>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="font-mono text-[9px] uppercase tracking-[.12em] text-signal">{activeTemplate}</span>
+                  <h4 className="mt-1 font-display text-2xl font-bold">{template.label}</h4>
+                </div>
+                <span className="border border-hairline px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-muted">{template.optIn ? "Proof required" : "Auto-ready"}</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{template.description}</p>
+              <div className="mt-5 border-y border-hairline-soft py-4">
+                <span className="font-mono text-[8px] uppercase tracking-[.12em] text-muted">Best for</span>
+                <p className="mt-1 text-sm text-bone">{template.bestFor}</p>
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <div>
+                  <span className="font-mono text-[8px] uppercase tracking-[.12em] text-muted">Editable fields</span>
+                  <p className="mt-1 text-xs leading-relaxed text-bone">{Object.values(template.slots).map((slot) => slot.label).join(" · ")}</p>
+                </div>
+                <div>
+                  <span className="font-mono text-[8px] uppercase tracking-[.12em] text-muted">Locked by BrandSpec</span>
+                  <p className="mt-1 text-xs leading-relaxed text-bone">{template.locked.join(" · ")}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto border-t border-hairline p-3 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-4" role="group" aria-label="Production template library">
+            {TEMPLATE_SHOWCASE.map((archetype) => {
+              const info = ARCHETYPE_INFO[archetype];
+              const selected = archetype === activeTemplate;
+              return (
+                <button
+                  key={archetype}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setActiveTemplate(archetype)}
+                  className={`min-w-[152px] snap-start border p-1.5 text-left transition-colors sm:min-w-0 ${selected ? "border-signal bg-signal/5" : "border-hairline hover:border-muted"}`}
+                >
+                  <span className="relative block aspect-[40/21] overflow-hidden bg-bone">
+                    <Image src={`/proof/templates/${archetype}.png`} alt="" fill sizes="(min-width: 640px) 190px, 152px" className="object-cover" />
+                  </span>
+                  <span className="mt-2 flex items-center justify-between gap-2 px-0.5 pb-0.5">
+                    <b className="truncate font-display text-[11px] text-bone">{info.label}</b>
+                    <span className={`font-mono text-[8px] ${selected ? "text-signal" : "text-muted"}`} aria-hidden>{selected ? "●" : "○"}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function UseCasesSection() {
   return (
     <section id="use-cases" className="scroll-mt-20 border-b border-hairline-soft bg-panel py-16 md:py-24">
@@ -365,7 +584,7 @@ function UseCasesSection() {
               <span className="font-mono text-[10px] text-muted">CREATOR · FOUNDER · MARKETER</span>
             </div>
             <h3 className="mt-7 max-w-[430px] font-display text-3xl font-bold leading-tight">Show up every week without looking like a different company every day.</h3>
-            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Bring the idea; Brandrail carries your typography, palette, voice and layout across every format. Review one coherent content set instead of rebuilding every size from scratch.</p>
+            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Bring the idea; Brandrail carries your typography, palette, voice and layout across every format. Save a direction as a recipe, then return next week with fresh copy instead of another blank canvas.</p>
             <div className="mt-8 grid grid-cols-3 border border-hairline text-center">
               <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">1</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">brief</span></div>
               <div className="border-r border-hairline p-4"><strong className="font-display text-2xl text-signal">5</strong><span className="mt-1 block font-mono text-[9px] uppercase text-muted">formats</span></div>
@@ -379,7 +598,7 @@ function UseCasesSection() {
               <span className="font-mono text-[10px] text-muted">AGENCY · FREELANCER · TEAM</span>
             </div>
             <h3 className="mt-7 max-w-[440px] font-display text-3xl font-bold leading-tight">Protect your creative judgment—and the margin around it.</h3>
-            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Compile each client once. Then let one queue handle the resizing, rule checks and approvals while every account stays visibly its own.</p>
+            <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Compile each client once. Give every account its own approved template library and reusable directions, then let one queue handle production, rule checks and approvals.</p>
             <div className="mt-8 overflow-hidden border border-hairline">
               {[["NORTHSTAR", "CAROUSEL", "approved"], ["SLOW SUNDAY", "STATIC", "review"], ["BOLT", "STORY", "approved"]].map(([brand, format, status]) => (
                 <div key={brand} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-hairline-soft px-3 py-3 last:border-b-0">
@@ -408,7 +627,7 @@ function UseCasesSection() {
 function MechanismSection() {
   const rules = [
     ["Identity", "Fonts, color roles, logo use and clearspace"],
-    ["Composition", "Grid, density, whitespace and hierarchy"],
+    ["Composition", "Grid, templates, recipes, density and hierarchy"],
     ["Imagery", "Photo direction, crop behavior and AI fences"],
     ["Voice", "Tone, banned phrases, emoji and CTA limits"],
   ];
@@ -450,6 +669,7 @@ function ComparisonSection() {
   const rows = [
     ["Compiles a brand system from a URL", "—", "—", "✓"],
     ["Enforces type, palette and layout", "Manual", "Template only", "✓"],
+    ["Creative control across formats", "Manual resizing", "Fixed templates", "Auto Mix · plans · recipes"],
     ["Agent operates the full lifecycle", "—", "Partial actions", `${MCP_TOOL_COUNT} MCP tools + resources`],
     ["Resumable human approval", "Manual", "Basic approval", "Stateful + safe"],
     ["Dry-run + mutation audit trail", "—", "—", "✓"],
@@ -458,7 +678,7 @@ function ComparisonSection() {
   return (
     <section id="comparison" className="scroll-mt-20 border-b border-hairline-soft py-16 md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead eyebrow="Where Brandrail fits" title="Schedulers give agents accounts. Brandrail gives agents a brand they cannot break." body="Keep the tools you already like. Brandrail adds the missing operating layer: machine-readable brand constraints, deterministic assets, resumable approval, publishing and feedback." />
+        <SectionHead eyebrow="Where Brandrail fits" title="Schedulers give agents accounts. Brandrail gives agents a brand they cannot break." body="Keep the tools you already like. Brandrail adds the missing operating layer: machine-readable brand constraints, template-level creative control, deterministic assets, resumable approval, publishing and feedback." />
         <div className="overflow-x-auto border border-hairline">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead className="bg-panel font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
@@ -488,7 +708,7 @@ function PricingSection() {
       audience: "For trying your first brand",
       price: "$0",
       suffix: "forever",
-      items: ["1 hosted agent connection", "50 finished assets / month", "5 generative images", "1 active BrandSpec", "Compile, inspect, render + audit"],
+      items: ["1 hosted MCP agent key", "50 finished assets / month", "5 generative images", "1 active BrandSpec", "Auto Mix, template plans + recipes", "Compile, inspect, render + audit"],
       cta: "Connect your agent free",
       href: "/login?agent=1",
     },
@@ -498,7 +718,7 @@ function PricingSection() {
       price: "$49",
       suffix: "/ month",
       badge: "MOST POPULAR",
-      items: ["5 agent connections + signed webhooks", "1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Campaign planning + resumable review", "Calendar, publishing + performance loop"],
+      items: ["5 scoped agent keys + signed webhooks", "1,000 finished assets / month", "100 generative images", "3 active BrandSpecs", "Campaign planning + resumable review", "Calendar, publishing + performance loop"],
       cta: "Start with Studio",
       href: "/login?plan=studio",
     },
@@ -507,7 +727,7 @@ function PricingSection() {
       audience: "For teams managing clients",
       price: "$199",
       suffix: "/ month",
-      items: ["25 agent connections", "10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats + client approvals", "Multi-brand campaigns + client reports"],
+      items: ["25 scoped agent keys", "10,000 finished assets / month", "1,000 generative images", "25 active BrandSpecs", "Reviewer seats + client approvals", "Multi-brand campaigns + client reports"],
       cta: "Start an agency pilot",
       href: "/login?plan=agency",
     },
@@ -515,7 +735,7 @@ function PricingSection() {
   return (
     <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-16 text-ink md:py-24">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead light eyebrow="Simple plans, honest scaling" title="Connect the agent free. Pay when it starts operating the business." body="Free proves the agent + brand loop on one real identity. Studio adds approvals, scheduling, webhooks and learning. Agency adds client volume and controlled collaboration." />
+        <SectionHead light eyebrow="Simple plans, honest scaling" title="Connect the agent free. Pay when it starts operating the business." body="Free includes the real creative system: Auto Mix, templates and reusable recipes for one brand. Studio adds approvals, scheduling, webhooks and learning. Agency adds client volume and controlled collaboration." />
         <div className="grid items-stretch gap-5 lg:grid-cols-3">
           {plans.map((plan) => (
             <article key={plan.name} className={`relative flex flex-col border bg-[#FBFAF7] p-6 shadow-[6px_6px_0_#D8D3C9] sm:p-7 ${plan.badge ? "border-[#A83200] lg:-translate-y-2" : "border-[#C9C4BA]"}`}>
@@ -537,7 +757,7 @@ function PricingSection() {
           <div className="border-b border-[#D8D3C9] p-6 sm:p-8 lg:border-b-0 lg:border-r">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#A83200]">Rail for developers</span><h3 className="mt-2 font-display text-2xl font-bold">Brand-safe rendering inside your product.</h3></div>
-              <div className="text-right"><strong className="font-display text-3xl">Starts free</strong><span className="block font-mono text-[10px] text-[#6A655D]">1 hosted connection</span></div>
+              <div className="text-right"><strong className="font-display text-3xl">Starts free</strong><span className="block font-mono text-[10px] text-[#6A655D]">1 hosted agent key</span></div>
             </div>
             <p className="mt-4 max-w-[680px] text-sm leading-relaxed text-[#514D47]">Connect through hosted MCP, REST, CLI or SDK. Free agents can compile, inspect and render; Studio unlocks campaigns, approval events, scheduling and the performance loop.</p>
             <a href="/agents" className="mt-5 inline-flex text-sm font-semibold underline decoration-[#A83200] underline-offset-4">Explore the developer rail →</a>
@@ -550,8 +770,8 @@ function PricingSection() {
           </div>
         </div>
         <div className="mt-7 border-2 border-[#A83200] p-5 sm:flex sm:items-start sm:justify-between sm:gap-8">
-          <div><b className="font-display text-lg">Agency pilot guarantee</b><p className="mt-1 max-w-[800px] text-sm leading-relaxed text-[#514D47]">If the pilot does not cut measured production time for the selected client by at least half within 30 days, we refund the month. You keep the compiled BrandSpecs.</p></div>
-          <span className="mt-3 block shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-[#A83200] sm:mt-1">Agency plan only</span>
+          <div><b className="font-display text-lg">Prove the rail before you pay.</b><p className="mt-1 max-w-[800px] text-sm leading-relaxed text-[#514D47]">The real compile, template, recipe and render loop is included on Free. Upgrade only when you need approvals, publishing, automation or more brands.</p></div>
+          <span className="mt-3 block shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-[#A83200] sm:mt-1">$0 · no card</span>
         </div>
       </div>
     </section>
@@ -561,13 +781,14 @@ function PricingSection() {
 const FAQ = [
   ["Is Brandrail for one brand or many?", "Both. Free is for proving one brand. Studio is built for creators, founders and in-house marketers running up to three. Agency adds 25 active brands, reviewer seats and client reporting."],
   ["Does Brandrail replace designers or Canva?", "No. Designers still own the system, campaigns and judgment. Canva and Figma remain useful for bespoke design work; Brandrail removes repeat production and makes the rules your team defines enforceable across routine content."],
+  ["Can I choose the design, or does the agent decide?", "Either. Auto Mix lets Brandrail select a valid composition for each format. You can also force one template, direct each channel separately, or apply a saved recipe. Named copy and approved-image fields stay editable while brand tokens and layout rules remain locked."],
   ["How long does setup take?", "The live URL compile returns an initial BrandSpec in about 60 seconds. You can review uncertain fields, refine the rules and start rendering before connecting a channel or inviting a team."],
   ["What happens when the website does not contain the full brand system?", "The compiler marks low-confidence fields for review. Your team can correct colors, voice, imagery and constraints before the spec is used. Brandrail should expose uncertainty, not pretend it has taste it could not observe."],
   ["What exactly is enforced?", "The renderer checks the BrandSpec rules it can measure: typography, color roles, contrast, density, spacing, logo behavior, format dimensions, banned words and other configured limits. Human approval still owns factual accuracy and creative judgment."],
   ["Do I have to replace my scheduler?", "No. Use Brandrail’s visual calendar or keep your current workflow through the API. Bluesky and Mastodon connect directly; LinkedIn, Instagram, Facebook, X and TikTok become available when the corresponding approved platform app credentials are configured."],
   ["Which agents can connect?", "Clients that support remote Streamable HTTP MCP can connect to the hosted endpoint. Stdio clients can use the local MCP package. The same scoped credential also works with the CLI, SDK and REST API."],
   ["Can an agent publish without me?", "Not silently. Agent publishing requires an approved batch item or an explicit confirmation flag after you approve the exact action. Dry-runs validate the plan first, idempotency prevents duplicate retries, and every mutation is recorded."],
-  ["What can the free agent connection do?", "Free includes one workspace key, one active BrandSpec and 50 finished assets each month. It can compile, inspect, render, dry-run and read the audit trail. Studio unlocks campaign planning, approvals, webhooks, channels, publishing and analytics."],
+  ["What can the free agent key do?", "Free includes one scoped workspace key, one active BrandSpec and 50 finished assets each month. It can compile, inspect, render with Auto Mix or template plans, save recipes, dry-run and read the audit trail. Studio unlocks campaign planning, approvals, webhooks, channels, publishing and analytics."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable, and the SDK, CLI, MCP server and spec format are open. Your brand system is not trapped inside a proprietary editor."],
 ];
 
@@ -598,7 +819,7 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
       <div className="relative mx-auto max-w-[820px] px-5 sm:px-6">
         <span className="eyebrow text-signal">The agent is ready. Give it rails.</span>
         <h2 className="mt-4 font-display text-[clamp(38px,5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em]">Connect the AI you already use to the brand you already own.</h2>
-        <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with one free hosted connection, one real BrandSpec and a workflow that keeps you in control of every irreversible step.</p>
+        <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with one free hosted agent key, one real BrandSpec and a reusable creative system that keeps you in control of every irreversible step.</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn min-h-12">Connect your agent free →</a><a href="/agents" className="btn-ghost min-h-12">Explore all {MCP_TOOL_COUNT} tools</a></div>
         <div className="mx-auto mt-10 max-w-[650px] border-t border-hairline pt-6 text-left"><p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-muted">Or compile your website first</p><UrlBox id="final-client-url" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
       </div>

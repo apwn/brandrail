@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-/** Upgrade / manage-billing controls. Hidden entirely when the engine has no
- * Stripe keys, so the dashboard degrades cleanly on an unconfigured instance. */
+/** Upgrade / manage-billing controls. Checkout stays hidden until the engine
+ * verifies the complete Stripe rail and its advertised monthly prices. */
 export function BillingControls({ plan }: { plan: "free" | "studio" | "agency" }) {
-  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [readiness, setReadiness] = useState<{ configured: boolean; verified: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/config")
       .then((r) => r.json())
-      .then((d) => setConfigured(Boolean(d.configured)))
-      .catch(() => setConfigured(false));
+      .then((d) => setReadiness({ configured: Boolean(d.configured), verified: Boolean(d.verified) }))
+      .catch(() => setReadiness({ configured: false, verified: false }));
   }, []);
 
   async function go(path: string, body?: unknown) {
@@ -34,11 +34,13 @@ export function BillingControls({ plan }: { plan: "free" | "studio" | "agency" }
     }
   }
 
-  if (configured === null) return null;
-  if (!configured) {
+  if (readiness === null) return null;
+  if (!readiness.verified) {
     return (
       <p className="font-mono text-[11px] text-muted mt-3">
-        Billing isn&rsquo;t enabled on this instance — set Stripe keys to accept upgrades.
+        {readiness.configured
+          ? "Billing is paused until the Stripe prices match $49 Studio and $199 Agency monthly."
+          : "Billing isn’t enabled on this instance — add Stripe keys, prices and the webhook secret to accept upgrades."}
       </p>
     );
   }
