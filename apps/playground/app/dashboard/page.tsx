@@ -54,7 +54,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
     load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
     load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }),
-    load<{ programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; plannedPosts?: Array<unknown> }> }>("/v0/content-programs", uid, { programs: [] }),
+    load<{ programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; timeZone?: string; plannedPosts?: Array<unknown> }> }>("/v0/content-programs", uid, { programs: [] }),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -75,6 +75,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {owner && <a href="#agent" className="text-signal hover:text-bone">AGENT</a>}
           <a href="/" className="hover:text-bone">COMPILE</a>
           <a href="/review" className="hover:text-bone">REVIEW</a>
+          {owner && <a href="/templates" className="hover:text-bone">TEMPLATES</a>}
           {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
           {owner && <a href="/program" className="text-signal hover:text-bone">PROGRAM</a>}
           {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
@@ -254,10 +255,10 @@ function ProgramRail({ plan, verified, hasBrand, programs }: {
   plan: "free" | "studio" | "agency";
   verified: boolean;
   hasBrand: boolean;
-  programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; plannedPosts?: Array<unknown> }>;
+  programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; timeZone?: string; plannedPosts?: Array<unknown> }>;
 }) {
   const active = programs[0];
-  const next = active?.nextRunAt ? new Date(active.nextRunAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : "—";
+  const next = active?.nextRunAt ? new Date(active.nextRunAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: active.timeZone ?? "UTC" }) : "—";
   return (
     <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
       <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
@@ -267,11 +268,11 @@ function ProgramRail({ plan, verified, hasBrand, programs }: {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{active
             ? `${active.perWeek} posts each week · ${active.plannedPosts?.length ?? 0} ideas kept ahead · next production ${next}. Open the program to review the strategy, calendar and controls.`
             : hasBrand
-              ? plan === "free" ? "Turn one outcome into a personalized, exportable 30-day calendar. Previewing costs zero assets and needs no card." : "Set the outcome once. Brandrail plans the month, produces the next week and adapts what follows."
+              ? plan === "free" ? "Turn one outcome into a personalized, exportable four-week calendar. Previewing costs zero assets and needs no card." : "Set the outcome once. Brandrail plans four weeks, produces the next week and adapts what follows."
               : "Compile your website once so every future plan, caption and asset starts inside the same brand rules."}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={hasBrand ? "/program" : "/"} className="btn whitespace-nowrap">{active ? "Open program →" : hasBrand ? "Plan my next 30 days →" : "Compile my brand →"}</a>
+          <a href={hasBrand ? "/program" : "/"} className="btn whitespace-nowrap">{active ? "Open program →" : hasBrand ? "Plan my next 4 weeks →" : "Compile my brand →"}</a>
           {active && <a href="/review" className="btn-ghost whitespace-nowrap">Review queue →</a>}
           {!active && plan === "free" && hasBrand && <a href={verified ? "/dashboard?checkout=studio&return=%2Fprogram" : "/login?plan=studio&return=%2Fprogram"} className="btn-ghost whitespace-nowrap">See Studio →</a>}
         </div>
@@ -284,7 +285,7 @@ function UpgradeRail({ verified }: { verified: boolean }) {
   return (
     <section className="mt-10 border border-signal/50 bg-panel p-6 sm:p-8">
       <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div><p className="eyebrow text-signal">WHEN A CALENDAR SHOULD RUN ITSELF</p><h2 className="font-display text-2xl font-bold mt-3">Turn the free plan into finished content every week.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Studio keeps the next 30 days full, renders the next production week, pauses for approval and schedules the work you accept. Your agent can operate the same rail without bypassing you.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN MONTH</span><span>✓ PRODUCE WEEK</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ LEARN</span></div></div>
+        <div><p className="eyebrow text-signal">WHEN A CALENDAR SHOULD RUN ITSELF</p><h2 className="font-display text-2xl font-bold mt-3">Turn the free plan into finished content every week.</h2><p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">Studio keeps the next four weeks full, renders the next production week, pauses for approval and schedules the work you accept. Your agent can operate the same rail without bypassing you.</p><div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 font-mono text-[11px] text-bone"><span>✓ PLAN 4 WEEKS</span><span>✓ PRODUCE WEEK</span><span>✓ APPROVE</span><span>✓ PUBLISH</span><span>✓ LEARN</span></div></div>
         <a href={verified ? "/dashboard?checkout=studio&return=%2Fprogram" : "/login?plan=studio&return=%2Fprogram"} className="btn whitespace-nowrap">Activate my content program →</a>
       </div>
     </section>

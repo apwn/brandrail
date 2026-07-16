@@ -1,4 +1,6 @@
-import type { ArchetypeInfo, BrandSpec, DiffEntry, FormatId, LayoutArchetype, TemplateRecipe, TemplateSlotName, Violation } from "@brandrail/spec";
+import type { ArchetypeInfo, BrandSpec, CustomTemplateFamily, DiffEntry, FormatId, LayoutArchetype, TemplateRecipe, TemplateRef, TemplateSlotName, Violation } from "@brandrail/spec";
+
+export interface TemplatePreflightIssue { severity: "error" | "warning"; code: string; path: string; message: string }
 
 export interface BrandrailOptions {
   /** API base URL. Defaults to $BRANDRAIL_API_URL / $RENDER_API_URL / https://api.brandrail.dev */
@@ -51,6 +53,7 @@ export interface RenderResponse {
     brand: string;
     brief: string;
     recipe?: string;
+    templateRef?: TemplateRef;
     formats: FormatId[];
     archetype: LayoutArchetype;
     plan?: Partial<Record<FormatId, LayoutArchetype>>;
@@ -101,16 +104,19 @@ export interface ContentProgramInput {
   audience?: string;
   pillars?: string[];
   offer?: string;
+  contentContext?: string;
   importantDates?: Array<{ date: string; label: string }>;
   perWeek: number;
   horizonWeeks?: 1 | 4;
   channelIds?: string[];
   approvalMode?: "review" | "auto";
+  timeZone?: string;
+  postingTime?: string;
   startAt?: string;
   endAt?: string;
   paused?: boolean;
   /** Optional approved preview. When omitted, activation plans a fresh horizon. */
-  plannedPosts?: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId }>;
+  plannedPosts?: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId; locked?: boolean }>;
 }
 
 export interface ContentProgram extends ContentProgramInput {
@@ -119,6 +125,8 @@ export interface ContentProgram extends ContentProgramInput {
   horizonWeeks: 1 | 4;
   channelIds: string[];
   approvalMode: "review" | "auto";
+  timeZone: string;
+  postingTime: string;
   pillars: string[];
   importantDates: Array<{ date: string; label: string }>;
   status: "active" | "paused" | "scheduled" | "complete";
@@ -129,7 +137,7 @@ export interface ContentProgram extends ContentProgramInput {
 }
 
 export interface ContentProgramPreview extends ContentProgram {
-  posts: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId }>;
+  posts: Array<{ week: number; scheduledFor: string; brief: string; rationale: string; archetype: LayoutArchetype; format: FormatId; locked?: boolean }>;
   totalPosts: number;
   renderStrategy: "rolling-weekly";
   firstProductionWindow: string[];
@@ -139,6 +147,7 @@ export interface AnalyticsSummary {
   totals: { posts: number; scheduled: number; published: number; failed: number; measured: number; impressions: number; engagements: number; engagementRate: number | null };
   byChannel: Array<{ platform: string; handle: string; posts: number; impressions: number; engagements: number }>;
   byMonth: Array<{ month: string; posts: number; impressions: number; engagements: number }>;
+  topPosts: Array<Omit<ScheduledPost, "channelIds"> & { channelIds: Array<{ id: string; platform: string; handle: string }> }>;
   insight: string;
 }
 
@@ -167,9 +176,13 @@ export interface AgentRun {
 }
 
 export interface UsageSummary {
-  user: { plan: "free" | "studio" | "agency"; emailVerified?: boolean };
-  usage: Record<string, unknown>;
-  entitlements: Record<string, unknown>;
+  user: { id: string; email?: string | null; emailVerified?: boolean; plan: "free" | "studio" | "agency"; memberOf?: string; memberRole?: string };
+  workspaceId: string;
+  role: "owner" | "reviewer";
+  entitlements: { brands: number; apiKeys: number; features: string[] };
+  limit: number;
+  genLimit: number;
+  counts: { brands: number; batches: number; rendersThisMonth: number; generativeThisMonth: number };
 }
 
 export class BrandrailError extends Error {
@@ -233,7 +246,7 @@ export class Brandrail {
 
   async getSpec(name: string, version?: number): Promise<BrandSpec> {
     const q = version ? `?version=${version}` : "";
-    const { spec } = await this.request<{ spec: BrandSpec }>(`/v0/specs/${name}${q}`);
+    const { spec } = await this.request<{ spec: BrandSpec }>(`/v0/specs/${encodeURIComponent(name)}${q}`);
     return spec;
   }
 
@@ -253,7 +266,7 @@ export class Brandrail {
   }
 
   async patchSpec(name: string, patch: object): Promise<{ spec: BrandSpec; changes: DiffEntry[] }> {
-    return this.request(`/v0/specs/${name}`, { method: "PATCH", body: JSON.stringify(patch) });
+    return this.request(`/v0/specs/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 
   listRecipes(brand: string): Promise<{ brand: string; specVersion: number; recipes: TemplateRecipe[] }> {
@@ -273,7 +286,7 @@ export class Brandrail {
   }
 
   async forkSpec(parent: string, name: string, overrides: object = {}): Promise<BrandSpec> {
-    const res = await this.request<{ spec: BrandSpec }>(`/v0/specs/${parent}/fork`, {
+    const res = await this.request<{ spec: BrandSpec }>(`/v0/specs/${encodeURIComponent(parent)}/fork`, {
       method: "POST",
       body: JSON.stringify({ name, overrides }),
     });
@@ -281,7 +294,7 @@ export class Brandrail {
   }
 
   diffSpec(name: string, from: number, to: number): Promise<{ entries: DiffEntry[]; text: string }> {
-    return this.request(`/v0/specs/${name}/diff?from=${from}&to=${to}`);
+    return this.request(`/v0/specs/${encodeURIComponent(name)}/diff?from=${from}&to=${to}`);
   }
 
   /** brief → finished, brand-locked assets. Pass `copy` to render exact copy (studio path). */
@@ -296,10 +309,12 @@ export class Brandrail {
       template?: LayoutArchetype;
       /** Per-format manual choices. Formats omitted from the map stay automatic. */
       templates?: Partial<Record<FormatId, LayoutArchetype>>;
+      /** Versioned system, workspace, or brand template selector. */
+      templateRef?: TemplateRef;
       /** Compatibility alias for template. */
       archetype?: LayoutArchetype;
       version?: number;
-      copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string }>>;
+      copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string; series?: Array<{ label: string; value: number }> }>>;
       runId?: string;
       /** Named dynamic-field changes applied after copy generation. */
       modifications?: TemplateModification[];
@@ -315,6 +330,57 @@ export class Brandrail {
 
   listTemplates(): Promise<{ templates: Array<{ id: LayoutArchetype } & ArchetypeInfo>; modes: string[]; rule: string }> {
     return this.request("/v0/templates");
+  }
+
+  async listTemplateFamilies(): Promise<CustomTemplateFamily[]> {
+    const { families } = await this.request<{ families: CustomTemplateFamily[] }>("/v0/template-families");
+    return families;
+  }
+
+  async getTemplateFamily(id: string, version?: number): Promise<CustomTemplateFamily> {
+    const query = version ? `?version=${version}` : "";
+    const { family } = await this.request<{ family: CustomTemplateFamily }>(`/v0/template-families/${encodeURIComponent(id)}${query}`);
+    return family;
+  }
+
+  async listTemplateFamilyVersions(id: string): Promise<CustomTemplateFamily[]> {
+    const { versions } = await this.request<{ versions: CustomTemplateFamily[] }>(`/v0/template-families/${encodeURIComponent(id)}/versions`);
+    return versions;
+  }
+
+  async saveTemplateFamily(family: Omit<CustomTemplateFamily, "version" | "status" | "autoEligible" | "createdAt" | "updatedAt"> & Partial<Pick<CustomTemplateFamily, "version" | "status" | "autoEligible" | "createdAt" | "updatedAt">>): Promise<{ family: CustomTemplateFamily; preflight: { ready: boolean; issues: TemplatePreflightIssue[] } }> {
+    return this.request("/v0/template-families", { method: "POST", body: JSON.stringify(family) });
+  }
+
+  async duplicateTemplateFamily(input: { source: TemplateRef; id: string; name: string; scope: "workspace" | "brand"; brand?: string; formats?: FormatId[] }): Promise<{ family: CustomTemplateFamily; preflight: { ready: boolean; issues: TemplatePreflightIssue[] } }> {
+    return this.request("/v0/template-families/duplicate", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  preflightTemplateFamily(id: string, brand?: string): Promise<{ ready: boolean; issues: TemplatePreflightIssue[] }> {
+    return this.request(`/v0/template-families/${encodeURIComponent(id)}/preflight`, { method: "POST", body: JSON.stringify({ brand }) });
+  }
+
+  async publishTemplateFamily(id: string, options: { brand?: string; autoEligible?: boolean } = {}): Promise<CustomTemplateFamily> {
+    const { family } = await this.request<{ family: CustomTemplateFamily }>(`/v0/template-families/${encodeURIComponent(id)}/publish`, { method: "POST", body: JSON.stringify(options) });
+    return family;
+  }
+
+  async archiveTemplateFamily(id: string): Promise<CustomTemplateFamily> {
+    const { family } = await this.request<{ family: CustomTemplateFamily }>(`/v0/template-families/${encodeURIComponent(id)}/archive`, { method: "POST", body: "{}" });
+    return family;
+  }
+
+  deleteTemplateFamily(id: string): Promise<{ deleted: true }> {
+    return this.request(`/v0/template-families/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  async uploadTemplateArtwork(file: Blob, filename = "template-artwork"): Promise<{ ref: string; mime: string; bytes: number }> {
+    const form = new FormData();
+    form.set("file", file, filename);
+    const res = await fetch(`${this.apiUrl}/v0/template-assets`, { method: "POST", headers: this.apiKey ? { "x-api-key": this.apiKey } : undefined, body: form });
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+    if (!res.ok) throw new BrandrailError(res.status, String(body.error ?? `${res.status} ${res.statusText}`));
+    return body as { ref: string; mime: string; bytes: number };
   }
 
   async listRenders(limit = 24): Promise<RenderHistoryEntry[]> {
@@ -379,7 +445,7 @@ export class Brandrail {
     return this.request(`/v0/batches/${encodeURIComponent(batchId)}/status${runId ? `?runId=${encodeURIComponent(runId)}` : ""}`);
   }
 
-  createReviewBatch(input: { title?: string; runId?: string; items: Array<{ brand: string; version?: number; brief: string; archetype?: LayoutArchetype; renderId?: string; copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string }>> }> }): Promise<{ id: string; title: string; items: unknown[] }> {
+  createReviewBatch(input: { title?: string; runId?: string; items: Array<{ brand: string; version?: number; brief: string; archetype?: LayoutArchetype; renderId?: string; copy?: Record<string, Array<{ kicker?: string; hook: string; body?: string; cta?: string; badge?: string; rating?: string; series?: Array<{ label: string; value: number }> }>> }> }): Promise<{ id: string; title: string; items: unknown[] }> {
     return this.request("/v0/batches", { method: "POST", body: JSON.stringify(input) });
   }
 
@@ -408,7 +474,7 @@ export class Brandrail {
     return post;
   }
 
-  cancelPost(id: string): Promise<{ ok: boolean; post: ScheduledPost }> {
+  cancelPost(id: string): Promise<{ post: ScheduledPost }> {
     return this.request(`/v0/scheduled/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
 
@@ -447,8 +513,8 @@ export class Brandrail {
     return program;
   }
 
-  runContentProgram(brand: string): Promise<{ batches: number; rendered: number; queued: number; skipped: string[]; program: ContentProgram }> {
-    return this.request(`/v0/content-programs/${encodeURIComponent(brand)}/run`, { method: "POST", body: "{}" });
+  runContentProgram(brand: string, confirmForce = false): Promise<{ batches: number; rendered: number; queued: number; skipped: string[]; program: ContentProgram }> {
+    return this.request(`/v0/content-programs/${encodeURIComponent(brand)}/run`, { method: "POST", body: JSON.stringify({ confirmForce }) });
   }
 
   deleteContentProgram(brand: string): Promise<{ ok: boolean }> {
@@ -481,4 +547,4 @@ export class Brandrail {
   }
 }
 
-export type { BrandSpec, DiffEntry, FormatId, LayoutArchetype, Violation } from "@brandrail/spec";
+export type { BrandSpec, CustomTemplateFamily, DiffEntry, FormatId, LayoutArchetype, TemplateRef, Violation } from "@brandrail/spec";

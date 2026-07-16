@@ -7,12 +7,25 @@ import {
   stringify,
   ALL_FORMATS,
   ARCHETYPE_INFO,
+  TemplateRefSchema,
   type FormatId,
   type LayoutArchetype,
   type TemplateRecipe,
 } from "@brandrail/spec";
 
 const ARCHETYPES = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
+const slideCopyInput = z.object({
+  kicker: z.string().max(500).optional(),
+  hook: z.string().min(1).max(500),
+  body: z.string().max(2_000).optional(),
+  cta: z.string().max(500).optional(),
+  badge: z.string().max(500).optional(),
+  rating: z.string().max(20).optional(),
+  series: z.array(z.object({
+    label: z.string().min(1).max(24),
+    value: z.number().finite(),
+  })).min(2).max(6).optional(),
+});
 const contentProgramInput = {
   brand: z.string().min(1).describe("compiled brand name"),
   name: z.string().min(2).max(120).optional(),
@@ -20,11 +33,14 @@ const contentProgramInput = {
   audience: z.string().max(240).optional(),
   pillars: z.array(z.string().min(1).max(80)).max(6).optional(),
   offer: z.string().max(240).optional(),
+  contentContext: z.string().max(2_000).optional().describe("product facts, differentiators, proof points and current topics; do not include unverified claims"),
   importantDates: z.array(z.object({ date: z.string().describe("YYYY-MM-DD"), label: z.string().min(1).max(120) })).max(12).optional(),
   perWeek: z.number().int().min(1).max(7),
   horizonWeeks: z.union([z.literal(1), z.literal(4)]).optional(),
   channelIds: z.array(z.string()).max(20).optional(),
   approvalMode: z.enum(["review", "auto"]).optional().describe("review is the safe default; auto requires connected channels"),
+  timeZone: z.string().max(100).optional().describe("IANA timezone, e.g. America/Costa_Rica"),
+  postingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().describe("preferred local posting time, HH:mm"),
   startAt: z.string().optional().describe("YYYY-MM-DD"),
   endAt: z.string().optional().describe("YYYY-MM-DD"),
   paused: z.boolean().optional(),
@@ -35,6 +51,7 @@ const contentProgramInput = {
     rationale: z.string().max(200),
     archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]),
     format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+    locked: z.boolean().optional(),
   })).max(28).optional().describe("approved posts returned by preview_content_program; pass them to preserve that exact preview"),
 };
 
@@ -115,7 +132,12 @@ export function buildServer(): McpServer {
           z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
           z.enum(ARCHETYPES as unknown as [string, ...string[]]),
         ).optional().describe("per-format template plan; omitted formats stay automatic and this cannot be combined with template"),
+        templateRef: TemplateRefSchema.optional().describe("versioned system, workspace, or brand template family selector"),
         archetype: z.enum(ARCHETYPES as unknown as [string, ...string[]]).optional().describe("compatibility alias for template"),
+        copy: z.record(
+          z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
+          z.array(slideCopyInput).min(1).max(4),
+        ).optional().describe("exact per-format copy; use series here for data-trend so chart values are supplied rather than inferred"),
         modifications: z.array(z.object({
           format: z.enum(ALL_FORMATS as unknown as [string, ...string[]]),
           slide: z.number().int().min(0).optional(),
@@ -130,7 +152,7 @@ export function buildServer(): McpServer {
         runId: z.string().optional().describe("durable run to advance after rendering"),
       },
     },
-    async ({ brand, brief, recipe, formats, template, templates, archetype, modifications, media, runId }) => {
+    async ({ brand, brief, recipe, formats, template, templates, templateRef, archetype, copy, modifications, media, runId }) => {
       try {
         if (template && archetype && template !== archetype) throw new Error("template and archetype must match when both are supplied");
         if ((template || archetype) && templates) throw new Error("use template or templates, not both");
@@ -139,6 +161,8 @@ export function buildServer(): McpServer {
           formats: formats as FormatId[] | undefined,
           template: (template ?? archetype) as LayoutArchetype | undefined,
           templates: templates as Partial<Record<FormatId, LayoutArchetype>> | undefined,
+          templateRef,
+          copy,
           modifications: modifications as TemplateModification[] | undefined,
           media: media as TemplateMediaSelection[] | undefined,
           runId,
@@ -287,6 +311,70 @@ export function buildServer(): McpServer {
   );
 
   server.registerTool(
+    "list_template_families",
+    { description: "List versioned workspace and brand visual template families, including draft/published status and supported formats.", inputSchema: {} },
+    async () => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify({ families: await api.listTemplateFamilies() }, null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "list_template_family_versions",
+    { description: "List immutable version history for one workspace or brand template family.", inputSchema: { id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64) } },
+    async ({ id }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify({ versions: await api.listTemplateFamilyVersions(id) }, null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "duplicate_template_family",
+    {
+      description: "Create an editable declarative template family from a system or user-owned template contract. The result is a draft and cannot enter automatic planning until preflighted and published.",
+      inputSchema: {
+        source: TemplateRefSchema,
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64),
+        name: z.string().min(1).max(80),
+        scope: z.enum(["workspace", "brand"]),
+        brand: z.string().optional(),
+        formats: z.array(z.enum(ALL_FORMATS as unknown as [string, ...string[]])).optional(),
+      },
+    },
+    async (input) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.duplicateTemplateFamily({ ...input, formats: input.formats as FormatId[] | undefined }), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "preflight_template_family",
+    { description: "Run structural, slot, format, color-role, and contrast checks before a custom template is published.", inputSchema: { id: z.string(), brand: z.string().optional() } },
+    async ({ id, brand }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.preflightTemplateFamily(id, brand), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "publish_template_family",
+    { description: "Publish a custom family only after preflight passes. autoEligible remains false unless explicitly requested.", inputSchema: { id: z.string(), brand: z.string().optional(), autoEligible: z.boolean().optional() } },
+    async ({ id, brand, autoEligible }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.publishTemplateFamily(id, { brand, autoEligible }), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
+    "archive_template_family",
+    { description: "Archive a custom template family so new renders cannot select it. Existing render manifests remain reproducible.", inputSchema: { id: z.string() } },
+    async ({ id }) => {
+      try { return { content: [{ type: "text" as const, text: JSON.stringify(await api.archiveTemplateFamily(id), null, 2) }] }; }
+      catch (e) { return err(e); }
+    },
+  );
+
+  server.registerTool(
     "diff_brand_spec",
     {
       description:
@@ -335,13 +423,13 @@ export function buildServer(): McpServer {
 
   server.registerTool(
     "list_content_programs",
-    { description: "List the rolling weekly or monthly content programs in this workspace, including cadence, strategy, status and next run.", inputSchema: {} },
+    { description: "List rolling one- or four-week content programs in this workspace, including cadence, strategy, status and next run.", inputSchema: {} },
     async () => { try { const data = { programs: await api.listContentPrograms() }; return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(
     "preview_content_program",
-    { description: "Plan a coherent week or month without saving or rendering. Returns dated post ideas across the full horizon. Use this before create_content_program.", inputSchema: contentProgramInput },
+    { description: "Plan one coherent week or four weeks without saving or rendering. Returns exact dated post ideas across the full horizon. Use this before create_content_program.", inputSchema: contentProgramInput },
     async (input) => { try { const data = await api.previewContentProgram(input as ContentProgramInput); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
@@ -353,8 +441,8 @@ export function buildServer(): McpServer {
 
   server.registerTool(
     "run_content_program",
-    { description: "Produce the next week with channel-native copy and matching visual formats. Review-mode programs pause in the human queue; auto-mode programs schedule only to their selected connected channels.", inputSchema: { brand: z.string().min(1) } },
-    async ({ brand }) => { try { const data = await api.runContentProgram(brand); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
+    { description: "Produce the next week with channel-native copy and matching visual formats. Review-mode programs pause in the human queue; auto-mode programs schedule only to their selected connected channels. Producing twice inside one week requires confirmForce=true.", inputSchema: { brand: z.string().min(1), confirmForce: z.boolean().optional() } },
+    async ({ brand, confirmForce }) => { try { const data = await api.runContentProgram(brand, confirmForce); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(

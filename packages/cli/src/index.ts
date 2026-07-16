@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import { Brandrail, BrandrailError, type ContentProgramInput, type TemplateMediaSelection } from "@brandrail/sdk";
-import { stringify, formatDiff, isFormatId, ARCHETYPE_INFO, type FormatId } from "@brandrail/spec";
+import { stringify, formatDiff, isFormatId, ARCHETYPE_INFO, type FormatId, type TemplateRef } from "@brandrail/spec";
 
 /**
  * Exit codes (agents are the primary users — keep them stable):
@@ -35,6 +35,16 @@ function fail(message: string, code = 1): never {
   if (isJson()) console.log(JSON.stringify({ ok: false, error: message }));
   else console.error(`error: ${message}`);
   process.exit(code);
+}
+
+function parseTemplateRef(value: string): TemplateRef {
+  const match = /^(system|workspace|brand):([a-z0-9][a-z0-9-]*)(?:@(\d+))?$/.exec(value);
+  if (!match) fail("template ref must be system:id, workspace:id@version, or brand:id@version");
+  if (match[1] === "system") {
+    if (match[3] || !(match[2]! in ARCHETYPE_INFO)) fail("system template ref must name a current built-in without a version");
+    return { source: "system", id: match[2] as keyof typeof ARCHETYPE_INFO };
+  }
+  return { source: match[1] as "workspace" | "brand", id: match[2]!, ...(match[3] ? { version: Number(match[3]) } : {}) };
 }
 
 function handleError(e: unknown): never {
@@ -267,6 +277,7 @@ program
   .option("--formats <list>", "comma-separated: ig-carousel,li-image,story,x-graphic,og-image")
   .option("--recipe <id>", "saved visual recipe from the BrandSpec")
   .option("--template <id>", "template from `brandrail templates` (default: auto mix)")
+  .option("--template-ref <ref>", "versioned selector: workspace:launch-card@2 or brand:campaign-frame@4")
   .option("--templates <plan>", "per-format plan: story=cta-card,og-image=announcement")
   .option("--media <slots>", "approved photos: x-graphic.primary=0,story.primary=2")
   .option("--archetype <name>", "compatibility alias for --template")
@@ -275,7 +286,7 @@ program
   .action(
     async (
       brief: string,
-      opts: { brand: string; formats?: string; recipe?: string; template?: string; templates?: string; media?: string; archetype?: string; run?: string; out: string },
+      opts: { brand: string; formats?: string; recipe?: string; template?: string; templateRef?: string; templates?: string; media?: string; archetype?: string; run?: string; out: string },
     ) => {
       try {
         let formats: FormatId[] | undefined;
@@ -287,6 +298,7 @@ program
         }
         if (opts.template && opts.archetype && opts.template !== opts.archetype) fail("--template and --archetype must match when both are supplied");
         const selectedTemplate = opts.template ?? opts.archetype;
+        if (opts.templateRef && (selectedTemplate || opts.templates)) fail("use --template-ref, --template, or --templates, not more than one");
         if (selectedTemplate && opts.templates) fail("use --template or --templates, not both");
         const templatePlan: Partial<Record<FormatId, keyof typeof ARCHETYPE_INFO>> = {};
         for (const entry of opts.templates?.split(",").filter(Boolean) ?? []) {
@@ -311,6 +323,7 @@ program
           formats,
           ...(opts.recipe ? { recipe: opts.recipe } : {}),
           template: selectedTemplate as never,
+          ...(opts.templateRef ? { templateRef: parseTemplateRef(opts.templateRef) } : {}),
           ...(Object.keys(templatePlan).length ? { templates: templatePlan as never } : {}),
           ...(media.length ? { media } : {}),
           ...(opts.run ? { runId: opts.run } : {}),
@@ -359,6 +372,58 @@ program
       console.log(`  locked: ${info.locked.join(", ")}\n`);
     }
   });
+
+const templateFamilies = program.command("template-families").description("manage safe versioned visual template families");
+
+templateFamilies.command("list").action(async () => {
+  try {
+    const families = await client().listTemplateFamilies();
+    if (isJson()) console.log(JSON.stringify({ ok: true, families }));
+    else if (!families.length) console.log("No custom template families.");
+    else for (const family of families) console.log(`${family.scope}:${family.id}@${family.version}  ${family.status}  ${Object.keys(family.formats).join(",")}`);
+  } catch (e) { handleError(e); }
+});
+
+templateFamilies.command("versions").argument("<id>").action(async (id: string) => {
+  try {
+    const versions = await client().listTemplateFamilyVersions(id);
+    if (isJson()) console.log(JSON.stringify({ ok: true, versions }));
+    else for (const family of versions) console.log(`${family.scope}:${family.id}@${family.version}  ${family.status}  ${family.updatedAt}`);
+  } catch (e) { handleError(e); }
+});
+
+templateFamilies.command("duplicate")
+  .argument("<source>", "system:hero-statement or workspace:my-card@2")
+  .requiredOption("--id <id>")
+  .requiredOption("--name <name>")
+  .option("--scope <scope>", "workspace or brand", "workspace")
+  .option("--brand <name>")
+  .option("--formats <list>")
+  .action(async (source: string, opts: { id: string; name: string; scope: string; brand?: string; formats?: string }) => {
+    try {
+      if (opts.scope !== "workspace" && opts.scope !== "brand") fail("scope must be workspace or brand");
+      const formats = opts.formats?.split(",").map((value) => value.trim()) as FormatId[] | undefined;
+      if (formats?.some((format) => !isFormatId(format))) fail("formats contain an unknown format");
+      const result = await client().duplicateTemplateFamily({ source: parseTemplateRef(source), id: opts.id, name: opts.name, scope: opts.scope, brand: opts.brand, formats });
+      console.log(isJson() ? JSON.stringify({ ok: true, ...result }) : `${result.family.scope}:${result.family.id}@${result.family.version} draft created · preflight ${result.preflight.ready ? "ready" : "needs work"}`);
+    } catch (e) { handleError(e); }
+  });
+
+templateFamilies.command("preflight").argument("<id>").option("--brand <name>").action(async (id: string, opts: { brand?: string }) => {
+  try { const result = await client().preflightTemplateFamily(id, opts.brand); console.log(isJson() ? JSON.stringify({ ok: result.ready, ...result }) : result.ready ? "ready to publish" : result.issues.map((issue) => `${issue.severity} ${issue.path}: ${issue.message}`).join("\n")); } catch (e) { handleError(e); }
+});
+
+templateFamilies.command("publish").argument("<id>").option("--brand <name>").option("--auto-eligible").action(async (id: string, opts: { brand?: string; autoEligible?: boolean }) => {
+  try { const family = await client().publishTemplateFamily(id, opts); console.log(isJson() ? JSON.stringify({ ok: true, family }) : `${family.scope}:${family.id}@${family.version} published${family.autoEligible ? " · auto-eligible" : " · manual-only"}`); } catch (e) { handleError(e); }
+});
+
+templateFamilies.command("archive").argument("<id>").action(async (id: string) => {
+  try { const family = await client().archiveTemplateFamily(id); console.log(isJson() ? JSON.stringify({ ok: true, family }) : `${family.id}@${family.version} archived`); } catch (e) { handleError(e); }
+});
+
+templateFamilies.command("upload").argument("<file>").action(async (file: string) => {
+  try { const bytes = await readFile(file); const result = await client().uploadTemplateArtwork(new Blob([bytes]), path.basename(file)); console.log(isJson() ? JSON.stringify({ ok: true, ...result }) : result.ref); } catch (e) { handleError(e); }
+});
 
 const recipes = program.command("recipes").description("manage reusable BrandSpec visual systems");
 

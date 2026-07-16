@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ARCHETYPE_INFO, type LayoutArchetype } from "@brandrail/spec";
 
 interface Candidate {
@@ -9,21 +10,18 @@ interface Candidate {
 }
 
 function TemplateMiniature({ archetype }: { archetype: LayoutArchetype }) {
-  const line = "h-1 rounded-full bg-bone/80";
   return (
-    <div className="relative aspect-[4/3] overflow-hidden border border-hairline bg-ink p-2" aria-hidden>
-      <span className="absolute left-2 top-2 h-1 w-4 bg-signal" />
-      {archetype === "hero-statement" && <><span className={`absolute bottom-7 left-2 w-3/4 ${line}`} /><span className={`absolute bottom-4 left-2 w-1/2 ${line}`} /></>}
-      {archetype === "cta-card" && <><span className={`absolute left-2 top-1/2 w-4/5 ${line}`} /><span className="absolute bottom-2 left-2 h-3 w-8 bg-signal" /></>}
-      {archetype === "split-stat" && <><span className="absolute bottom-4 left-2 font-display text-2xl font-bold text-bone">4×</span><span className="absolute bottom-3 right-2 h-7 w-px bg-signal" /></>}
-      {archetype === "quote" && <><span className="absolute left-2 top-4 font-serif text-2xl text-signal">“</span><span className={`absolute bottom-7 left-5 w-3/4 ${line}`} /><span className="absolute bottom-3 left-5 h-1 w-1/3 rounded-full bg-muted" /></>}
-      {archetype === "list-3" && <div className="absolute inset-x-2 bottom-2 space-y-1.5">{[0, 1, 2].map((item) => <span key={item} className="flex items-center gap-1.5"><i className="h-2 w-2 bg-signal" /><i className="h-1 flex-1 rounded-full bg-bone/75" /></span>)}</div>}
-      {archetype === "promo-card" && <><span className="absolute inset-y-0 right-0 w-2/5 bg-muted/35" /><span className="absolute right-1 top-2 bg-signal px-1 font-mono text-[5px] text-ink">-30%</span><span className={`absolute bottom-5 left-2 w-2/5 ${line}`} /></>}
-      {archetype === "feature-grid" && <div className="absolute inset-x-2 bottom-2 grid grid-cols-2 gap-1">{[0, 1, 2, 3].map((item) => <span key={item} className="h-5 border border-hairline bg-panel" />)}</div>}
-      {archetype === "testimonial" && <><span className={`absolute left-2 top-1/2 w-3/4 ${line}`} /><span className="absolute bottom-2 left-2 h-3 w-3 rounded-full bg-muted" /><span className="absolute bottom-3 left-7 h-1 w-8 rounded-full bg-muted" /></>}
-      {archetype === "announcement" && <><span className="absolute right-2 top-0 bg-signal px-1.5 py-1 font-mono text-[5px] text-ink">JUN 14</span><span className={`absolute bottom-6 left-2 w-3/4 ${line}`} /><span className="absolute bottom-3 left-2 h-1 w-1/2 rounded-full bg-muted" /></>}
-      {archetype === "before-after" && <><span className="absolute inset-y-0 left-0 w-1/2 bg-muted/25" /><span className="absolute inset-y-0 right-0 w-1/2 bg-panel" /><span className="absolute bottom-2 left-2 bg-bone px-1 font-mono text-[5px] text-ink">AFTER</span><span className="absolute bottom-2 right-2 border border-bone px-1 font-mono text-[5px] text-bone">BEFORE</span></>}
-    </div>
+    <span className="relative block aspect-[40/21] overflow-hidden border border-hairline bg-ink" aria-hidden>
+      {/* Production-rendered proof: the picker cannot drift from the real template. */}
+      <Image
+        src={`/proof/templates/${archetype}.png`}
+        alt=""
+        fill
+        sizes="(min-width: 640px) 180px, 46vw"
+        loading="lazy"
+        className="object-cover"
+      />
+    </span>
   );
 }
 

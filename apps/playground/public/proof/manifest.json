@@ -2,6 +2,10 @@
   "brand": "acme",
   "specVersion": 3,
   "brief": "Acme platform launch: faster rendering without brand drift",
+  "templateRef": {
+    "source": "system",
+    "id": "announcement"
+  },
   "formats": [
     "ig-carousel",
     "og-image",
@@ -10,8 +14,8 @@
   "archetype": "announcement",
   "plan": {
     "ig-carousel": "announcement",
-    "og-image": "announcement",
-    "x-graphic": "cta-card"
+    "og-image": "cta-card",
+    "x-graphic": "hero-statement"
   },
   "artDirection": {
     "ig-carousel": {
@@ -41,24 +45,9 @@
       "rationale": "Carousel rhythm: announcement → hero-statement → hero-statement → cta-card."
     },
     "og-image": {
-      "selected": "announcement",
+      "selected": "cta-card",
       "intent": "announcement",
       "candidates": [
-        {
-          "archetype": "announcement",
-          "score": 73,
-          "semanticScore": 70,
-          "reasons": [
-            "format default",
-            "launch, release, event, or date language",
-            "campaign variety considered",
-            "feed-scale focal type",
-            "disciplined accent usage",
-            "secondary type remains legible at feed scale"
-          ],
-          "visualScore": 80,
-          "valid": true
-        },
         {
           "archetype": "cta-card",
           "score": 41,
@@ -71,26 +60,42 @@
           ],
           "visualScore": 78,
           "valid": true
-        }
-      ],
-      "rationale": "announcement ranked first after composition: format default; launch, release, event, or date language; campaign variety considered; feed-scale focal type; disciplined accent usage; secondary type remains legible at feed scale."
-    },
-    "x-graphic": {
-      "selected": "cta-card",
-      "intent": "statement",
-      "candidates": [
+        },
         {
-          "archetype": "cta-card",
-          "score": 42,
-          "semanticScore": 26,
+          "archetype": "announcement",
+          "score": 34,
+          "semanticScore": 16,
           "reasons": [
-            "supporting CTA supplied",
+            "launch, release, event, or date language",
+            "campaign variety considered",
             "feed-scale focal type",
-            "disciplined accent usage"
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
           ],
-          "visualScore": 84,
+          "visualScore": 80,
           "valid": true
         },
+        {
+          "archetype": "hero-statement",
+          "score": 22,
+          "semanticScore": 0,
+          "reasons": [
+            "format default",
+            "campaign variety considered",
+            "feed-scale focal type",
+            "disciplined accent usage",
+            "secondary type remains legible at feed scale"
+          ],
+          "visualScore": 80,
+          "valid": true
+        }
+      ],
+      "rationale": "cta-card ranked first after composition: supporting CTA supplied; feed-scale focal type; disciplined accent usage; secondary type remains legible at feed scale."
+    },
+    "x-graphic": {
+      "selected": "hero-statement",
+      "intent": "statement",
+      "candidates": [
         {
           "archetype": "hero-statement",
           "score": 31,
@@ -106,9 +111,10 @@
           "valid": true
         }
       ],
-      "rationale": "cta-card ranked first after composition: supporting CTA supplied; feed-scale focal type; disciplined accent usage."
+      "rationale": "hero-statement ranked first after composition: format default; single dominant statement; campaign variety considered; feed-scale focal type; disciplined accent usage."
     }
   },
+  "mediaSelections": {},
   "violations": [],
   "warnings": [],
   "assets": [
@@ -154,7 +160,7 @@
       "slideCount": 1,
       "width": 1200,
       "height": 630,
-      "archetype": "announcement",
+      "archetype": "cta-card",
       "filename": "acme-og-image.png"
     },
     {
@@ -163,7 +169,7 @@
       "slideCount": 1,
       "width": 1600,
       "height": 900,
-      "archetype": "cta-card",
+      "archetype": "hero-statement",
       "filename": "acme-x-graphic.png"
     }
   ]

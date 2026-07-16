@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Brandrail CLI — compile a BrandSpec from a URL, render brand-locked assets from a brief. AI can think. It still can't design.",
   "license": "MIT",
+  "homepage": "https://github.com/apwn/brandrail#readme",
+  "bugs": { "url": "https://github.com/apwn/brandrail/issues" },
+  "repository": { "type": "git", "url": "git+https://github.com/apwn/brandrail.git", "directory": "packages/cli" },
+  "engines": { "node": ">=20" },
   "type": "module",
   "bin": {
     "brandrail": "./dist/index.js"
@@ -24,5 +28,6 @@
     "@types/node": "^22",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  }
+  },
+  "publishConfig": { "access": "public" }
 }

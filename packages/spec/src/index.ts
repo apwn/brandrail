@@ -67,4 +67,22 @@ export {
 export { acme, acmeInput } from "./fixtures/acme.js";
 
 export { ARCHETYPE_INFO } from "./archetypes.js";
-export type { ArchetypeInfo, TemplateMediaSlotName, TemplateSlotInfo, TemplateSlotName } from "./archetypes.js";
+export type { ArchetypeInfo, TemplateDataSlotName, TemplateMediaSlotName, TemplateSlotInfo, TemplateSlotName } from "./archetypes.js";
+
+export {
+  TemplateBoxSchema,
+  CustomTemplateLayerSchema,
+  CustomTemplateCanvasSchema,
+  CustomTemplateFamilySchema,
+  TemplateRefSchema,
+} from "./custom-templates.js";
+export type {
+  TemplateBox,
+  CustomTemplateLayer,
+  CustomTemplateCanvas,
+  CustomTemplateFamily,
+  TemplateRef,
+} from "./custom-templates.js";
+
+export { MCP_LIFECYCLE_TOOLS } from "./agent.js";
+export type { McpLifecycleTool } from "./agent.js";

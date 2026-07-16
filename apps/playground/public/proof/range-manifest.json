@@ -48,15 +48,14 @@
       "candidates": [
         {
           "archetype": "split-stat",
-          "score": 90,
+          "score": 89,
           "semanticScore": 96,
           "reasons": [
             "compact supplied statistic",
             "feed-scale focal type",
-            "disciplined accent usage",
             "secondary type remains legible at feed scale"
           ],
-          "visualScore": 76,
+          "visualScore": 70,
           "valid": true
         },
         {
@@ -73,7 +72,7 @@
           "valid": true
         }
       ],
-      "rationale": "split-stat ranked first after composition: compact supplied statistic; feed-scale focal type; disciplined accent usage; secondary type remains legible at feed scale."
+      "rationale": "split-stat ranked first after composition: compact supplied statistic; feed-scale focal type; secondary type remains legible at feed scale."
     },
     "warnings": []
   },

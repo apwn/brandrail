@@ -22,6 +22,7 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
   const [busy, setBusy] = useState<"save" | "run" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmRun, setConfirmRun] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -68,6 +69,12 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
   }
 
   async function runNow() {
+    const ranRecently = active.some((cadence) => cadence.lastRunAt && new Date(cadence.lastRunAt).getTime() > Date.now() - 6.5 * 24 * 60 * 60_000);
+    if (ranRecently && !confirmRun) {
+      setConfirmRun(true);
+      setNote("A week was produced recently. Click again to confirm another early production run.");
+      return;
+    }
     setBusy("run");
     setError(null);
     setNote("planning + rendering the week — this takes a minute…");
@@ -75,7 +82,7 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
       const res = await fetch("/api/autopilot", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ force: true }),
+        body: JSON.stringify({ force: true, confirmForce: confirmRun }),
       });
       const data = (await res.json()) as { batches?: number; rendered?: number; queued?: number; skipped?: string[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? "run failed");
@@ -86,6 +93,7 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
         ...(data.skipped ?? []),
       ].filter(Boolean);
       setNote(bits.join(" · "));
+      setConfirmRun(false);
     } catch (e) {
       setError((e as Error).message);
       setNote(null);
@@ -99,7 +107,7 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
   return (
     <section className="panel p-5 mt-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="eyebrow text-bone">CONTENT PROGRAM · ROLLING WEEKLY PRODUCTION</p><a href="/program" className="mt-2 inline-block text-sm font-semibold text-signal hover:text-bone">Plan the next 30 days →</a></div>
+        <div><p className="eyebrow text-bone">CONTENT PROGRAM · ROLLING WEEKLY PRODUCTION</p><a href="/program" className="mt-2 inline-block text-sm font-semibold text-signal hover:text-bone">Plan the next 4 weeks →</a></div>
         {active.length > 0 && (
           <span className="font-mono text-[11px] text-green">
             {active.reduce((n, c) => n + c.perWeek, 0)} posts/wk across {active.length} brand{active.length === 1 ? "" : "s"}
@@ -147,8 +155,8 @@ export function AutopilotCard({ verified }: { verified: boolean }) {
               {busy === "save" ? "Saving…" : "Save cadences"}
             </button>
             {active.length > 0 && !dirty && (
-              <button className="btn-ghost !py-2" onClick={runNow} disabled={busy !== null}>
-                {busy === "run" ? "Running…" : "Run this week now →"}
+              <button className={`btn-ghost !py-2 ${confirmRun ? "!border-signal !text-signal" : ""}`} onClick={runNow} disabled={busy !== null}>
+                {busy === "run" ? "Running…" : confirmRun ? "Confirm early run" : "Run this week now →"}
               </button>
             )}
           </div>

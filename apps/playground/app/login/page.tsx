@@ -9,7 +9,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const connectingAgent = agent === "1";
   const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//") ? requestedReturn : undefined;
   const story = selected && returnTo === "/program"
-    ? { eyebrow: "ACTIVATE THE PLAN YOU APPROVED", title: "Turn this calendar into finished content every week.", body: "Your strategy and exact 30-day preview stay with you through sign-in and checkout." }
+    ? { eyebrow: "ACTIVATE THE PLAN YOU APPROVED", title: "Turn this calendar into finished content every week.", body: "Your strategy and exact four-week preview stay with you through sign-in and checkout." }
     : selected
     ? { eyebrow: "FROM CREATION TO OPERATION", title: "Stop rebuilding the workflow every week.", body: "Your verified workspace keeps brands, assets, approvals and billing attached to one recoverable identity." }
     : connectingAgent

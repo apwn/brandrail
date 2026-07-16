@@ -71,7 +71,7 @@ brandrail mcp doctor
       "args": ["-y", "@brandrail/mcp"],
       "env": {
         "BRANDRAIL_API_URL": "https://api.brandrail.dev",
-        "BRANDRAIL_API_KEY": "sk-...",
+        "BRANDRAIL_API_KEY": "brk_…",
         "BRANDRAIL_OUT_DIR": "/absolute/path/for/rendered/assets"
       }
     }

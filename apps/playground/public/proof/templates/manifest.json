@@ -1,0 +1,92 @@
+[
+  {
+    "archetype": "hero-statement",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "cta-card",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "promo-card",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "feature-grid",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "list-3",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "split-stat",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "quote",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "testimonial",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "announcement",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "before-after",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "product-showcase",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "process-3",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "data-trend",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "case-study-proof",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "screenshot-callout",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "compare-2",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "timeline",
+    "format": "li-image",
+    "warnings": []
+  },
+  {
+    "archetype": "ranked-bars",
+    "format": "li-image",
+    "warnings": []
+  }
+]

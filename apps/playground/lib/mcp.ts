@@ -2,7 +2,7 @@ import { agentEngine } from "@/lib/engine";
 import { publicOrigin } from "@/lib/origin";
 import { readJsonBody } from "@/lib/request";
 import { MCP_PROTOCOL_VERSION, MCP_SERVER_VERSION, MCP_SUPPORTED_VERSIONS, MCP_TOOL_COUNT } from "@/lib/mcp-meta";
-import { ARCHETYPE_INFO } from "@brandrail/spec";
+import { ARCHETYPE_INFO, MCP_LIFECYCLE_TOOLS } from "@brandrail/spec";
 
 type JsonSchema = Record<string, unknown>;
 type Tool = {
@@ -40,11 +40,14 @@ const contentProgramFields = {
   audience: { type: "string", maxLength: 240 },
   pillars: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 6 },
   offer: { type: "string", maxLength: 240 },
+  contentContext: { type: "string", maxLength: 2000, description: "Product facts, differentiators, proof points and current topics" },
   importantDates: { type: "array", maxItems: 12, items: object({ date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, label: { type: "string", minLength: 1, maxLength: 120 } }, ["date", "label"]) },
   perWeek: { type: "integer", minimum: 1, maximum: 7 },
   horizonWeeks: { type: "integer", enum: [1, 4] },
   channelIds: { type: "array", items: { type: "string" }, maxItems: 20 },
   approvalMode: { type: "string", enum: ["review", "auto"] },
+  timeZone: { type: "string", maxLength: 100, description: "IANA timezone" },
+  postingTime: { type: "string", pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" },
   startAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
   endAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
   paused: { type: "boolean" },
@@ -55,10 +58,11 @@ const contentProgramFields = {
     rationale: { type: "string", maxLength: 200 },
     archetype: { type: "string" },
     format: { type: "string" },
+    locked: { type: "boolean" },
   }, ["week", "scheduledFor", "brief", "rationale", "archetype", "format"]) },
 };
 
-export const MCP_INSTRUCTIONS = "Brandrail is an approval-safe content operating rail. Start with list_brands. For one campaign use plan_campaign or start_campaign_run; for an ongoing weekly or monthly outcome use preview_content_program before create_content_program. Rendered output is never published automatically unless the user explicitly selected auto mode with connected channels. Use review pauses by default. Always call schedule_post with dryRun=true before an individual real schedule or publish call. Never approve your own work.";
+export const MCP_INSTRUCTIONS = "Brandrail is an approval-safe content operating rail. Start with list_brands. For one campaign use plan_campaign or start_campaign_run; for an ongoing one- or four-week outcome use preview_content_program before create_content_program. Rendered output is never published automatically unless the user explicitly selected auto mode with connected channels. Use review pauses by default. Always call schedule_post with dryRun=true before an individual real schedule or publish call. Never approve your own work.";
 
 export const MCP_TOOLS: Tool[] = [
   tool("list_brands", "List brands", "List BrandSpecs in this workspace. Start here unless the user supplied a brand name.", object(), { readOnlyHint: true, idempotentHint: true }),
@@ -69,12 +73,18 @@ export const MCP_TOOLS: Tool[] = [
   tool("rename_recipe", "Rename recipe", "Rename a saved visual recipe without changing its template or approved-image choices.", object({ brand, recipeId: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" }, name: { type: "string", minLength: 1, maxLength: 64 } }, ["brand", "recipeId", "name"]), { idempotentHint: true }),
   tool("delete_recipe", "Delete recipe", "Delete a saved recipe and create a new BrandSpec version. Confirm the user requested this destructive change.", object({ brand, recipeId: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" } }, ["brand", "recipeId"]), { destructiveHint: true, idempotentHint: true }),
   tool("list_templates", "List templates", "List the visual template library, named dynamic fields, and BrandSpec-locked design objects.", object(), { readOnlyHint: true, idempotentHint: true }),
+  tool("list_template_families", "List template families", "List versioned workspace and brand visual families.", object(), { readOnlyHint: true, idempotentHint: true }),
+  tool("list_template_family_versions", "List template versions", "List immutable history for one visual template family.", object({ id: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" } }, ["id"]), { readOnlyHint: true, idempotentHint: true }),
+  tool("duplicate_template_family", "Duplicate template family", "Create an editable declarative draft from a system or user-owned template contract.", object({ source: object({ source: { type: "string", enum: ["system", "workspace", "brand"] }, id: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" }, version: { type: "integer", minimum: 1 } }, ["source", "id"]), id: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" }, name: { type: "string", minLength: 1, maxLength: 80 }, scope: { type: "string", enum: ["workspace", "brand"] }, brand, formats: { type: "array", items: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] } } }, ["source", "id", "name", "scope"])),
+  tool("preflight_template_family", "Preflight template family", "Check slots, formats, color roles, contrast, and frozen artwork before publication.", object({ id: { type: "string" }, brand }, ["id"]), { readOnlyHint: true, idempotentHint: true }),
+  tool("publish_template_family", "Publish template family", "Publish only after preflight passes; remains manual-only unless autoEligible is explicitly requested.", object({ id: { type: "string" }, brand, autoEligible: { type: "boolean" } }, ["id"])),
+  tool("archive_template_family", "Archive template family", "Prevent future renders from selecting this family while preserving old manifests.", object({ id: { type: "string" } }, ["id"]), { destructiveHint: true, idempotentHint: true }),
   tool("diff_brand_spec", "Diff brand versions", "Review the semantic change between two BrandSpec versions.", object({ brand, from: { type: "integer", minimum: 1 }, to: { type: "integer", minimum: 1 } }, ["brand", "from", "to"]), { readOnlyHint: true, idempotentHint: true }),
   tool("plan_campaign", "Plan campaign", "Dry-run a campaign. Returns blockers, safeguards, estimated usage, and exact mutating steps.", object({ objective: { type: "string", minLength: 3, maxLength: 500 }, brand, channels: { type: "array", items: { type: "string" }, maxItems: 20 }, assetCount: { type: "integer", minimum: 1, maximum: 50 }, publishAt: { type: "string", format: "date-time" } }, ["objective"]), { readOnlyHint: true, idempotentHint: true }),
   tool("list_content_programs", "List content programs", "List rolling content programs with their strategy, cadence, status, and next production run.", object(), { readOnlyHint: true, idempotentHint: true }),
-  tool("preview_content_program", "Preview content program", "Plan a coherent week or month without saving or rendering. Use this before creating an ongoing program.", object(contentProgramFields, ["brand", "objective", "perWeek"]), { readOnlyHint: true }),
+  tool("preview_content_program", "Preview content program", "Plan one coherent week or four weeks without saving or rendering. Use this before creating an ongoing program.", object(contentProgramFields, ["brand", "objective", "perWeek"]), { readOnlyHint: true }),
   tool("create_content_program", "Create content program", "Create or update an ongoing content program. Pass plannedPosts from the preview to preserve it exactly; otherwise Brandrail plans a fresh horizon. Only one adaptive week renders at a time. Studio required.", object(contentProgramFields, ["brand", "objective", "perWeek"]), { idempotentHint: true }),
-  tool("run_content_program", "Run content program", "Produce the next week now with channel-native copy and matching visual formats. Review mode pauses in the human queue; auto mode schedules only to selected connected channels.", object({ brand }, ["brand"])),
+  tool("run_content_program", "Run content program", "Produce the next week now with channel-native copy and matching visual formats. Repeating inside one week requires confirmForce=true.", object({ brand, confirmForce: { type: "boolean" } }, ["brand"])),
   tool("pause_content_program", "Pause content program", "Pause or resume future production without deleting strategy or existing work.", object({ brand, paused: { type: "boolean" } }, ["brand", "paused"]), { idempotentHint: true }),
   tool("delete_content_program", "Delete content program", "Delete future program execution. Existing assets, reviews, and scheduled posts remain intact.", object({ brand, confirm: { type: "boolean", const: true } }, ["brand", "confirm"]), { destructiveHint: true, idempotentHint: true }),
   tool("start_campaign_run", "Start agent run", "Create a durable, resumable campaign run. By default it pauses for plan confirmation; start=true begins work.", object({ objective: { type: "string", minLength: 3, maxLength: 500 }, brand, channels: { type: "array", items: { type: "string" }, maxItems: 20 }, assetCount: { type: "integer", minimum: 1, maximum: 50 }, publishAt: { type: "string", format: "date-time" }, start: { type: "boolean" } }, ["objective"])),
@@ -84,7 +94,7 @@ export const MCP_TOOLS: Tool[] = [
   tool("retry_agent_run", "Retry agent run", "Retry a failed or cancelled run without creating a second campaign.", object({ runId }, ["runId"])),
   tool("complete_agent_run", "Complete asset run", "Finish an accepted asset-only run without publishing anything.", object({ runId }, ["runId"]), { idempotentHint: true }),
   tool("cancel_agent_run", "Cancel agent run", "Cancel an active durable run.", object({ runId }, ["runId"]), { destructiveHint: true, idempotentHint: true }),
-  tool("render_assets", "Render assets", "Render deterministic, BrandSpec-checked assets. Use auto mode, apply a saved recipe, choose templates, or change named text and approved-image fields. Returns rationale, alternatives, MCP resources, and an inline preview. Nothing is published.", object({ brand, brief: { type: "string", minLength: 2, maxLength: 500 }, recipe: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$", maxLength: 64, description: "Reusable visual recipe stored in the BrandSpec" }, formats: { type: "array", items: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] } }, template: { type: "string", enum: Object.keys(ARCHETYPE_INFO), description: "Fixed template ID for every format; omit for auto art direction" }, templates: { type: "object", properties: Object.fromEntries(["ig-carousel", "li-image", "story", "x-graphic", "og-image"].map((format) => [format, { type: "string", enum: Object.keys(ARCHETYPE_INFO) }])), additionalProperties: false, description: "Per-format template plan; omitted formats stay automatic" }, archetype: { type: "string", description: "Compatibility alias for template" }, modifications: { type: "array", maxItems: 100, items: object({ format: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] }, slide: { type: "integer", minimum: 0 }, name: { type: "string", enum: ["kicker", "hook", "body", "cta", "badge", "rating"] }, text: { type: "string", maxLength: 500 } }, ["format", "name", "text"]) }, media: { type: "array", maxItems: 10, items: object({ format: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] }, name: { type: "string", enum: ["primary", "secondary"] }, photoIndex: { type: "integer", minimum: 0, maximum: 11 } }, ["format", "name", "photoIndex"]), description: "Named image slots using approved BrandSpec photo indexes" }, runId }, ["brand", "brief"])),
+  tool("render_assets", "Render assets", "Render deterministic, BrandSpec-checked assets. Use auto mode, a saved look, a system template, or a versioned custom family. Returns rationale, resources, and an inline preview. Nothing is published.", object({ brand, brief: { type: "string", minLength: 2, maxLength: 500 }, recipe: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$", maxLength: 64, description: "Saved look stored in the BrandSpec" }, formats: { type: "array", items: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] } }, template: { type: "string", enum: Object.keys(ARCHETYPE_INFO), description: "Fixed system template" }, templateRef: object({ source: { type: "string", enum: ["system", "workspace", "brand"] }, id: { type: "string", pattern: "^[a-z0-9][a-z0-9-]*$" }, version: { type: "integer", minimum: 1 } }, ["source", "id"]), templates: { type: "object", properties: Object.fromEntries(["ig-carousel", "li-image", "story", "x-graphic", "og-image"].map((format) => [format, { type: "string", enum: Object.keys(ARCHETYPE_INFO) }])), additionalProperties: false }, archetype: { type: "string" }, modifications: { type: "array", maxItems: 100, items: object({ format: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] }, slide: { type: "integer", minimum: 0 }, name: { type: "string", enum: ["kicker", "hook", "body", "cta", "badge", "rating"] }, text: { type: "string", maxLength: 500 } }, ["format", "name", "text"]) }, media: { type: "array", maxItems: 10, items: object({ format: { type: "string", enum: ["ig-carousel", "li-image", "story", "x-graphic", "og-image"] }, name: { type: "string", enum: ["primary", "secondary"] }, photoIndex: { type: "integer", minimum: 0, maximum: 11 } }, ["format", "name", "photoIndex"]) }, runId }, ["brand", "brief"])),
   tool("list_renders", "List renders", "List recent renders and manifests.", object({ limit: { type: "integer", minimum: 1, maximum: 100 } }), { readOnlyHint: true, idempotentHint: true }),
   tool("get_render", "Get render", "Get a render manifest. Use returned brandrail:// resources to retrieve the PNGs.", object({ renderId: { type: "string" } }, ["renderId"]), { readOnlyHint: true, idempotentHint: true }),
   tool("list_channels", "List channels", "List connected channel IDs and platform handles.", object(), { readOnlyHint: true, idempotentHint: true, openWorldHint: true }),
@@ -106,6 +116,11 @@ export const MCP_TOOLS: Tool[] = [
 if (MCP_TOOLS.length !== MCP_TOOL_COUNT) {
   throw new Error(`MCP tool registry mismatch: expected ${MCP_TOOL_COUNT}, found ${MCP_TOOLS.length}`);
 }
+const hostedToolNames = MCP_TOOLS.map(({ name }) => name).sort();
+const canonicalToolNames = [...MCP_LIFECYCLE_TOOLS].sort();
+if (hostedToolNames.some((name, index) => name !== canonicalToolNames[index])) {
+  throw new Error("Hosted MCP tool registry does not match the canonical agent contract");
+}
 
 type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> & { name?: string; arguments?: Record<string, unknown>; uri?: string; protocolVersion?: string } };
 
@@ -121,12 +136,18 @@ function pathFor(name: string, args: Record<string, unknown>): { path: string; i
     case "save_recipe": return post(`/v0/specs/${encodeURIComponent(String(args.brand))}/recipes`, { recipe: args.recipe });
     case "rename_recipe": return patch(`/v0/specs/${encodeURIComponent(String(args.brand))}/recipes/${encodeURIComponent(String(args.recipeId))}`, { name: args.name });
     case "delete_recipe": return { path: `/v0/specs/${encodeURIComponent(String(args.brand))}/recipes/${encodeURIComponent(String(args.recipeId))}`, init: { method: "DELETE" } };
+    case "list_template_families": return { path: "/v0/template-families" };
+    case "list_template_family_versions": return { path: `/v0/template-families/${encodeURIComponent(String(args.id ?? ""))}/versions` };
+    case "duplicate_template_family": return post("/v0/template-families/duplicate", args);
+    case "preflight_template_family": return post(`/v0/template-families/${encodeURIComponent(String(args.id))}/preflight`, { brand: args.brand });
+    case "publish_template_family": return post(`/v0/template-families/${encodeURIComponent(String(args.id))}/publish`, { brand: args.brand, autoEligible: args.autoEligible });
+    case "archive_template_family": return post(`/v0/template-families/${encodeURIComponent(String(args.id))}/archive`, {});
     case "diff_brand_spec": return { path: `/v0/specs/${encodeURIComponent(String(args.brand))}/diff?from=${Number(args.from)}&to=${Number(args.to)}` };
     case "plan_campaign": return post("/v0/agent/plan", args);
     case "list_content_programs": return { path: "/v0/content-programs" };
     case "preview_content_program": return post("/v0/content-programs/preview", args);
     case "create_content_program": return put(`/v0/content-programs/${encodeURIComponent(String(args.brand))}`, args);
-    case "run_content_program": return post(`/v0/content-programs/${encodeURIComponent(String(args.brand))}/run`, {});
+    case "run_content_program": return post(`/v0/content-programs/${encodeURIComponent(String(args.brand))}/run`, { confirmForce: Boolean(args.confirmForce) });
     case "pause_content_program": return post(`/v0/content-programs/${encodeURIComponent(String(args.brand))}/pause`, { paused: args.paused });
     case "delete_content_program": return { path: `/v0/content-programs/${encodeURIComponent(String(args.brand))}`, init: { method: "DELETE" } };
     case "start_campaign_run": return post("/v0/agent/runs", args);

@@ -11,6 +11,7 @@ type DeliveryItem = {
   copy: { formats: Record<string, Slide[]> };
   assets: Array<{ format: string; filename: string }>;
   deliveries?: Array<{ postId: string; channelId: string }>;
+  plannedFor?: string;
 };
 type Channel = { id: string; platform: string; handle: string };
 
@@ -68,6 +69,7 @@ export function DeliveryDialog({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startAt, setStartAt] = useState(defaultStart);
   const [gapDays, setGapDays] = useState(1);
+  const [usePlannedDates, setUsePlannedDates] = useState(true);
   const [state, setState] = useState<"loading" | "ready" | "scheduling" | "done">("loading");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState({ scheduled: 0, failed: 0 });
@@ -128,8 +130,9 @@ export function DeliveryDialog({
     let scheduled = 0;
     let failed = 0;
     for (const [itemIndex, item] of items.entries()) {
-      const slot = new Date(firstSlot);
-      slot.setDate(slot.getDate() + itemIndex * gapDays);
+      const planned = item.plannedFor ? new Date(item.plannedFor) : null;
+      const slot = usePlannedDates && planned && planned.getTime() > Date.now() ? planned : new Date(firstSlot);
+      if (!(usePlannedDates && planned && planned.getTime() > Date.now())) slot.setDate(slot.getDate() + itemIndex * gapDays);
       for (const channel of selectedChannels) {
         if (item.deliveries?.some((delivery) => delivery.channelId === channel.id)) continue;
         try {
@@ -236,6 +239,8 @@ export function DeliveryDialog({
                 </select>
               </label>
             </div>
+
+            {items.some((item) => item.plannedFor) && <label className="mt-3 flex cursor-pointer items-start gap-3 border border-green/40 bg-green/5 p-3 text-xs text-muted"><input type="checkbox" checked={usePlannedDates} onChange={(event) => setUsePlannedDates(event.target.checked)} disabled={state === "scheduling"} /><span><b className="block text-bone">Use the approved program dates</b>Future planned slots are preserved exactly. If review made a slot expire, that item falls back to the cadence above.</span></label>}
 
             <div className="mt-6 border border-hairline bg-ink/40 p-4">
               <div className="flex items-center justify-between gap-4">

@@ -1,7 +1,8 @@
 import { MCP_PROTOCOL_VERSION, MCP_SCOPES } from "@/lib/mcp-meta";
+import { publicOrigin } from "@/lib/origin";
 
 export function GET(req: Request) {
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   const authorizationServers = (process.env.MCP_AUTHORIZATION_SERVERS ?? "")
     .split(",").map((value) => value.trim()).filter(Boolean);
   return Response.json({

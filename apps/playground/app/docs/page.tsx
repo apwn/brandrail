@@ -60,10 +60,18 @@ POST   /v0/specs/:name/recipes     save recipe → new spec version
 PATCH  /v0/specs/:name/recipes/:id rename recipe → new spec version
 DELETE /v0/specs/:name/recipes/:id remove recipe → new spec version
 GET    /v0/templates               visual library + dynamic field contracts
+GET    /v0/template-families       list workspace + brand visual families
+GET    /v0/template-families/:id/versions immutable family history
+POST   /v0/template-families/duplicate create editable declarative draft
+POST   /v0/template-families/:id/preflight verify slots, roles, formats, contrast
+POST   /v0/template-families/:id/publish immutable published version
+POST   /v0/template-families/:id/archive retire without breaking old renders
+DELETE /v0/template-families/:id  delete draft-only history
+POST   /v0/template-assets         freeze PNG/JPEG/WebP/sanitized SVG artwork
 POST   /v0/render                  brief → gated assets + art direction
 GET    /v0/renders/:id             manifest + asset URLs
 GET    /v0/content-programs        rolling program strategy + state
-POST   /v0/content-programs/preview plan a week or month without rendering
+POST   /v0/content-programs/preview plan one or four weeks without rendering
 PUT    /v0/content-programs/:brand create or update a Studio program
 POST   /v0/content-programs/:brand/run produce the next week now
 POST   /v0/content-programs/:brand/pause pause or resume future production
@@ -245,7 +253,7 @@ function TemplatesSection() {
       <DocHeading id="templates" eyebrow="AUTO + CONTROL">Hybrid templates</DocHeading>
       <p className="mt-4 text-[15px] leading-relaxed text-muted">Use <strong className="text-bone">auto</strong> to let Brandrail art-direct a varied campaign, pass one stable <code className="text-bone">template</code> ID everywhere, or provide a <code className="text-bone">templates</code> plan for selected formats. Designs publish named text and image fields. Image choices are indexes from the approved BrandSpec library—arbitrary URLs are rejected—while colors, type, spacing, logo, crops and treatments remain locked. Photo-led templates stay unavailable until the BrandSpec contains enough approved imagery, so an empty image zone can never reach a render.</p>
       <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-5">
-        {[['AUTO MIX', 'Best-fit template per format and carousel slide.'], ['ONE TEMPLATE', 'One explicit composition across requested formats.'], ['CHANNEL PLAN', 'Direct selected formats; omitted formats stay automatic.'], ['RECIPE', 'Reuse a versioned visual system with fresh campaign copy.'], ['MODIFICATIONS', 'Change named fields; the same voice and layout gates still run.']].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-signal">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
+        {[['AUTO MIX', 'Best-fit template per format and carousel slide.'], ['ONE TEMPLATE', 'One explicit composition across requested formats.'], ['CHANNEL PLAN', 'Direct selected formats; omitted formats stay automatic.'], ['SAVED LOOK', 'Reuse approved visual decisions with fresh campaign copy.'], ['CUSTOM FAMILY', 'Select an immutable workspace or brand template version.']].map(([title, body]) => <div key={title} className="bg-panel p-4"><span className="font-mono text-[9px] text-signal">{title}</span><p className="mt-2 text-xs leading-relaxed text-muted">{body}</p></div>)}
       </div>
       <CopyCode label="Template + named fields">{`curl -X POST https://api.brandrail.dev/v0/render \\
   -H "Authorization: Bearer brk_…" \\
@@ -277,7 +285,7 @@ function TemplatesSection() {
     {"format":"x-graphic","name":"primary","photoIndex":0}
   ]
 }`}</CopyCode>
-      <CopyCode label="Reusable recipe file">{`{
+      <CopyCode label="Reusable saved-look file">{`{
   "id": "weekly-launch",
   "name": "Weekly launch",
   "templates": {
@@ -289,7 +297,14 @@ function TemplatesSection() {
     {"format":"story","name":"primary","photoIndex":0}
   ]
 }`}</CopyCode>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Save a finished visual plan as a recipe from Studio. Recipes live in <code className="text-bone">composition.recipes</code>, create a new BrandSpec version, and can be applied with <code className="text-bone">{'{"recipe":"weekly-launch"}'}</code>. They preserve template and approved-image decisions—not old campaign copy.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Save a finished visual plan as a <strong className="text-bone">saved look</strong> from Studio. The API field remains <code className="text-bone">recipe</code> for compatibility. Saved looks live in <code className="text-bone">composition.recipes</code> and preserve template and approved-image decisions—not old campaign copy.</p>
+      <div className="mt-8 border border-hairline bg-panel p-5"><p className="eyebrow text-green">USER-OWNED VISUALS</p><h3 className="mt-2 font-display text-xl font-bold">Template families are safe data, not executable pages</h3><p className="mt-3 text-sm leading-relaxed text-muted">Open <a href="/templates" className="text-signal">Visual templates</a> to duplicate any system template, drag and size normalized text/image/logo/shape/data zones, edit layer properties, attach locked artwork per format, inspect immutable history, restore an older layout as a new draft, preflight, publish, and render a production proof. Families are scoped to the workspace or one brand. Drafts and published families are manual-only by default; automatic planning requires a separate explicit <code className="text-bone">autoEligible</code> publication with all five canvases.</p><p className="mt-3 text-sm leading-relaxed text-muted">Uploads accept PNG, JPEG, and WebP up to 12 MB or sanitized static SVG up to 2 MB. Raster dimensions are capped at 8192 px and 40 megapixels, and ownership is recorded per workspace. Scripts, animations, HTML/CSS/JS, event handlers, foreign objects, external references, cross-workspace blob reuse, and caller-supplied compliance reports are rejected. Published and archived history cannot be hard-deleted. A future Figma exporter should emit this same strict JSON plus frozen assets; generic Figma or arbitrary web-page import would weaken determinism and safety.</p></div>
+      <CopyCode label="Render a published family">{`{
+  "brand": "acme",
+  "brief": "Launch the approved workflow",
+  "templateRef": {"source":"brand","id":"launch-frame","version":3},
+  "formats": ["li-image"]
+}`}</CopyCode>
     </section>
   );
 }
@@ -298,7 +313,7 @@ function ContentProgramsSection() {
   return (
     <section>
       <DocHeading id="programs" eyebrow="ONGOING OUTCOME">Content programs</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">A Content Program stores the strategy behind ongoing production: objective, audience, pillars, offer, important dates, cadence, channels and approval mode. Brandrail plans the full one- or four-week horizon for coherence, but renders only the next week so later work can adapt to approvals and performance. The free workspace can preview and export the full calendar without spending an asset.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">A Content Program stores the strategy behind ongoing production: objective, audience, product facts, pillars, offer, important dates, cadence, timezone, posting time, channels and approval mode. Brandrail plans the full one- or four-week horizon for coherence, but renders only the next week so later unlocked work can adapt to approvals and performance. The free workspace can edit, lock, replace and export the full calendar without spending an asset.</p>
       <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-3">
         {[
           ["PREVIEW", "Plans dated ideas for the full horizon. Saves nothing and renders nothing."],
@@ -339,7 +354,7 @@ function McpSection() {
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-green">REMOTE</p><h3 className="mt-2 font-display text-lg font-bold">Hosted Streamable HTTP</h3><p className="mt-2 text-sm leading-relaxed text-muted">No local process. Best for clients that support remote MCP and persistent credentials.</p></article>
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-signal">LOCAL</p><h3 className="mt-2 font-display text-lg font-bold">Local stdio server</h3><p className="mt-2 text-sm leading-relaxed text-muted">Claude Desktop and Claude Code can run the source-built MCP package against cloud or self-hosted APIs.</p></article>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can preview and operate rolling content programs, stay automatic within a campaign, apply a BrandSpec <code className="text-bone">recipe</code>, choose templates, or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can list, duplicate, preflight, publish, archive, and render versioned template families; apply a saved look; choose system templates; or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
       <div className="mt-5 border-l-2 border-green pl-4 text-sm leading-relaxed text-muted"><span className="font-mono text-[10px] text-green">OPENCLAW READY</span><br />Save the remote server with <code className="text-bone">openclaw mcp set</code>, keep the key in <code className="text-bone">BRANDRAIL_API_KEY</code>, then run <code className="text-bone">openclaw mcp doctor brandrail --probe</code>. No Brandrail-specific adapter is required.</div>
     </section>
   );
@@ -352,6 +367,7 @@ function ApiSection() {
       <p className="mt-4 text-[15px] leading-relaxed text-muted">Versioned under <code className="text-bone">/v0</code>. The core surface below covers the normal lifecycle; the SDK exposes the same operations with typed inputs and errors.</p>
       <CopyCode label="Core REST routes">{API_SURFACE}</CopyCode>
       <p className="mt-4 text-sm leading-relaxed text-muted">Render requests that violate the active BrandSpec return <code className="text-bone">422</code> with structured violations. They never return a silently degraded image.</p>
+      <div className="mt-5 flex flex-wrap gap-3"><a href="https://api.brandrail.dev/openapi.json" className="btn-ghost">OpenAPI 3.1 contract →</a><a href="https://api.brandrail.dev/health/ready" className="btn-ghost">API readiness →</a></div>
     </section>
   );
 }
@@ -435,7 +451,7 @@ function SelfHostSection() {
   return (
     <section>
       <DocHeading id="selfhost" eyebrow="OPEN RAILS">Self-hosting</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">The app and operating rails are AGPL. Clone the repository, run <code className="text-bone">pnpm install</code>, add an OpenRouter key and optionally a fal.ai key for generated backgrounds, then start with <code className="text-bone">pnpm dev</code>. Development mode can run without API auth; Postgres and Stripe remain optional.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">The app and operating rails are AGPL. Clone the public and engine repositories as siblings, install each workspace, and point the app at the local engine. Development can run without API auth; Postgres, Stripe, email and publishing providers remain optional. Hosted production fails closed unless its durable storage, secrets, image generation and billing configuration are ready.</p>
       <div className="mt-5 flex flex-wrap gap-3"><a href="https://github.com/apwn/brandrail/blob/main/DEPLOY.md" className="btn-ghost">Open deployment guide →</a><a href="https://github.com/apwn/brandrail" className="btn-ghost">View the repository</a></div>
     </section>
   );

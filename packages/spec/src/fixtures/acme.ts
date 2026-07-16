@@ -49,7 +49,7 @@ export const acmeInput: BrandSpecInput = {
   },
   composition: {
     densityMaxElementsPerZone: 3,
-    layoutArchetypes: ["hero-statement", "split-stat", "quote", "list-3", "cta-card", "promo-card", "feature-grid", "testimonial", "announcement", "before-after"],
+    layoutArchetypes: ["hero-statement", "split-stat", "quote", "list-3", "cta-card", "promo-card", "feature-grid", "testimonial", "announcement", "before-after", "product-showcase", "process-3", "data-trend", "case-study-proof", "screenshot-callout", "compare-2", "timeline", "ranked-bars"],
     whitespaceMinPct: 30,
     alignment: "left",
   },

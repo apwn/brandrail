@@ -32,8 +32,8 @@ function LockedProgram() {
       <WorkspaceLockup context="Content program" href="/dashboard" />
       <div className="rail mt-16 w-14" />
       <p className="eyebrow mt-6 text-signal">STUDIO CONTENT ENGINE</p>
-      <h1 className="mt-3 max-w-2xl font-display text-4xl font-bold leading-tight sm:text-5xl">Keep the next 30 days full without planning from zero every week.</h1>
-      <p className="mt-5 max-w-2xl leading-relaxed text-muted">Free proves one campaign. Studio adds monthly planning, rolling weekly production, review pauses, publishing and performance-fed iteration.</p>
+      <h1 className="mt-3 max-w-2xl font-display text-4xl font-bold leading-tight sm:text-5xl">Keep the next four weeks full without planning from zero every week.</h1>
+      <p className="mt-5 max-w-2xl leading-relaxed text-muted">Free proves one campaign. Studio adds four-week planning, rolling weekly production, review pauses, publishing and performance-fed iteration.</p>
       <a href="/login?plan=studio" className="btn mt-8">Start Studio →</a>
     </main>
   );

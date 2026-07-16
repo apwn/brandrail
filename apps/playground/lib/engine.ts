@@ -1,15 +1,27 @@
 /** Server-side proxy helpers: the engine URL and API key never reach the client. */
 
-const ENGINE_URL = (process.env.ENGINE_URL ?? process.env.RENDER_API_URL ?? "http://localhost:4747").replace(/\/$/, "");
 const ENGINE_KEY = process.env.BRANDRAIL_API_KEY;
 // shared secret proving this call comes from the trusted proxy (prod only)
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
+
+function engineUrl(): string {
+  const configured = process.env.ENGINE_URL ?? process.env.RENDER_API_URL;
+  if (process.env.NODE_ENV === "production" && !configured) {
+    throw new Error("ENGINE_URL must be set explicitly in production");
+  }
+  const value = (configured ?? "http://localhost:4747").replace(/\/$/, "");
+  const parsed = new URL(value);
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+    throw new Error("ENGINE_URL must be an http(s) URL without embedded credentials");
+  }
+  return value;
+}
 
 export async function engine(path: string, init: RequestInit = {}, userId?: string): Promise<Response> {
   if (process.env.NODE_ENV === "production" && (!INTERNAL_SECRET || INTERNAL_SECRET.length < 24)) {
     throw new Error("INTERNAL_SECRET must be set to at least 24 characters in production");
   }
-  return fetch(`${ENGINE_URL}${path}`, {
+  return fetch(`${engineUrl()}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
@@ -60,9 +72,9 @@ export async function engineJson(
  * service credential or a browser-session identity. */
 export async function agentEngine(path: string, apiKey: string, init: RequestInit = {}): Promise<Response> {
   if (!/^brk_[a-f0-9]{40}$/.test(apiKey)) return Response.json({ error: "invalid API key" }, { status: 401 });
-  return fetch(`${ENGINE_URL}${path}`, {
+  return fetch(`${engineUrl()}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", "x-api-key": apiKey, "x-brandrail-client": "hosted-mcp/0.3", ...(init.headers ?? {}) },
+    headers: { "content-type": "application/json", "x-api-key": apiKey, "x-brandrail-client": "hosted-mcp/0.4", ...(init.headers ?? {}) },
     signal: init.signal ?? AbortSignal.timeout(120_000),
   });
 }

@@ -32,6 +32,7 @@ interface SlideCopy {
   cta?: string;
   badge?: string;
   rating?: string;
+  series?: Array<{ label: string; value: number }>;
 }
 interface ArtDirectionCandidate {
   archetype: string;
@@ -588,7 +589,7 @@ function ActiveBrandSummary({ spec }: { spec: BrandSpec }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href="/program" className="btn">Plan my next 30 days →</a>
+          <a href="/program" className="btn">Plan my next 4 weeks →</a>
           <a href={`/brands/${encodeURIComponent(spec.meta.name)}`} className="btn-ghost">Edit brand system →</a>
         </div>
       </div>
@@ -623,7 +624,7 @@ function Header() {
     <header className="mb-14 flex items-center justify-between">
       <WorkspaceLockup context="Playground · V0" />
       <div className="flex gap-5">
-        <a href="/program" className="eyebrow text-signal hover:text-bone">PLAN 30 DAYS</a>
+        <a href="/program" className="eyebrow text-signal hover:text-bone">PLAN 4 WEEKS</a>
         <a href="/dashboard" className="eyebrow hover:text-bone">WORKSPACE</a>
         <a href="/review" className="eyebrow hover:text-bone">BATCH REVIEW →</a>
       </div>
@@ -851,7 +852,7 @@ function BriefBar({
         </div>
         {recipes.length > 0 && (
           <div className="mt-3 border-t border-hairline pt-3">
-            <p className="mb-2 font-mono text-[9px] text-muted">SAVED VISUAL RECIPES</p>
+            <p className="mb-2 font-mono text-[9px] text-muted">SAVED LOOKS</p>
             <div className="flex flex-wrap gap-2">
               {recipes.map((item) => {
                 const selected = mode === "recipe" && recipe === item.id;
@@ -875,7 +876,7 @@ function BriefBar({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Rename recipe ${item.name}`}
+                      aria-label={`Rename saved look ${item.name}`}
                       onClick={() => {
                         setEditingRecipe(item.id);
                         setRecipeName(item.name);
@@ -888,7 +889,7 @@ function BriefBar({
                     </button>
                     <button
                       type="button"
-                      aria-label={`${confirming ? "Confirm deletion of" : "Delete"} recipe ${item.name}`}
+                      aria-label={`${confirming ? "Confirm deletion of" : "Delete"} saved look ${item.name}`}
                       disabled={deletingRecipe === item.id}
                       onClick={async () => {
                         if (!confirming) {
@@ -939,7 +940,7 @@ function BriefBar({
               >
                 <input
                   autoFocus
-                  aria-label="Recipe name"
+                  aria-label="Saved look name"
                   className="field !min-h-9 !py-1.5 text-xs"
                   maxLength={64}
                   value={recipeName}
@@ -959,7 +960,7 @@ function BriefBar({
                 </button>
               </form>
             )}
-            {mode === "recipe" && recipe && <p className="mt-2 font-mono text-[9px] text-green">RECIPE APPLIES THE SAVED VISUAL SYSTEM · COPY STAYS FRESH</p>}
+            {mode === "recipe" && recipe && <p className="mt-2 font-mono text-[9px] text-green">SAVED LOOK APPLIES THE VISUAL DECISIONS · COPY STAYS FRESH</p>}
             {recipeError && <p role="status" aria-live="polite" className="mt-2 font-mono text-[9px] text-signal">{recipeError}</p>}
           </div>
         )}
@@ -1073,14 +1074,15 @@ function ResultGrid({
           <p className="text-muted text-sm mt-1">One idea, adapted to every channel format. Swap a template or edit the words without breaking the set.</p>
         </div>
         <div className="flex gap-3">
-          <button className="btn-ghost" onClick={() => setRecipeOpen((current) => !current)}>Save as recipe</button>
+          <a className="btn-ghost" href="/templates">Visual templates</a>
+          <button className="btn-ghost" onClick={() => setRecipeOpen((current) => !current)}>Save this look</button>
           <button className="btn-ghost" onClick={onAgain}>← another brief</button>
           <button className="btn" onClick={onDownload} disabled={zipping}>
             {zipping ? "zipping…" : unlocked ? "Download all (.zip)" : "Download all →"}
           </button>
         </div>
       </div>
-      {recipeOpen && <form className="mb-5 flex max-w-md gap-2" onSubmit={(event) => { event.preventDefault(); void saveRecipe(); }}><input className="field !py-2" value={recipeName} onChange={(event) => setRecipeName(event.target.value)} maxLength={64} placeholder="e.g. Weekly product launch" aria-label="Recipe name" autoFocus /><button className="btn !py-2 whitespace-nowrap" disabled={!recipeName.trim() || recipeSaving}>{recipeSaving ? "saving…" : "Save →"}</button></form>}
+      {recipeOpen && <form className="mb-5 flex max-w-md gap-2" onSubmit={(event) => { event.preventDefault(); void saveRecipe(); }}><input className="field !py-2" value={recipeName} onChange={(event) => setRecipeName(event.target.value)} maxLength={64} placeholder="e.g. Weekly product launch" aria-label="Saved look name" autoFocus /><button className="btn !py-2 whitespace-nowrap" disabled={!recipeName.trim() || recipeSaving}>{recipeSaving ? "saving…" : "Save →"}</button></form>}
       {recipeStatus && <p role="status" aria-live="polite" className={`mb-4 font-mono text-[10px] ${recipeStatus.startsWith("Saved") ? "text-green" : "text-signal"}`}>{recipeStatus}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {formats.map((format) => (
@@ -1192,6 +1194,7 @@ function StudioCard({
   const dirty = arch !== archetype || JSON.stringify(draft) !== JSON.stringify(copy) || JSON.stringify(media) !== JSON.stringify(mediaSelection ?? {});
   const templateInfo = ARCHETYPE_INFO[arch as keyof typeof ARCHETYPE_INFO];
   const templateSlots = Object.entries(templateInfo?.slots ?? {}) as Array<[TemplateSlotName, TemplateSlotInfo]>;
+  const dataSlots = Object.entries(templateInfo?.dataSlots ?? {}) as Array<["series", { label: string; minItems: number; maxItems: number; required?: boolean; placeholder: Array<{ label: string; value: number }> }]>;
   const mediaSlots = Object.entries(templateInfo?.mediaSlots ?? {}) as Array<["primary" | "secondary", { label: string; required?: boolean }]>;
   const invalidFields = draft.flatMap((slide, slideIndex) => templateSlots.flatMap(([slot, field]) => {
     const value = slide[slot] ?? "";
@@ -1199,6 +1202,14 @@ function StudioCard({
     if (value.length > field.maxChars) return [`Slide ${slideIndex + 1} · ${field.label} is ${value.length - field.maxChars} characters over`];
     return [];
   }));
+  for (const [slot, field] of dataSlots) {
+    draft.forEach((slide, slideIndex) => {
+      const points = slide[slot] ?? [];
+      if (field.required && points.length < field.minItems) invalidFields.push(`Slide ${slideIndex + 1} · ${field.label} needs at least ${field.minItems} observations`);
+      if (points.length > field.maxItems) invalidFields.push(`Slide ${slideIndex + 1} · ${field.label} allows at most ${field.maxItems} observations`);
+      if (points.some((point) => !point.label.trim() || !Number.isFinite(point.value))) invalidFields.push(`Slide ${slideIndex + 1} · ${field.label} has an incomplete observation`);
+    });
+  }
   if (media.primary !== undefined && media.primary === media.secondary) invalidFields.push("Choose two different photos for this comparison");
 
   return (
@@ -1278,6 +1289,52 @@ function StudioCard({
                       onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: event.target.value } : item)),
                     };
                     return <label key={slot} className="block"><span className="mb-1 flex items-center justify-between font-mono text-[9px] text-muted"><span>{field.label}{field.required ? " *" : ""}</span><span className={value.length > field.maxChars * 0.9 ? "text-signal" : ""}>{value.length}/{field.maxChars}</span></span>{field.multiline ? <textarea {...shared} rows={3} /> : <input {...shared} />}</label>;
+                  })}
+                  {dataSlots.map(([slot, field]) => {
+                    const points = slide[slot] ?? [];
+                    return (
+                      <fieldset key={slot} className="border border-hairline p-2">
+                        <legend className="px-1 font-mono text-[9px] text-muted">{field.label.toUpperCase()} *</legend>
+                        <div className="flex flex-col gap-2">
+                          {points.map((point, pointIndex) => (
+                            <div key={pointIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                              <input
+                                className="field !py-2 text-xs"
+                                value={point.label}
+                                maxLength={24}
+                                placeholder="Label"
+                                aria-label={`Observation ${pointIndex + 1} label`}
+                                onChange={(event) => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: (item[slot] ?? []).map((candidate, candidateIndex) => candidateIndex === pointIndex ? { ...candidate, label: event.target.value } : candidate) } : item))}
+                              />
+                              <input
+                                className="field !py-2 text-xs"
+                                type="number"
+                                value={point.value}
+                                placeholder="Value"
+                                aria-label={`Observation ${pointIndex + 1} value`}
+                                onChange={(event) => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: (item[slot] ?? []).map((candidate, candidateIndex) => candidateIndex === pointIndex ? { ...candidate, value: Number(event.target.value) } : candidate) } : item))}
+                              />
+                              <button
+                                type="button"
+                                aria-label={`Remove observation ${pointIndex + 1}`}
+                                className="border border-hairline px-2 font-mono text-[10px] text-muted hover:text-signal"
+                                onClick={() => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: (item[slot] ?? []).filter((_, candidateIndex) => candidateIndex !== pointIndex) } : item))}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            disabled={points.length >= field.maxItems}
+                            className="border border-hairline px-3 py-2 font-mono text-[9px] text-muted hover:text-bone disabled:opacity-40"
+                            onClick={() => setDraft((current) => current.map((item, index) => index === slideIndex ? { ...item, [slot]: [...(item[slot] ?? []), { label: "", value: 0 }] } : item))}
+                          >
+                            + Add observation ({points.length}/{field.maxItems})
+                          </button>
+                        </div>
+                      </fieldset>
+                    );
                   })}
                 </div>
               </div>

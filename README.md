@@ -78,9 +78,11 @@ The rendering/compiling engine runs server-side (`RENDER_API_URL`); everything a
 
 ## Templates
 
-Ten hand-designed, rationale-documented templates — `hero-statement`, `cta-card`, `split-stat`, `quote`, `list-3`, `promo-card`, `feature-grid`, `testimonial`, `announcement`, `before-after` — each rendered across all five formats and each verified by a vision-model art-director gate ("would a designer sign this?"). Every template exposes named dynamic text fields and, where relevant, approved BrandSpec image slots. Colors, type, spacing, logos, crop and image treatment remain locked. Hardcoded design values are lint errors.
+Eighteen hand-designed, rationale-documented templates — `hero-statement`, `cta-card`, `split-stat`, `quote`, `list-3`, `promo-card`, `feature-grid`, `testimonial`, `announcement`, `before-after`, `product-showcase`, `process-3`, `data-trend`, `case-study-proof`, `screenshot-callout`, `compare-2`, `timeline`, and `ranked-bars` — render across all five formats and pass the same deterministic layout gates. Every template exposes named dynamic text fields and, where relevant, approved BrandSpec image or structured-data slots. Colors, type, spacing, logos, crop and image treatment remain locked. Hardcoded design values are lint errors.
 
-Richness that reads like a designer made it: **brand photo zones** (harvested from your site, saliency-cropped so the subject survives), **offer badges**, **CTA chips**, **star ratings**, and **scan-to-shop QR codes** — all token-locked and contrast-safe. Photos never sit under text, so the on-brand guarantee holds. Use the agent-directed auto mix for speed, choose templates globally or per format, then save the proven visual system as a versioned BrandSpec recipe. Recipes preserve design and approved-image decisions while every new brief receives fresh copy.
+Richness that reads like a designer made it: **brand photo zones** (harvested from your site, saliency-cropped so the subject survives), **offer badges**, **CTA chips**, **star ratings**, deterministic charts, evidence layouts, and **scan-to-shop QR codes** — all token-locked and contrast-safe. Use the agent-directed auto mix for speed, choose templates globally or per format, then save the proven visual system as a versioned BrandSpec recipe. Recipes preserve design and approved-image decisions while every new brief receives fresh copy.
+
+Teams can also duplicate a system layout into a user-owned **template family**. The Studio provides a direct-manipulation canvas, exact normalized geometry, layer controls, per-format artwork uploads, strict JSON import/export, brand-aware preflight, immutable published versions, restore-as-draft history, and production proof renders. Template files are declarative data—not arbitrary HTML/CSS/JavaScript—so uploaded templates pass the same contracts and render gates as built-ins.
 
 ## Why deterministic?
 
@@ -101,7 +103,7 @@ pnpm build     # builds spec → sdk → cli → mcp
 pnpm test      # spec test suite
 ```
 
-The playground and packages expect an engine at `BRANDRAIL_API_URL` (default `http://localhost:4747` in dev).
+The playground and packages expect an engine at `BRANDRAIL_API_URL` (default `http://localhost:4747` in dev). Production is a two-service deployment; follow [`DEPLOY.md`](DEPLOY.md) for the trust boundary, required environment, readiness probes, smoke test, release, and rollback runbook.
 
 ---
 

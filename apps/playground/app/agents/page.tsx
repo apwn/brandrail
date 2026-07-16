@@ -73,7 +73,7 @@ function AgentHero() {
             Your agent can write.<br /><span className="text-signal">Now it can operate.</span>
           </h1>
           <p className="mt-5 max-w-[620px] text-[17px] leading-relaxed text-muted">
-            Give OpenClaw, Claude, or any compatible MCP client the ability to plan a month, produce each week, route approval, publish and learn—without letting it break the brand or bypass your judgment.
+            Give OpenClaw, Claude, or any compatible MCP client the ability to plan four weeks, produce each week, route approval, publish and learn—without letting it break the brand or bypass your judgment.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a className="btn min-h-12" href="/login?agent=1">Connect your agent free →</a>
@@ -102,7 +102,7 @@ function AgentRunProof() {
           <span>AGENT / CAMPAIGN RUN</span><span className="text-green">● CONTROLLED</span>
         </div>
         <div className="p-4 sm:p-5">
-          <p className="font-mono text-[11px] leading-relaxed text-bone"><span className="text-signal">you ›</span> Keep the next 30 days full. Produce three posts a week and get my approval before scheduling.</p>
+          <p className="font-mono text-[11px] leading-relaxed text-bone"><span className="text-signal">you ›</span> Keep the next four weeks full. Produce three posts a week and get my approval before scheduling.</p>
           <div className="mt-4 border border-hairline">
             {steps.map(([number, label, status, state]) => (
               <div key={number} className="grid grid-cols-[28px_1fr_auto] gap-2 border-b border-hairline-soft px-3 py-2.5 font-mono text-[9px] last:border-b-0 sm:text-[10px]">
@@ -164,7 +164,7 @@ function ConnectionSection() {
             {[
               ["01", "Mint a scoped key", "Open Workspace → Agent connection after verifying your email."],
               ["02", "Add the MCP endpoint", "Paste the configuration into a supported client."],
-              ["03", "Ask for the outcome", "Start with: “Plan the next 30 days, three posts a week. Show me the plan before producing.”"],
+              ["03", "Ask for the outcome", "Start with: “Plan the next four weeks, three posts a week. Show me the plan before producing.”"],
             ].map(([number, title, body]) => (
               <li key={number} className="grid grid-cols-[30px_1fr] gap-3 border-b border-hairline-soft py-4 last:border-b-0">
                 <span className="font-mono text-[10px] text-signal">{number}</span>
@@ -234,7 +234,7 @@ function AgentCta() {
       <div className="relative mx-auto max-w-2xl px-5 sm:px-6">
         <p className="eyebrow text-signal">START WITH THE AGENT YOU ALREADY USE</p>
         <h2 className="mt-4 font-display text-[clamp(36px,5vw,54px)] font-bold leading-tight">Give it the outcome. Keep the final say.</h2>
-        <p className="mt-4 text-muted">Preview a week or month through MCP. Studio activates the rolling program; review remains the default.</p>
+        <p className="mt-4 text-muted">Preview one or four weeks through MCP. Studio activates the rolling program; review remains the default.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3"><a href="/login?agent=1" className="btn">Connect free →</a><a href="/docs#quickstart" className="btn-ghost">Read the quickstart</a><a href="https://github.com/apwn/brandrail/tree/main/skills/brandrail" className="btn-ghost">Install the skill</a></div>
       </div>
     </section>

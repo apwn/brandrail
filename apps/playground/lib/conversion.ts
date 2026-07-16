@@ -9,6 +9,7 @@ export type ConversionEvent =
   | "pricing_cta_clicked"
   | "content_program_cta_clicked"
   | "content_program_exported"
+  | "template_family_cta_clicked"
   | "creative_mode_selected"
   | "template_preview_selected"
   | "audience_selected"

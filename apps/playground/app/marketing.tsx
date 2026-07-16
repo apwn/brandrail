@@ -67,11 +67,11 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             Turn one brief into a week of <span className="text-signal">on-brand content.</span>
           </h1>
           <p className="mt-5 max-w-[620px] text-[16px] leading-relaxed text-muted sm:text-[18px]">
-            Your agent plans it. Brandrail renders every channel, checks every brand rule and waits for your approval before anything publishes. Start with a week—or keep the next 30 days full.
+            Your agent plans it. Brandrail renders every channel, checks every brand rule and waits for your approval before anything publishes. Start with a week—or keep the next four weeks full.
           </p>
           <div className="mt-7 max-w-[660px]">
             <UrlBox id="hero-client-url" placement="hero" url={url} setUrl={setUrl} onSubmit={onSubmit} />
-            <p className="mt-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">01 · Scan your site&nbsp;&nbsp; 02 · Review the brand rules&nbsp;&nbsp; 03 · Plan a week or month</p>
+            <p className="mt-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">01 · Scan your site&nbsp;&nbsp; 02 · Review the brand rules&nbsp;&nbsp; 03 · Plan one or four weeks</p>
             {error && <p className="mt-3 border-l-2 border-signal pl-3 font-mono text-xs text-signal" role="alert">{error}</p>}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -90,7 +90,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
       <div className="relative mx-auto mt-12 grid max-w-[1180px] grid-cols-2 border-x border-t border-hairline bg-panel px-5 sm:grid-cols-4 sm:px-6 lg:px-0">
         {[
           ["05", "channel formats"],
-          ["10", "production templates"],
+          [`${Object.keys(ARCHETYPE_INFO).length}+`, "built-in + custom templates"],
           ["01", "human approval gate"],
           ["02 min", "agent setup"],
         ].map(([value, label], index) => (
@@ -290,12 +290,12 @@ function ContentProgram() {
         <div className="grid gap-10 lg:grid-cols-[.76fr_1.24fr] lg:items-center lg:gap-14">
           <div>
             <p className="eyebrow text-signal">Your always-on content program</p>
-            <h2 className="mt-4 font-display text-[clamp(34px,4.2vw,52px)] font-bold leading-[1.02] tracking-[-.04em]">Plan the month. Produce the next week. Learn before the next one.</h2>
-            <p className="mt-5 text-[16px] leading-relaxed text-muted">Give Brandrail the outcome, audience and content pillars once. It maps a coherent 30-day plan, turns the next week into channel-native copy and finished assets, then refreshes what comes next with performance and your feedback.</p>
+            <h2 className="mt-4 font-display text-[clamp(34px,4.2vw,52px)] font-bold leading-[1.02] tracking-[-.04em]">Plan four weeks. Produce the next week. Learn before the next one.</h2>
+            <p className="mt-5 text-[16px] leading-relaxed text-muted">Give Brandrail the outcome, audience, product facts and content pillars once. It maps a coherent four-week plan, turns the next week into channel-native copy and finished assets, then refreshes unlocked ideas with performance and your feedback.</p>
             <ol className="mt-7 border-y border-hairline-soft">
               {[
                 ["01", "Set the strategy", "Objective, audience, pillars, offer and important dates."],
-                ["02", "Preview before spending", "See and export the whole month before any asset is rendered."],
+                ["02", "Preview before spending", "See and export all four weeks before any asset is rendered."],
                 ["03", "Choose the control level", "Approve each week by default, or explicitly enable auto-publishing."],
               ].map(([number, title, body]) => (
                 <li key={number} className="grid grid-cols-[32px_1fr] gap-3 border-b border-hairline-soft py-4 last:border-b-0">
@@ -305,13 +305,13 @@ function ContentProgram() {
               ))}
             </ol>
             <div className="mt-7 flex flex-wrap items-center gap-4">
-              <a href="#try" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Preview my next 30 days free →</a>
+              <a href="#try" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Preview my next 4 weeks free →</a>
               <a href="/agents#tools" className="text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Let my agent run it</a>
             </div>
           </div>
           <div className="overflow-hidden border border-hairline bg-ink shadow-[12px_12px_0_#0A0A0B,12px_12px_0_1px_#2E2E32]">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">
-              <span>Northstar / 30-day program</span><span className="text-green">● Strategy locked</span>
+              <span>Northstar / four-week program</span><span className="text-green">● Strategy locked</span>
             </div>
             <div className="grid gap-px bg-hairline sm:grid-cols-2">
               {weeks.map((week) => (
@@ -344,9 +344,66 @@ const CREATIVE_MODES = [
   ["auto", "Auto Mix", "The agent chooses the strongest valid composition for every channel."],
   ["template", "One Template", "Choose one approved direction and adapt it across formats."],
   ["plan", "Channel Plan", "Direct selected channels while the rest remain automatic."],
-  ["recipe", "Saved Recipe", "Reuse the visual direction next week with completely fresh copy."],
+  ["recipe", "Saved Look", "Reuse the visual direction next week with completely fresh copy."],
+  ["family", "Custom Family", "Duplicate a built-in, upload artwork and publish your own versioned visual system."],
 ] as const;
 const TEMPLATE_SHOWCASE = Object.keys(ARCHETYPE_INFO) as LayoutArchetype[];
+const CUSTOM_FAMILY_STEPS = [
+  ["01", "Duplicate", "Keep the proven content contract; change the visual composition."],
+  ["02", "Design safely", "Move text, image, logo, shape and data zones without executable code."],
+  ["03", "Preflight + publish", "Check geometry, contrast, artwork and all five canvases before release."],
+] as const;
+const CUSTOM_FAMILY_GEOMETRY = [["X", "10%"], ["Y", "28%"], ["W", "38%"], ["H", "25%"]] as const;
+
+function TemplateStudioProof() {
+  return (
+    <article id="template-studio" className="mt-5 grid scroll-mt-20 overflow-hidden border border-hairline bg-panel lg:grid-cols-[.78fr_1.22fr]">
+      <div className="border-b border-hairline p-6 sm:p-8 lg:border-b-0 lg:border-r">
+        <span className="eyebrow text-green">Your visual system, not ours</span>
+        <h3 className="mt-4 max-w-[430px] font-display text-3xl font-bold leading-tight sm:text-4xl">Start with {Object.keys(ARCHETYPE_INFO).length}. Make one unmistakably yours.</h3>
+        <p className="mt-4 max-w-[500px] text-[15px] leading-relaxed text-muted">Duplicate a production template, drag its named layers into place, attach approved artwork for each format and publish an immutable version. Your family then renders through the same BrandSpec and quality gate as every built-in.</p>
+        <ol className="mt-6 border-y border-hairline-soft">
+          {CUSTOM_FAMILY_STEPS.map(([number, title, body]) => <li key={number} className="grid grid-cols-[30px_1fr] gap-3 border-b border-hairline-soft py-3.5 last:border-b-0"><span className="font-mono text-[9px] text-signal">{number}</span><span><b className="block font-display text-sm">{title}</b><span className="mt-1 block text-xs leading-relaxed text-muted">{body}</span></span></li>)}
+        </ol>
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <a href="/templates" onClick={() => trackConversion("template_family_cta_clicked", { placement: "landing" })} className="btn">Open the template Studio →</a>
+          <a href="/docs#templates" className="text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Read the model</a>
+        </div>
+      </div>
+      <div className="bg-ink p-4 sm:p-6">
+        <div className="overflow-hidden border border-hairline bg-panel shadow-[10px_10px_0_#0A0A0B,10px_10px_0_1px_#2E2E32]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted"><span>Visual family / launch-frame</span><span className="text-green">● v4 published</span></div>
+          <div className="grid gap-px bg-hairline sm:grid-cols-[1fr_210px]">
+            <div className="bg-panel p-4">
+              <div className="mb-3 flex items-center justify-between font-mono text-[8px] uppercase text-muted"><span>LinkedIn · 1200×627</span><span>Drag layers</span></div>
+              <div className="relative aspect-[40/21] overflow-hidden border border-hairline bg-bone text-ink">
+                <span className="absolute left-[7%] top-[8%] h-[84%] w-[47%] border border-[#BEB8AD] bg-[#F4EFE5]" />
+                <span className="absolute left-[10%] top-[15%] flex h-[10%] w-[38%] items-center border border-[#BEB8AD] px-2 font-mono text-[7px] uppercase text-[#6A655D]">kicker · 36</span>
+                <span className="absolute left-[10%] top-[28%] flex h-[25%] w-[38%] items-center border-2 border-[#A83200] px-2 font-display text-[clamp(10px,1.4vw,18px)] font-bold leading-tight">The launch system teams remember.</span>
+                <span className="absolute left-[10%] top-[58%] flex h-[17%] w-[38%] items-center border border-[#BEB8AD] px-2 text-[7px] leading-tight text-[#514D47]">Approved copy stays editable inside the contract.</span>
+                <span className="absolute left-[10%] top-[82%] flex h-[5%] w-[19%] items-center font-display text-[7px] font-bold">NORTHSTAR</span>
+                <span className="absolute left-[57%] top-[8%] flex h-[84%] w-[36%] items-center justify-center border border-[#BEB8AD] bg-[#D8D3C9] font-mono text-[7px] uppercase text-[#6A655D]">approved artwork</span>
+                <span className="absolute left-[47%] top-[24%] bg-signal px-1.5 py-1 font-mono text-[7px] font-bold uppercase text-ink">hook selected</span>
+              </div>
+            </div>
+            <aside className="bg-panel p-4">
+              <span className="font-mono text-[8px] uppercase tracking-[.1em] text-signal">Layer inspector</span>
+              <b className="mt-2 block font-display text-sm">hook · text</b>
+              <span className="font-mono text-[8px] text-muted">field-hook</span>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {CUSTOM_FAMILY_GEOMETRY.map(([label, value]) => <span key={label} className="border border-hairline px-2 py-2"><span className="block font-mono text-[7px] text-muted">{label}</span><b className="font-mono text-[9px]">{value}</b></span>)}
+              </div>
+              <div className="mt-3 border border-hairline p-2 font-mono text-[8px] text-muted"><span className="text-green">✓</span> Contract · 90 chars</div>
+              <div className="mt-2 border border-hairline p-2 font-mono text-[8px] text-muted"><span className="text-green">✓</span> Contrast · 11.4:1</div>
+            </aside>
+          </div>
+          <div className="grid grid-cols-3 border-t border-hairline text-center font-mono text-[8px] uppercase tracking-[.06em] text-muted"><span className="border-r border-hairline py-3">v2 draft</span><span className="border-r border-hairline py-3">v3 archived</span><span className="py-3 text-green">v4 published</span></div>
+        </div>
+        <p className="mt-4 font-mono text-[9px] leading-relaxed text-muted">Strict data model · workspace-owned uploads · immutable history · API, SDK, CLI and MCP ready</p>
+      </div>
+    </article>
+  );
+}
 
 function CreativeControl() {
   const [activeMode, setActiveMode] = useState<(typeof CREATIVE_MODES)[number][0]>("auto");
@@ -369,7 +426,7 @@ function CreativeControl() {
         <SectionHead
           eyebrow="Agent speed, designer control"
           title={<>Let the agent art-direct.<br />Take over when judgment matters.</>}
-          body="Start automatically, force a specific template, direct each channel or save an approved direction as a reusable recipe. The same BrandSpec protects every mode."
+          body="Start automatically, force a specific template, direct each channel, save an approved look, or publish a versioned custom family. The same BrandSpec protects every mode."
         />
         <div className="grid overflow-hidden border border-hairline bg-panel lg:grid-cols-[.7fr_1.3fr]">
           <div className="border-b border-hairline p-4 sm:p-5 lg:border-b-0 lg:border-r">
@@ -391,7 +448,7 @@ function CreativeControl() {
               <div className="flex items-center justify-between border-b border-hairline px-4 py-3 font-mono text-[9px] uppercase tracking-[.1em] text-muted"><span>Northstar / campaign direction</span><span className="text-green">● Brand locked</span></div>
               <div className="p-4 sm:p-5">
                 <span className="font-mono text-[9px] uppercase tracking-[.12em] text-signal">Active mode</span>
-                <div className="mt-1 flex flex-wrap items-end justify-between gap-3"><h3 className="font-display text-2xl font-bold">{mode[1]}</h3><span className="font-mono text-[9px] text-muted">10 templates · 5 formats</span></div>
+                <div className="mt-1 flex flex-wrap items-end justify-between gap-3"><h3 className="font-display text-2xl font-bold">{mode[1]}</h3><span className="font-mono text-[9px] text-muted">{Object.keys(ARCHETYPE_INFO).length} templates · 5 formats</span></div>
                 <p className="mt-2 max-w-[610px] text-sm leading-relaxed text-muted">{mode[2]}</p>
                 <div className="mt-5 grid gap-2 sm:grid-cols-3">
                   {["Typography locked", "Approved media only", "Copy stays editable"].map((rule, index) => <span key={rule} className={`border px-3 py-2 text-center font-mono text-[8px] uppercase tracking-[.08em] ${index === 2 ? "border-signal/50 text-signal" : "border-hairline text-muted"}`}>{index < 2 ? "✓" : "↳"} {rule}</span>)}
@@ -429,6 +486,7 @@ function CreativeControl() {
             })}
           </div>
         </div>
+        <TemplateStudioProof />
       </div>
     </section>
   );
@@ -439,8 +497,8 @@ function UseCases() {
   const content = audience === "one" ? {
     eyebrow: "Creator · founder · in-house marketer",
     title: "Show up every week without rebuilding the system.",
-    body: "Bring the outcome once. Brandrail keeps the next 30 days coherent, carries your visual identity across every channel and refreshes the next production week with what worked.",
-    bullets: ["One URL becomes a reusable brand system", "One strategy becomes a rolling 30-day plan", "One approved recipe removes the next blank canvas"],
+    body: "Bring the outcome once. Brandrail keeps the next four weeks coherent, carries your visual identity across every channel and refreshes the next production week with what worked.",
+    bullets: ["One URL becomes a reusable brand system", "One strategy becomes a rolling four-week plan", "One approved look removes the next blank canvas"],
     stats: [["1", "active brand"], ["50", "free assets"], ["0", "blank canvases"]],
     cta: "Start with one brand",
     href: "#try",
@@ -483,27 +541,27 @@ function Pricing() {
   const plans = [
     {
       name: "Free", audience: "Prove the loop on one real brand", price: "$0", suffix: "forever",
-      outcome: "Compile your brand, preview the next 30 days and create the first channel set before paying.",
-      items: ["1 active brand · 1 agent key", "Free 30-day calendar preview + CSV export", "50 finished assets / month", "All 10 templates + saved recipes", "Brand checks and audit trail"],
+      outcome: "Compile your brand, preview the next four weeks and create the first channel set before paying.",
+      items: ["1 active brand · 1 agent key", "Free four-week calendar preview + CSV export", "50 finished assets / month", `All ${Object.keys(ARCHETYPE_INFO).length} templates + custom families + saved looks`, "Brand checks and audit trail"],
       cta: "Try it with my website", href: "#try",
     },
     {
       name: "Studio", audience: "Operate up to three growing brands", price: "$49", suffix: "/ month", badge: "MOST POPULAR",
-      outcome: "Keep the next 30 days planned and turn each new week into approved, scheduled content.",
-      items: ["3 brands · 5 scoped agent keys", "1,000 finished assets / month", "Rolling 30-day content programs", "Approvals, publishing and feedback"],
+      outcome: "Keep the next four weeks planned and turn each new week into approved, scheduled content.",
+      items: ["3 brands · 5 scoped agent keys", "1,000 finished assets / month", "Visual template families + immutable history", "Rolling programs, approvals and publishing"],
       cta: "Start with Studio", href: "/login?plan=studio",
     },
     {
       name: "Agency", audience: "Run controlled production for clients", price: "$199", suffix: "/ month",
       outcome: "Operate 25 distinct client brands through one production and approval rail.",
-      items: ["25 brands · 25 scoped agent keys", "10,000 finished assets / month", "Reviewer seats + client approvals", "Multi-brand campaigns + reports"],
+      items: ["25 brands · 25 scoped agent keys", "10,000 finished assets / month", "Brand-scoped template families", "Reviewer seats, campaigns + reports"],
       cta: "Start an Agency pilot", href: "/login?plan=agency",
     },
   ];
   return (
     <section id="pricing" className="scroll-mt-20 border-b border-hairline-soft bg-bone py-16 text-ink md:py-20">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-6">
-        <SectionHead light eyebrow="Start with the real product" title="Free proves the result. Paid plans run the operation." body="No stripped-down demo tier: compile, choose templates, save recipes and render the first brand free. Upgrade when you need more brands, approval operations and publishing." />
+        <SectionHead light eyebrow="Start with the real product" title="Free proves the result. Paid plans run the operation." body="No stripped-down demo tier: compile, choose or build templates, save looks and render the first brand free. Upgrade when you need more brands, approval operations and publishing." />
         <div className="grid items-stretch gap-5 lg:grid-cols-3">
           {plans.map((plan) => (
             <article key={plan.name} className={`relative flex flex-col border bg-[#FBFAF7] p-6 shadow-[6px_6px_0_#D8D3C9] sm:p-7 ${plan.badge ? "border-[#A83200] lg:-translate-y-2" : "border-[#C9C4BA]"}`}>
@@ -529,8 +587,9 @@ function Pricing() {
 
 export const FAQ = [
   ["Is Brandrail for one brand or many?", "Both. Free proves the workflow on one brand. Studio supports three growing brands. Agency supports 25 client brands with reviewer access and reporting."],
-  ["Can I choose the design, or does the agent decide?", "Either. Let Brandrail choose automatically, force one template, direct each channel separately or apply a saved recipe. Copy and approved-image fields stay editable while brand-critical design rules stay locked."],
-  ["Can Brandrail plan a full month?", "Yes. A Content Program maps one strategy into one or four weeks of dated ideas. The 30-day preview is free to generate; Brandrail produces the next week, learns from results and refreshes what follows so the plan stays coherent without becoming stale."],
+  ["Can I choose the design, or does the agent decide?", "Either. Let Brandrail choose automatically, force one template, direct each channel, apply a saved look, or select a published custom family. Copy and approved-image fields stay editable while brand-critical design rules stay locked."],
+  ["Can I upload or build my own templates?", "Yes. Duplicate any built-in, design it visually, upload locked PNG, JPEG, WebP or sanitized SVG artwork per format, then preflight and publish an immutable version. You can also import the strict template JSON. Brandrail rejects arbitrary HTML, CSS and JavaScript so custom families keep the same deterministic rendering and safety guarantees."],
+  ["Can Brandrail plan four weeks?", "Yes. A Content Program maps one strategy into one or four weeks of dated ideas. The preview is free to generate; Brandrail produces the next week, learns from results and refreshes what follows so the plan stays coherent without becoming stale."],
   ["Which publishing channels are available?", "Bluesky and Mastodon connect directly. LinkedIn, Instagram/Facebook, X and TikTok are available when the corresponding approved platform-app credentials are configured. You can always render, review, export or use the API without connecting a channel."],
   ["Can an agent publish without my approval?", "Not silently. Agent publishing requires an approved review item or explicit confirmation. Dry-runs expose mutations first, retries are idempotent and every change stays visible in the audit trail."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable. The spec format, SDK, CLI and MCP server are open, and the full rail can be self-hosted."],
@@ -555,7 +614,7 @@ function FinalCta({ url, setUrl, onSubmit }: Omit<LandingProps, "error">) {
       <div className="surface-grid absolute inset-0 opacity-30" aria-hidden />
       <div className="relative mx-auto max-w-[860px] px-5 sm:px-6">
         <span className="eyebrow text-signal">The agent is ready. Give it rails.</span>
-        <h2 className="mt-4 font-display text-[clamp(38px,5vw,58px)] font-bold leading-[1.02] tracking-[-0.04em]">Start with one brief. Keep the month full.</h2>
+        <h2 className="mt-4 font-display text-[clamp(38px,5vw,58px)] font-bold leading-[1.02] tracking-[-0.04em]">Start with one brief. Keep four weeks full.</h2>
         <p className="mx-auto mt-5 max-w-[650px] text-[17px] text-muted">Start with your real website, see the brand system before creating an account and produce your first week free.</p>
         <div className="mx-auto mt-8 max-w-[700px] text-left"><UrlBox id="final-client-url" placement="final" url={url} setUrl={setUrl} onSubmit={onSubmit} /></div>
         <p className="mt-4 font-mono text-[10px] text-muted">Or <a href="/login?agent=1" onClick={() => trackConversion("agent_cta_clicked", { placement: "final" })} className="text-signal underline underline-offset-4">connect your agent directly</a> · {MCP_TOOL_COUNT} lifecycle tools · no card</p>

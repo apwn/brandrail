@@ -36,7 +36,7 @@ export function OnboardingChecklist({
     { done: hasAgent, label: "Connect your agent", hint: "one hosted MCP connection", href: "#agent" },
     { done: hasAgentRun, label: "Run your first dry plan", hint: "ask the agent what it would do before it mutates", href: "#agent" },
     ...(canPublish ? [{ done: hasChannel, label: "Connect a channel", hint: "direct or OAuth — credentials stay encrypted", href: "#channels" }] : []),
-    ...(canProgram ? [{ done: hasProgram, label: "Plan your next 30 days", hint: "one outcome becomes a rolling, adaptive content program", href: "/program" }] : []),
+    ...(canProgram ? [{ done: hasProgram, label: "Plan your next 4 weeks", hint: "one outcome becomes a rolling, adaptive content program", href: "/program" }] : []),
     ...(canReview ? [{ done: hasApproved, label: "Approve your first asset", hint: "make the judgment once; the rail remembers", href: "/review" }] : []),
     ...(canPublish ? [{ done: hasScheduled, label: "Schedule your first post", hint: "place it on the calendar and let the rail ship", href: "/calendar" }] : []),
   ];

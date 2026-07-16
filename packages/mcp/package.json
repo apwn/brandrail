@@ -1,8 +1,12 @@
 {
   "name": "@brandrail/mcp",
   "version": "0.1.0",
-  "description": "Brandrail MCP server — gives agents compile_brand, render_assets, get_spec and diff_spec tools. On-brand, on autopilot.",
+  "description": "Brandrail MCP server — 46 tools for BrandSpecs, deterministic assets, durable runs, review, publishing, analytics, and audit.",
   "license": "MIT",
+  "homepage": "https://github.com/apwn/brandrail#readme",
+  "bugs": { "url": "https://github.com/apwn/brandrail/issues" },
+  "repository": { "type": "git", "url": "git+https://github.com/apwn/brandrail.git", "directory": "packages/mcp" },
+  "engines": { "node": ">=20" },
   "type": "module",
   "bin": {
     "brandrail-mcp": "./dist/index.js"

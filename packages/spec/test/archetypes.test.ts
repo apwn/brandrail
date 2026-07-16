@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARCHETYPE_INFO, LAYOUT_ARCHETYPES, acme, parse } from "../src/index.js";
+import { ARCHETYPE_INFO, CustomTemplateFamilySchema, LAYOUT_ARCHETYPES, acme, parse } from "../src/index.js";
 
 describe("template catalog", () => {
   it("publishes dynamic-field contracts and locked brand objects for every template", () => {
@@ -10,6 +10,41 @@ describe("template catalog", () => {
       expect(template.slots.hook!.maxChars).toBeGreaterThan(0);
       expect(template.locked).toEqual(expect.arrayContaining(["colors", "type", "spacing", "logo"]));
     }
+  });
+
+  it("publishes structured numeric contracts separately from editable text", () => {
+    expect(ARCHETYPE_INFO["data-trend"].dataSlots?.series).toMatchObject({
+      required: true,
+      minItems: 2,
+      maxItems: 6,
+    });
+    expect(ARCHETYPE_INFO["data-trend"].slots).not.toHaveProperty("series");
+  });
+
+  it("validates safe normalized custom template families and stable refs", () => {
+    const now = new Date().toISOString();
+    const family = CustomTemplateFamilySchema.parse({
+      id: "launch-frame",
+      name: "Launch frame",
+      version: 1,
+      status: "draft",
+      scope: "workspace",
+      baseArchetype: "hero-statement",
+      intents: ["announcement"],
+      formats: {
+        "li-image": {
+          backgroundRole: "paper",
+          layers: [{ id: "headline", type: "text", slot: "hook", box: { x: 0.1, y: 0.1, width: 0.8, height: 0.3 }, typography: "display", maxLines: 3, maxChars: 90, required: true, align: "left", colorRole: "ink", surfaceRole: "paper" }],
+        },
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(family).toMatchObject({ id: "launch-frame", version: 1, autoEligible: false });
+    expect(() => CustomTemplateFamilySchema.parse({ ...family, autoEligible: true })).toThrow(/only published families/);
+    expect(() => CustomTemplateFamilySchema.parse({ ...family, arbitraryCss: "position: fixed" })).toThrow(/unrecognized key/i);
+    expect(() => CustomTemplateFamilySchema.parse({ ...family, formats: { "li-image": { ...family.formats["li-image"], layers: [{ ...family.formats["li-image"]!.layers[0]!, onclick: "alert(1)" }] } } })).toThrow(/unrecognized key/i);
+    expect(() => CustomTemplateFamilySchema.parse({ ...family, formats: { "li-image": { backgroundRole: "paper", layers: [{ id: "bad", type: "shape", box: { x: 0.9, y: 0, width: 0.2, height: 1 }, fillRole: "paper" }] } } })).toThrow();
   });
 
   it("keeps reusable visual recipes portable and mutually exclusive", () => {

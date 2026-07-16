@@ -35,6 +35,14 @@ export const LAYOUT_ARCHETYPES = [
   "testimonial",
   "announcement",
   "before-after",
+  "product-showcase",
+  "process-3",
+  "data-trend",
+  "case-study-proof",
+  "screenshot-callout",
+  "compare-2",
+  "timeline",
+  "ranked-bars",
 ] as const;
 export const LayoutArchetype = z.enum(LAYOUT_ARCHETYPES);
 export type LayoutArchetype = z.infer<typeof LayoutArchetype>;

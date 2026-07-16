@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "brand and brief required" }, { status: 400 });
   }
   const uid = await ensureUserId();
-  const isRestyle = Array.isArray(body.formats) && body.formats.length === 1 && Boolean(body.recipe || body.template || body.templates || body.archetype || body.copy || body.modifications || body.media);
+  const isRestyle = Array.isArray(body.formats) && body.formats.length === 1 && Boolean(body.recipe || body.templateRef || body.template || body.templates || body.archetype || body.copy || body.modifications || body.media);
   let reservedAnonymousRestyle = false;
   if (isRestyle && !(await isVerifiedUser(uid))) {
     const used = anonymousRestyles.get(uid) ?? 0;
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       ...(body.recipe ? { recipe: body.recipe } : {}),
       ...(body.formats ? { formats: body.formats } : {}),
       ...(body.template ? { template: body.template } : {}),
+      ...(body.templateRef ? { templateRef: body.templateRef } : {}),
       ...(body.templates ? { templates: body.templates } : {}),
       ...(body.archetype ? { archetype: body.archetype } : {}),
       ...(body.modifications ? { modifications: body.modifications } : {}),
