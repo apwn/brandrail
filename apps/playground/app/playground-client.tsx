@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { BrandSpec, FormatId, TemplateRecipe, TemplateSlotInfo, TemplateSlotName } from "@brandrail/spec";
 import { ARCHETYPE_INFO } from "@brandrail/spec";
-import { WorkspaceLockup } from "./components/workspace-lockup";
+import { WorkspaceHeader } from "./components/workspace-header";
+import { ConceptHelp } from "./components/concept-help";
 import { TemplatePicker } from "./components/template-picker";
 import { MarketingLanding } from "./marketing";
 import { MCP_TOOL_COUNT } from "@/lib/mcp-meta";
@@ -627,16 +628,7 @@ function removedPhotoCount(edits: Record<string, string>): number {
 }
 
 function Header() {
-  return (
-    <header className="mb-14 flex items-center justify-between">
-      <WorkspaceLockup context="Playground · V0" />
-      <div className="flex gap-5">
-        <a href="/program" className="eyebrow text-signal hover:text-bone">PLAN 4 WEEKS</a>
-        <a href="/dashboard" className="eyebrow hover:text-bone">WORKSPACE</a>
-        <a href="/review" className="eyebrow hover:text-bone">BATCH REVIEW →</a>
-      </div>
-    </header>
-  );
+  return <div className="mb-14"><WorkspaceHeader context="Create" active="create" /></div>;
 }
 
 function Working({ label, steps }: { label: string; steps: string[] }) {
@@ -707,7 +699,7 @@ function BrandSheet({
   const set = (key: string, value: string) => setEdits({ ...edits, [key]: value });
   return (
     <section className="mb-10">
-      <p className="eyebrow mb-4">02 / YOUR BRANDSPEC — {spec.meta.name} v{spec.meta.version}</p>
+      <div className="mb-4 flex items-center gap-2"><p className="eyebrow">02 / YOUR BRANDSPEC — {spec.meta.name} v{spec.meta.version}</p><ConceptHelp concept="brandspec" /></div>
       <div className="panel p-6 grid gap-8 md:grid-cols-2">
         <div>
           <p className="eyebrow mb-4 text-bone">COLOR ROLES</p>
@@ -1080,10 +1072,16 @@ function ResultGrid({
           <h2 className="font-display font-bold text-2xl tracking-tight">&ldquo;{brief}&rdquo; — {brand}</h2>
           <p className="text-muted text-sm mt-1">One idea, adapted to every channel format. Swap a template or edit the words without breaking the set.</p>
         </div>
-        <div className="flex gap-3">
-          <a className="btn-ghost" href="/templates">Visual templates</a>
-          <button className="btn-ghost" onClick={() => setRecipeOpen((current) => !current)}>Save this look</button>
-          <button className="btn-ghost" onClick={onAgain}>← another brief</button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button className="btn-ghost" onClick={onAgain}>Create another</button>
+          <details className="group relative">
+            <summary className="btn-ghost cursor-pointer list-none">More options</summary>
+            <div className="absolute right-0 top-full z-30 mt-2 grid w-56 gap-1 border border-hairline bg-panel p-2 shadow-[8px_8px_0_#0A0A0B]">
+              <a className="px-3 py-2 text-sm text-muted hover:text-bone" href="/templates">Manage visual templates</a>
+              <button className="px-3 py-2 text-left text-sm text-muted hover:text-bone" onClick={() => setRecipeOpen((current) => !current)}>Save this as a reusable look</button>
+              <a className="px-3 py-2 text-sm text-muted hover:text-bone" href="/help#glossary">Explain these options</a>
+            </div>
+          </details>
           <button className="btn" onClick={onDownload} disabled={zipping}>
             {zipping ? "zipping…" : unlocked ? "Download all (.zip)" : "Download all →"}
           </button>
@@ -1361,11 +1359,8 @@ function StudioCard({
   );
 }
 
-/**
- * The value gate. Previewing is anonymous; exporting, continuing within the
- * free monthly allowance, and saving a workspace require one verified email.
- * Paid workflow features remain governed by the engine's plan entitlements.
- */
+/** A continuity prompt, not an authorization boundary. Individual previews
+ * remain available anonymously; verified users can save, continue and bundle. */
 function AccountGate({
   reason,
   email,
@@ -1405,8 +1400,8 @@ function AccountGate({
   const headline = reason === "download" ? "Your assets. Your workspace." : "Keep the studio open.";
   const pitch =
     reason === "download"
-      ? "One verified email unlocks the one-click ZIP, saves this brand to your workspace, and makes it all recoverable on any device. No password — we email you a sign-in link."
-      : "You've felt the studio — two anonymous restyles. A free account saves this brand and lets you keep creating within the free monthly allowance. No password — we email you a sign-in link.";
+      ? "One verified email unlocks the one-click ZIP, saves this brand to your workspace, and makes it recoverable on any device. Individual previews remain available without an account. No password — we email you a sign-in link."
+      : "You've tried two anonymous restyles. Sign in to continue in this studio, save the brand and use the free monthly allowance. Your existing previews remain available. No password — we email you a sign-in link.";
 
   return (
     <div className="fixed inset-0 bg-ink/90 flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">

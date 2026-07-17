@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
 import { CalendarWorkspace } from "./workspace";
+import { WorkspaceHeader } from "../components/workspace-header";
 
 export default async function CalendarPage() {
   const uid = await getUserId();
-  if (!uid) redirect("/login");
+  if (!uid) redirect("/login?return=%2Fcalendar");
   const usageRes = await engine("/v0/me/usage", {}, uid);
   if (!usageRes.ok) redirect("/dashboard");
   const usage = await usageRes.json() as { role: "owner" | "reviewer"; entitlements: { features: string[] } };
@@ -28,5 +29,5 @@ export type ScheduledPost = { id: string; channelIds: string[]; text: string; re
 export type SavedRender = { id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string }> } };
 
 function LockedCalendar() {
-  return <main className="mx-auto max-w-3xl px-6 py-20"><a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a><div className="rail w-14 mt-16" /><p className="eyebrow text-signal mt-6">STUDIO WORKFLOW</p><h1 className="font-display text-4xl font-bold mt-3">Your publishing calendar starts with Studio.</h1><p className="text-muted mt-4 max-w-xl">Schedule, move, preview and monitor every connected channel from one rail.</p><a href="/login?plan=studio" className="btn mt-7">Start Studio →</a></main>;
+  return <main className="mx-auto max-w-5xl px-6 py-12"><WorkspaceHeader context="Calendar" active="calendar" plan="free" /><section className="max-w-3xl py-14"><div className="rail w-14" /><p className="eyebrow text-signal mt-6">STUDIO WORKFLOW</p><h1 className="font-display text-4xl font-bold mt-3">Your publishing calendar starts with Studio.</h1><p className="text-muted mt-4 max-w-xl">Schedule, move, preview and monitor every connected channel from one rail.</p><div className="mt-7 flex flex-wrap gap-3"><a href="/dashboard?checkout=studio&return=%2Fcalendar" className="btn">Start Studio →</a><a href="/help#plans" className="btn-ghost">Compare capabilities</a></div></section></main>;
 }

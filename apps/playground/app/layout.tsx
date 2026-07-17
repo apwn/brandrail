@@ -40,8 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-ink text-bone font-body antialiased min-h-screen">
+        <a href="#main-content" className="skip-link">Skip to main content</a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(software) }} />
-        {children}
+        <div id="main-content" tabIndex={-1}>{children}</div>
       </body>
     </html>
   );

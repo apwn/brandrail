@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { trackConversion } from "@/lib/conversion";
 import { PreviewCard } from "./preview-card";
 import { addDateDays } from "./time";
+import { WorkspaceHeader } from "../components/workspace-header";
+import { JourneyRail } from "../components/journey-rail";
+import { ConceptHelp } from "../components/concept-help";
 
 export type ChannelOption = { id: string; platform: string; handle: string };
 type ImportantDate = { date: string; label: string };
@@ -221,10 +224,12 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
 
   return (
     <main className="mx-auto max-w-[1180px] px-5 py-10 sm:px-6 sm:py-12">
-      <header className="flex flex-wrap items-center justify-between gap-5 border-b border-hairline pb-6">
-        <div><a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a><p className="eyebrow mt-5 text-signal">ROLLING CONTENT ENGINE</p><h1 className="mt-2 font-display text-[clamp(36px,5vw,56px)] font-bold leading-none tracking-[-.04em]">Keep the next four weeks full.</h1><p className="mt-4 max-w-2xl text-muted">Approve exact calendar slots. Brandrail produces one week at a time, preserves locked ideas and refreshes the adaptive ones with new performance.</p></div>
+      <WorkspaceHeader context="Content plan" active="plan" />
+      <JourneyRail active="plan" completed={["brand"]} />
+      <section className="mt-8 flex flex-wrap items-center justify-between gap-5 border-b border-hairline pb-6">
+        <div><div className="eyebrow text-signal">CONTENT PLAN <ConceptHelp concept="approvalMode" className="ml-1" /></div><h1 className="mt-2 font-display text-[clamp(36px,5vw,56px)] font-bold leading-none tracking-[-.04em]">Keep the next four weeks full.</h1><p className="mt-4 max-w-2xl text-muted">Approve exact calendar slots. Brandrail produces one week at a time, preserves locked ideas and refreshes the adaptive ones with new performance.</p></div>
         {saved && <div className="border border-hairline bg-panel px-4 py-3 text-right"><span className={`font-mono text-[10px] uppercase ${saved.status === "active" ? "text-green" : "text-signal"}`}>● {saved.status}</span><p className="mt-1 font-mono text-[9px] text-muted">next {saved.nextRunAt ? shortDate(saved.nextRunAt, saved.timeZone) : "—"}</p></div>}
-      </header>
+      </section>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[.82fr_1.18fr]">
         <section className="border border-hairline bg-panel p-5 sm:p-6">
@@ -274,5 +279,5 @@ export function ContentProgramWorkspace({ brands, channels, initialPrograms, can
 }
 
 function EmptyBrand() {
-  return <main className="mx-auto max-w-3xl px-6 py-20"><a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a><p className="eyebrow mt-16 text-signal">FIRST, BUILD THE RAIL</p><h1 className="mt-3 font-display text-4xl font-bold">A content program needs one BrandSpec.</h1><p className="mt-4 text-muted">Compile your website first. The program will use its identity, voice, imagery and brand constraints every week.</p><a href="/" className="btn mt-7">Compile my brand →</a></main>;
+  return <main className="mx-auto max-w-5xl px-5 py-10 sm:px-6"><WorkspaceHeader context="Content plan" active="plan" /><section className="mx-auto max-w-3xl py-16"><p className="eyebrow text-signal">FIRST, BUILD THE RAIL</p><h1 className="mt-3 font-display text-4xl font-bold">A content plan needs one BrandSpec.</h1><p className="mt-4 text-muted">Compile your website first. The plan will use its identity, voice, imagery and brand constraints every week.</p><a href="/#try" className="btn mt-7">Compile my brand →</a></section></main>;
 }

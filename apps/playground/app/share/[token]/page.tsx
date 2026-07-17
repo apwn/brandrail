@@ -8,5 +8,5 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   if (!share) notFound();
   const res = await engine(`/v0/batches/${encodeURIComponent(share.batchId)}`, {}, share.workspaceId);
   if (!res.ok) notFound();
-  return <ApprovalWorkspace token={token} initialBatch={await res.json() as SharedBatch} />;
+  return <ApprovalWorkspace token={token} initialBatch={await res.json() as SharedBatch} reviewer={share.reviewer} dueAt={share.dueAt} />;
 }

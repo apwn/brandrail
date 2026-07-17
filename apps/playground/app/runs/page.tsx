@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
 import { RunComposer } from "./run-composer";
-import { WorkspaceLockup } from "../components/workspace-lockup";
+import { WorkspaceHeader } from "../components/workspace-header";
 
 type Run = {
   id: string;
@@ -18,7 +18,7 @@ export const metadata = { title: "Agent runs · Brandrail" };
 
 export default async function AgentRunsPage() {
   const uid = await getUserId();
-  if (!uid) redirect("/login");
+  if (!uid) redirect("/login?return=%2Fruns");
   const [usageResponse, runsResponse, specsResponse] = await Promise.all([
     engine("/v0/me/usage", {}, uid).catch(() => null),
     engine("/v0/agent/runs?limit=100", {}, uid).catch(() => null),
@@ -34,10 +34,7 @@ export default async function AgentRunsPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <header className="flex items-center justify-between gap-4">
-        <WorkspaceLockup context="Agent runs" />
-        <a href="/dashboard" className="btn-ghost !px-3 !py-2 text-xs">← Control room</a>
-      </header>
+      <WorkspaceHeader context="Agent runs" active="runs" />
 
       <section className="mt-12 flex flex-col justify-between gap-8 border-b border-hairline pb-9 sm:flex-row sm:items-end">
         <div className="max-w-2xl"><p className="eyebrow text-signal">DURABLE EXECUTION</p><h1 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">Every agent job. Still on the rail.</h1><p className="mt-4 max-w-xl text-muted">Open a run to see what the agent produced, where a human decision is needed, and whether delivery actually reached the platform.</p></div>

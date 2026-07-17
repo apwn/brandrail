@@ -14,13 +14,19 @@ async function notifyOwner(workspaceId: string, token: string, req: Request, hea
 export async function PATCH(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params; const share = verifyShareToken(token);
   if (!share) return Response.json({ error: "approval link is invalid or expired" }, { status: 401 });
-  const parsed = await readJsonBody<{ itemId?: string; action?: string; note?: string }>(req, 64_000);
+  const parsed = await readJsonBody<{ itemId?: string; action?: string; author?: string; note?: string }>(req, 64_000);
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
   if (!body.itemId || (body.action !== "approve" && body.action !== "flag")) return Response.json({ error: "itemId and approve/flag action required" }, { status: 400 });
+  if (!body.author?.trim()) return Response.json({ error: "reviewer name required" }, { status: 400 });
+  if (body.author.trim().length > 80) return Response.json({ error: "reviewer name is too long" }, { status: 400 });
+  if (body.action === "flag" && !body.note?.trim()) return Response.json({ error: "requested changes need a note" }, { status: 400 });
   const res = await engine(`/v0/batches/${encodeURIComponent(share.batchId)}/items/${encodeURIComponent(body.itemId)}`, { method: "PATCH", body: JSON.stringify({ action: body.action, note: body.note, externalApproval: true }) }, share.workspaceId);
   const data = await res.json();
-  if (res.ok) await notifyOwner(share.workspaceId, token, req, body.action === "approve" ? "A client approved an asset" : "A client requested changes", body.note?.trim() || `Review item ${body.itemId} was ${body.action === "approve" ? "approved" : "flagged"}.`);
+  if (res.ok) {
+    const reviewer = body.author?.trim().slice(0, 80) || "A client";
+    await notifyOwner(share.workspaceId, token, req, body.action === "approve" ? `${reviewer} approved an asset` : `${reviewer} requested changes`, body.note?.trim() || `Review item ${body.itemId} was ${body.action === "approve" ? "approved" : "flagged"}.`);
+  }
   return Response.json(data, { status: res.status });
 }
 

@@ -10,6 +10,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//") ? requestedReturn : undefined;
   const story = selected && returnTo === "/program"
     ? { eyebrow: "ACTIVATE THE PLAN YOU APPROVED", title: "Turn this calendar into finished content every week.", body: "Your strategy and exact four-week preview stay with you through sign-in and checkout." }
+    : !selected && returnTo === "/program"
+      ? { eyebrow: "PREVIEW BEFORE YOU COMMIT", title: "Plan four weeks before spending an asset.", body: "Sign in to keep the free calendar preview attached to a recoverable workspace." }
     : selected
     ? { eyebrow: "FROM CREATION TO OPERATION", title: "Stop rebuilding the workflow every week.", body: "Your verified workspace keeps brands, assets, approvals and billing attached to one recoverable identity." }
     : connectingAgent
@@ -30,9 +32,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
           <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
-          <p className="eyebrow text-signal mt-12">{selected ? `${selected.toUpperCase()} SELECTED` : connectingAgent ? "FREE AGENT KEY" : "SECURE WORKSPACE"}</p>
-          <h2 className="font-display text-4xl font-bold mt-3">{selected ? `Start with ${selected[0].toUpperCase()}${selected.slice(1)}` : connectingAgent ? "Connect your agent" : "Open your workspace"}</h2>
-          <p className="text-muted mt-3">Enter your email. The link signs you in and {selected ? "continues to secure checkout" : connectingAgent ? "opens the agent setup panel" : "restores your workspace"}.</p>
+          <p className="eyebrow text-signal mt-12">{selected ? `${selected.toUpperCase()} SELECTED` : connectingAgent ? "FREE AGENT KEY" : returnTo === "/program" ? "FREE CONTENT PREVIEW" : "SECURE WORKSPACE"}</p>
+          <h2 className="font-display text-4xl font-bold mt-3">{selected ? `Start with ${selected[0].toUpperCase()}${selected.slice(1)}` : connectingAgent ? "Connect your agent" : returnTo === "/program" ? "Preview four weeks" : "Open your workspace"}</h2>
+          <p className="text-muted mt-3">Enter your email. The link signs you in and {selected ? "continues to secure checkout" : connectingAgent ? "opens the agent setup panel" : returnTo === "/program" ? "opens the free calendar planner" : "restores your workspace"}.</p>
           <LoginForm plan={selected} agent={connectingAgent} returnTo={returnTo} />
           <p className="font-mono text-[11px] text-muted mt-5">No password · no card for Free · one-use link expires in 15 minutes.</p>
         </div>

@@ -15,7 +15,17 @@ export type ConversionEvent =
   | "audience_selected"
   | "login_submitted"
   | "login_link_sent"
-  | "login_failed";
+  | "login_failed"
+  | "onboarding_checklist_viewed"
+  | "onboarding_step_clicked"
+  | "agent_key_created"
+  | "agent_trust_preset_selected"
+  | "agent_probe_completed"
+  | "agent_probe_failed"
+  | "agent_run_created"
+  | "agent_run_action_completed"
+  | "agent_run_action_failed"
+  | "analytics_recommendation_applied";
 
 type Property = string | number | boolean;
 

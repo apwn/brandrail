@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WorkspaceHeader } from "../components/workspace-header";
+import { JourneyRail } from "../components/journey-rail";
+import { trackConversion } from "@/lib/conversion";
 
 type TopPost = { id: string; text: string; scheduledAt: string; metrics?: { impressions?: number; engagements?: number; fetchedAt?: string }; channelIds: Array<{ id: string; platform: string; handle: string }>; results?: Array<{ ok: boolean; url?: string }> };
 export type AnalyticsData = {
@@ -19,6 +22,8 @@ export function AnalyticsWorkspace({ initialData }: { initialData: AnalyticsData
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const peak = useMemo(() => Math.max(1, ...data.byMonth.map((row) => row.engagements)), [data.byMonth]);
+  const topChannel = useMemo(() => [...data.byChannel].sort((left, right) => right.engagements - left.engagements)[0], [data.byChannel]);
+  const recommendationBrief = `Create a new campaign using this measured signal: ${data.insight}`;
 
   async function refresh() {
     setBusy(true); setNotice(null);
@@ -34,10 +39,12 @@ export function AnalyticsWorkspace({ initialData }: { initialData: AnalyticsData
   }
 
   return <main className="mx-auto max-w-6xl px-6 py-10 sm:py-12">
-    <header className="flex flex-wrap items-center justify-between gap-5">
-      <div><a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a><div className="rail w-12 mt-5" /><h1 className="font-display text-4xl font-bold mt-4">Performance</h1><p className="text-muted mt-2 max-w-2xl">The signal behind the next content decision—not a vanity dashboard.</p></div>
+    <WorkspaceHeader context="Analytics" active="analytics" plan="studio" />
+    <JourneyRail active="learn" completed={["brand", "plan", "review", "schedule"]} />
+    <section className="mt-8 flex flex-wrap items-center justify-between gap-5">
+      <div><div className="rail w-12" /><h1 className="font-display text-4xl font-bold mt-4">Performance</h1><p className="text-muted mt-2 max-w-2xl">The signal behind the next content decision—not a vanity dashboard.</p></div>
       <div className="flex gap-2"><a href="/calendar" className="btn-ghost !py-2">Calendar</a><button className="btn !py-2" onClick={refresh} disabled={busy}>{busy ? "Refreshing…" : "Refresh metrics"}</button></div>
-    </header>
+    </section>
     {notice && <p className="panel px-4 py-3 mt-6 font-mono text-xs text-signal">{notice}</p>}
 
     <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-10">
@@ -51,7 +58,7 @@ export function AnalyticsWorkspace({ initialData }: { initialData: AnalyticsData
       <div className="panel p-5 sm:p-6"><p className="eyebrow text-bone">SIX-MONTH SIGNAL</p><div className="h-56 flex items-end gap-3 mt-8 border-b border-hairline">
         {data.byMonth.map((row) => <div key={row.month} className="flex-1 h-full flex flex-col justify-end group"><div className="font-mono text-[10px] text-muted text-center mb-2 opacity-0 group-hover:opacity-100">{row.engagements}</div><div className="bg-signal/80 min-h-[2px] transition-all" style={{ height: `${Math.max(2, row.engagements / peak * 100)}%` }} /><p className="font-mono text-[9px] text-muted text-center py-2">{row.month.slice(5)}</p></div>)}
       </div></div>
-      <aside className="panel p-5 sm:p-6 border-signal/40"><p className="eyebrow text-signal">NEXT-BRIEF SIGNAL</p><p className="mt-5 text-bone leading-relaxed">{data.insight}</p><a href="/review" className="font-mono text-xs text-signal inline-block mt-6 hover:text-bone">Turn signal into a batch →</a></aside>
+      <aside className="panel border-signal/40 p-5 sm:p-6"><p className="eyebrow text-signal">RECOMMENDED NEXT MOVE</p><p className="mt-4 leading-relaxed text-bone">{data.insight}</p><div className="mt-5 border-y border-hairline py-4 font-mono text-[9px] leading-relaxed text-muted"><p>EVIDENCE · {data.totals.measured} measured of {data.totals.published} published</p><p className="mt-1">STRONGEST CHANNEL · {topChannel ? `${topChannel.platform} · ${compact.format(topChannel.engagements)} engagements` : "waiting for enough signal"}</p><p className="mt-1">CONTROL · this recommendation changes nothing until you review the new plan</p></div><a href={`/?brief=${encodeURIComponent(recommendationBrief)}`} onClick={() => trackConversion("analytics_recommendation_applied", { measured: data.totals.measured })} className="mt-5 inline-block font-mono text-xs text-signal hover:text-bone">Use this in a new brief →</a>{data.totals.measured < 3 && <p className="mt-3 text-xs text-muted">Low-confidence signal: treat this as a test, not an automatic strategy change.</p>}</aside>
     </section>
 
     <section className="grid lg:grid-cols-[.8fr_1.4fr] gap-4 mt-4">

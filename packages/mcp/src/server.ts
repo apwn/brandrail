@@ -427,7 +427,7 @@ export function buildServer(): McpServer {
       description: "Dry-run a campaign before mutating anything. Returns blockers, safeguards, asset estimate and exact execution steps. Always call this before a multi-step campaign.",
       inputSchema: {
         objective: z.string().min(3), brand: z.string().optional(), channels: z.array(z.string()).optional(),
-        assetCount: z.number().int().min(1).max(50).optional(), publishAt: z.string().optional(),
+        assetCount: z.number().int().min(1).max(50).default(8).describe("Maximum finished assets this approved run may create"), publishAt: z.string().optional(),
       },
     },
     async (input) => {
@@ -484,7 +484,7 @@ export function buildServer(): McpServer {
   server.registerTool(
     "create_review_batch",
     {
-      description: "Render assets into a human approval queue, then pause. Never self-approve. Studio required.",
+      description: "Create a human approval queue, then pause. For a durable run, every item must use the run's exact brand and objective plus a renderId produced by that run; linked batches never regenerate assets. Never self-approve. Studio required.",
       inputSchema: {
         title: z.string().optional(),
         runId: z.string().optional(),
@@ -518,10 +518,10 @@ export function buildServer(): McpServer {
   server.registerTool(
     "schedule_post",
     {
-      description: "Dry-run, schedule, or publish an approved post. Use dryRun=true first. Provide approval IDs, or set confirm=true only after the user explicitly confirms publishing.",
+      description: "Dry-run, schedule, or publish human-approved work. Use dryRun=true first. Real agent calls require the approved batch/item, render, exact channel copy, exact channel files, run time, and credential scope. Schedule channels with different approved copy in separate calls.",
       inputSchema: {
         text: z.string(), channelIds: z.array(z.string()).min(1), scheduledAt: z.string().optional(), renderId: z.string().optional(),
-        imageFiles: z.array(z.string()).optional(), idempotencyKey: z.string().optional(), runId: z.string().optional(), dryRun: z.boolean().optional(), confirm: z.boolean().optional(),
+        imageFiles: z.array(z.string()).optional(), idempotencyKey: z.string().optional(), runId: z.string().optional(), dryRun: z.boolean().optional(),
         approval: z.object({ batchId: z.string(), itemId: z.string() }).optional(),
       },
     },
@@ -561,8 +561,8 @@ export function buildServer(): McpServer {
   server.registerTool(
     "start_campaign_run",
     {
-      description: "Create a durable campaign run that survives reconnects and approval pauses. Defaults to input_required so the user can confirm the plan.",
-      inputSchema: { objective: z.string().min(3), brand: z.string().optional(), channels: z.array(z.string()).optional(), assetCount: z.number().int().min(1).max(50).optional(), publishAt: z.string().optional(), start: z.boolean().optional() },
+      description: "Create a durable campaign run that survives reconnects. It always pauses until a human approves the exact plan in the Brandrail workspace.",
+      inputSchema: { objective: z.string().min(3), brand: z.string().optional(), channels: z.array(z.string()).optional(), assetCount: z.number().int().min(1).max(50).default(8).describe("Maximum finished assets this approved run may create"), publishAt: z.string().optional() },
     },
     async (input) => { try { const data = await api.startAgentRun(input); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
@@ -577,12 +577,6 @@ export function buildServer(): McpServer {
     "get_agent_run",
     { description: "Retrieve one durable run after reconnecting or waiting for human input.", inputSchema: { runId: z.string() } },
     async ({ runId }) => { try { const data = await api.getAgentRun(runId); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
-  );
-
-  server.registerTool(
-    "provide_agent_input",
-    { description: "Provide structured human confirmation to a run waiting at confirm_plan. Human review pauses resume through get_review_status instead.", inputSchema: { runId: z.string(), input: z.record(z.string(), z.unknown()) } },
-    async ({ runId, input }) => { try { const data = await api.provideAgentInput(runId, input); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(
@@ -631,12 +625,6 @@ export function buildServer(): McpServer {
     "add_review_comment",
     { description: "Add feedback to a review batch or one item without altering approval state.", inputSchema: { batchId: z.string(), itemId: z.string().optional(), author: z.string().min(1).max(80), text: z.string().min(1).max(1000) } },
     async ({ batchId, ...input }) => { try { const data = await api.addReviewComment(batchId, input); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as Record<string, unknown> }; } catch (e) { return err(e); } },
-  );
-
-  server.registerTool(
-    "reschedule_post",
-    { description: "Edit the time or copy of a post that is still scheduled.", inputSchema: { postId: z.string(), scheduledAt: z.string().optional(), text: z.string().optional() } },
-    async ({ postId, ...input }) => { try { const data = await api.reschedulePost(postId, input); return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }], structuredContent: data as unknown as Record<string, unknown> }; } catch (e) { return err(e); } },
   );
 
   server.registerTool(

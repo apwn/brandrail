@@ -10,7 +10,10 @@ const CLIENTS: ReadonlyArray<{ id: ClientId; label: string; detail: string }> = 
   { id: "http", label: "HTTP", detail: "Probe any Streamable HTTP client" },
 ];
 
-function setupText(client: ClientId, endpoint: string, apiKey: string): string {
+function setupText(client: ClientId, endpoint: string): string {
+  const secretPrompt = `read -rsp 'Brandrail API key: ' BRANDRAIL_API_KEY
+printf '\\n'
+export BRANDRAIL_API_KEY`;
   if (client === "openclaw") {
     const config = JSON.stringify({
       url: endpoint,
@@ -19,7 +22,7 @@ function setupText(client: ClientId, endpoint: string, apiKey: string): string {
       connectTimeout: 10,
       timeout: 120,
     });
-    return `export BRANDRAIL_API_KEY='${apiKey}'
+    return `${secretPrompt}
 
 openclaw mcp set brandrail \\
   '${config}'
@@ -28,14 +31,18 @@ openclaw mcp doctor brandrail --probe`;
   }
 
   if (client === "claude") {
-    return `claude mcp add --transport http brandrail '${endpoint}' \\
-  --header 'Authorization: Bearer ${apiKey}'
+    return `${secretPrompt}
+
+claude mcp add --transport http brandrail '${endpoint}' \\
+  --header 'Authorization: Bearer \${BRANDRAIL_API_KEY}'
 
 claude mcp get brandrail`;
   }
 
-  return `curl -X POST '${endpoint}' \\
-  -H 'Authorization: Bearer ${apiKey}' \\
+  return `${secretPrompt}
+
+curl -X POST '${endpoint}' \\
+  -H "Authorization: Bearer \${BRANDRAIL_API_KEY}" \\
   -H 'Content-Type: application/json' \\
   -H 'Accept: application/json, text/event-stream' \\
   --data '{"jsonrpc":"2.0","id":"probe","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"brandrail-probe","version":"1.0.0"}}}'`;
@@ -46,13 +53,15 @@ export function McpSetupGuide({ endpoint, apiKey = "brk_…", compact = false }:
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const resetTimer = useRef<number | null>(null);
   const panelId = useId();
-  const text = setupText(client, endpoint, apiKey);
+  const text = setupText(client, endpoint);
+  const configured = !apiKey.includes("…");
 
   useEffect(() => () => {
     if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
   }, []);
 
   async function copy() {
+    if (!configured) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopyStatus("copied");
@@ -100,8 +109,8 @@ export function McpSetupGuide({ endpoint, apiKey = "brk_…", compact = false }:
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => void copy()} className="min-h-12 border-t border-hairline px-4 font-mono text-[10px] text-bone hover:text-signal sm:border-l sm:border-t-0">
-          {copyStatus === "copied" ? "COPIED ✓" : copyStatus === "failed" ? "COPY FAILED" : "COPY SETUP"}
+        <button type="button" onClick={() => void copy()} disabled={!configured} className="min-h-12 border-t border-hairline px-4 font-mono text-[10px] text-bone hover:text-signal disabled:cursor-not-allowed disabled:text-muted sm:border-l sm:border-t-0">
+          {!configured ? "CREATE KEY TO COPY" : copyStatus === "copied" ? "COPIED ✓" : copyStatus === "failed" ? "COPY FAILED" : "COPY SAFE SETUP"}
         </button>
       </div>
       <div id={panelId} role="tabpanel" aria-labelledby={`${panelId}-${client}`}>
@@ -112,14 +121,16 @@ export function McpSetupGuide({ endpoint, apiKey = "brk_…", compact = false }:
         <pre className={`overflow-x-auto overscroll-x-contain font-mono text-[11px] leading-relaxed text-bone ${compact ? "max-h-72 p-4" : "p-5"}`}>
           <code>{text}</code>
         </pre>
+        {!configured && <p className="border-t border-hairline px-4 py-3 text-xs leading-relaxed text-muted">This setup needs a workspace credential. <a href="/login?agent=1" className="text-signal hover:text-bone">Create a minimal key</a> to unlock copying and enter it at the hidden prompt.</p>}
+        {configured && <p className="border-t border-hairline px-4 py-3 text-xs leading-relaxed text-muted">Copy the key shown above, run this setup, then paste the key at the hidden prompt. The literal secret stays out of your shell history and saved client configuration.</p>}
         {client === "openclaw" && (
           <p className="border-t border-hairline px-4 py-3 text-xs leading-relaxed text-muted">
-            The key stays in an environment variable. The saved OpenClaw config contains only the variable reference; <span className="font-mono text-bone">doctor --probe</span> verifies the live handshake.
+            The saved OpenClaw config contains only the environment-variable reference; <span className="font-mono text-bone">doctor --probe</span> verifies the live handshake.
           </p>
         )}
         {client === "claude" && (
           <p className="border-t border-hairline px-4 py-3 text-xs leading-relaxed text-muted">
-            This registers Brandrail as a remote HTTP server in Claude Code. Run <span className="font-mono text-bone">claude mcp get brandrail</span> to inspect the saved connection.
+            This keeps the literal key out of the saved Claude Code connection. Run <span className="font-mono text-bone">claude mcp get brandrail</span> to inspect it.
           </p>
         )}
       </div>

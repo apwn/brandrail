@@ -71,7 +71,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
           </p>
           <div className="mt-7 max-w-[660px]">
             <UrlBox id="hero-client-url" placement="hero" url={url} setUrl={setUrl} onSubmit={onSubmit} />
-            <p className="mt-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">01 · Scan your site&nbsp;&nbsp; 02 · Review the brand rules&nbsp;&nbsp; 03 · Plan one or four weeks</p>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[9px] uppercase tracking-[.08em] text-muted"><span>01 · Scan your site</span><span>02 · Review the brand rules</span><span>03 · Create the first campaign</span></div>
             {error && <p className="mt-3 border-l-2 border-signal pl-3 font-mono text-xs text-signal" role="alert">{error}</p>}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -83,6 +83,7 @@ function Hero({ url, setUrl, onSubmit, error }: LandingProps) {
             >
               Already have an agent? Connect it →
             </a>
+            <a href="/sample" className="font-semibold text-bone underline decoration-hairline underline-offset-4 hover:text-signal">Prefer an example? Explore the full journey →</a>
           </div>
         </div>
         <HeroBoard />
@@ -160,7 +161,7 @@ function HeroBoard() {
               </div>
             ))}
           </div>
-          <p className="mt-4 border-l-2 border-signal pl-3 font-mono text-[9px] leading-relaxed text-muted">The reversible work runs automatically. Publishing waits for an approved item or explicit confirmation.</p>
+          <p className="mt-4 border-l-2 border-signal pl-3 font-mono text-[9px] leading-relaxed text-muted">The reversible work runs automatically. Agent publishing waits for an approved review item.</p>
         </div>
         <div className="grid grid-cols-3 border-t border-hairline text-center font-mono text-[8px] uppercase tracking-[0.1em] text-muted">
           <span className="border-r border-hairline py-3 text-green">Brand locked</span>
@@ -305,9 +306,10 @@ function ContentProgram() {
               ))}
             </ol>
             <div className="mt-7 flex flex-wrap items-center gap-4">
-              <a href="#try" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Preview my next 4 weeks free →</a>
+              <a href="#try" onClick={() => trackConversion("content_program_cta_clicked", { placement: "landing" })} className="btn">Scan my brand first →</a>
               <a href="/agents#tools" className="text-sm font-semibold text-bone underline decoration-signal underline-offset-4 hover:text-signal">Let my agent run it</a>
             </div>
+            <p className="mt-3 font-mono text-[9px] text-muted">Your free four-week preview appears after the BrandSpec is ready.</p>
           </div>
           <div className="overflow-hidden border border-hairline bg-ink shadow-[12px_12px_0_#0A0A0B,12px_12px_0_1px_#2E2E32]">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-4 py-3 font-mono text-[9px] uppercase tracking-[.08em] text-muted">
@@ -591,7 +593,7 @@ export const FAQ = [
   ["Can I upload or build my own templates?", "Yes. Duplicate any built-in, design it visually, upload locked PNG, JPEG, WebP or sanitized SVG artwork per format, then preflight and publish an immutable version. You can also import the strict template JSON. Brandrail rejects arbitrary HTML, CSS and JavaScript so custom families keep the same deterministic rendering and safety guarantees."],
   ["Can Brandrail plan four weeks?", "Yes. A Content Program maps one strategy into one or four weeks of dated ideas. The preview is free to generate; Brandrail produces the next week, learns from results and refreshes what follows so the plan stays coherent without becoming stale."],
   ["Which publishing channels are available?", "Bluesky and Mastodon connect directly. LinkedIn, Instagram/Facebook, X and TikTok are available when the corresponding approved platform-app credentials are configured. You can always render, review, export or use the API without connecting a channel."],
-  ["Can an agent publish without my approval?", "Not silently. Agent publishing requires an approved review item or explicit confirmation. Dry-runs expose mutations first, retries are idempotent and every change stays visible in the audit trail."],
+  ["Can an agent publish without my approval?", "No. Agent publishing requires an approved review item. Dry-runs expose mutations first, retries are idempotent and every change stays visible in the audit trail."],
   ["Can I leave with my data?", "Yes. BrandSpecs are portable and exportable. The spec format, SDK, CLI and MCP server are open, and the full rail can be self-hosted."],
 ] as const;
 

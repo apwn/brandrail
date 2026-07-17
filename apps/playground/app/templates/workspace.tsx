@@ -13,7 +13,7 @@ import {
   type LayoutArchetype,
   type TemplateBox,
 } from "@brandrail/spec";
-import { WorkspaceLockup } from "../components/workspace-lockup";
+import { WorkspaceHeader } from "../components/workspace-header";
 
 const FORMAT_LABELS: Record<FormatId, string> = {
   "ig-carousel": "IG portrait",
@@ -27,6 +27,20 @@ const fieldClass = "mt-1 w-full border border-hairline bg-ink p-2 text-xs";
 const smallFieldClass = "mt-1 w-full min-w-0 border border-hairline bg-ink px-2.5 py-2 font-mono text-[11px] text-bone outline-none transition-colors focus:border-signal";
 const compactButtonClass = "btn-ghost !px-3 !py-2 !text-xs";
 const HISTORY_LIMIT = 50;
+const SNAP_THRESHOLD = 0.008;
+
+type InspectorTab = "layers" | "canvas" | "quality";
+type CanvasZoom = "fit" | 75 | 100 | 125;
+type Alignment = "left" | "center-x" | "right" | "top" | "center-y" | "bottom";
+
+const ALIGNMENT_ACTIONS: Array<[Alignment, string]> = [
+  ["left", "Left"],
+  ["center-x", "Center"],
+  ["right", "Right"],
+  ["top", "Top"],
+  ["center-y", "Middle"],
+  ["bottom", "Bottom"],
+];
 
 interface TemplateWorkspaceProps {
   initialFamilies: CustomTemplateFamily[];
@@ -88,6 +102,52 @@ function layerLabel(layer: CustomTemplateLayer): string {
   return `${layer.id} · ${layer.type}`;
 }
 
+function defaultLayerId(canvas?: CustomTemplateCanvas): string | undefined {
+  return canvas?.layers.find((layer) => layer.type === "text" && layer.slot === "hook")?.id
+    ?? canvas?.layers.find((layer) => layer.type === "text")?.id
+    ?? canvas?.layers.find((layer) => layer.type !== "shape")?.id
+    ?? canvas?.layers.at(-1)?.id;
+}
+
+function closestSnap(value: number, candidates: number[]): number {
+  let result = value;
+  let distance = SNAP_THRESHOLD;
+  for (const candidate of candidates) {
+    const nextDistance = Math.abs(candidate - value);
+    if (nextDistance < distance) {
+      result = candidate;
+      distance = nextDistance;
+    }
+  }
+  return result;
+}
+
+function snappedMoveBox(box: TemplateBox, layers: CustomTemplateLayer[], activeId: string): TemplateBox {
+  const otherLayers = layers.filter((layer) => layer.id !== activeId);
+  const xCandidates = [0, 0.5 - box.width / 2, 1 - box.width];
+  const yCandidates = [0, 0.5 - box.height / 2, 1 - box.height];
+  for (const layer of otherLayers) {
+    xCandidates.push(
+      layer.box.x,
+      layer.box.x + layer.box.width - box.width,
+      layer.box.x + layer.box.width / 2 - box.width / 2,
+      layer.box.x + layer.box.width,
+      layer.box.x - box.width,
+    );
+    yCandidates.push(
+      layer.box.y,
+      layer.box.y + layer.box.height - box.height,
+      layer.box.y + layer.box.height / 2 - box.height / 2,
+      layer.box.y + layer.box.height,
+      layer.box.y - box.height,
+    );
+  }
+  return normalizedBox(box, {
+    x: closestSnap(box.x, xCandidates),
+    y: closestSnap(box.y, yCandidates),
+  });
+}
+
 function CanvasPreview({
   canvas,
   format,
@@ -96,6 +156,9 @@ function CanvasPreview({
   onMove,
   onInteractionStart,
   onInteractionEnd,
+  showGrid,
+  showSafeArea,
+  snapEnabled,
 }: {
   canvas?: CustomTemplateCanvas;
   format: FormatId;
@@ -104,6 +167,9 @@ function CanvasPreview({
   onMove: (id: string, box: TemplateBox) => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
+  showGrid: boolean;
+  showSafeArea: boolean;
+  snapEnabled: boolean;
 }) {
   const surface = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; pointerId: number; x: number; y: number; box: TemplateBox; mode: "move" | "resize" } | null>(null);
@@ -113,6 +179,7 @@ function CanvasPreview({
   if (!canvas) {
     return <div className="flex min-h-56 items-center justify-center border border-dashed border-hairline text-xs text-muted">No canvas for this format</div>;
   }
+  const activeCanvas = canvas;
 
   function pointerDown(event: React.PointerEvent<HTMLButtonElement>, layer: CustomTemplateLayer) {
     event.preventDefault();
@@ -128,9 +195,12 @@ function CanvasPreview({
     if (!active || active.pointerId !== event.pointerId || !rect) return;
     const dx = (event.clientX - active.x) / rect.width;
     const dy = (event.clientY - active.y) / rect.height;
-    onMove(active.id, normalizedBox(active.box, active.mode === "resize"
+    const nextBox = normalizedBox(active.box, active.mode === "resize"
       ? { width: active.box.width + dx, height: active.box.height + dy }
-      : { x: active.box.x + dx, y: active.box.y + dy }));
+      : { x: active.box.x + dx, y: active.box.y + dy });
+    onMove(active.id, active.mode === "move" && snapEnabled && !event.altKey
+      ? snappedMoveBox(nextBox, activeCanvas.layers, active.id)
+      : nextBox);
   }
 
   function pointerUp(event: React.PointerEvent<HTMLButtonElement>) {
@@ -164,6 +234,8 @@ function CanvasPreview({
       {artworkHash
         ? <img src={`/api/template-assets/${artworkHash}`} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80" />
         : canvas.artwork && <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,#ddd,#fff)] opacity-70" aria-label="Locked artwork layer" />}
+      {showGrid && <div aria-hidden className="pointer-events-none absolute inset-0 z-30 opacity-30" style={{ backgroundImage: "linear-gradient(to right, #ff4d00 1px, transparent 1px), linear-gradient(to bottom, #ff4d00 1px, transparent 1px)", backgroundSize: "10% 10%" }} />}
+      {showSafeArea && <div aria-hidden className="pointer-events-none absolute inset-[5%] z-30 border border-dashed border-signal/80" />}
       {canvas.layers.map((layer) => {
         const style = {
           left: `${layer.box.x * 100}%`,
@@ -221,7 +293,7 @@ function LayerStack({ canvas, selectedLayerId, onSelect }: { canvas?: CustomTemp
         {[...canvas.layers].reverse().map((layer, reverseIndex) => {
           const active = layer.id === selectedLayerId;
           const contractBound = layer.type === "text" || layer.type === "image" || layer.type === "data";
-          return <button key={layer.id} type="button" aria-pressed={active} onClick={() => onSelect(layer.id)} className={`flex w-full items-center gap-2 border px-2.5 py-2 text-left transition-colors ${active ? "border-signal bg-signal/5" : "border-hairline hover:border-bone"}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center font-mono text-[8px] uppercase ${active ? "bg-signal text-ink" : "bg-hairline text-muted"}`}>{canvas.layers.length - reverseIndex}</span><span className="min-w-0 flex-1"><span className="block truncate font-display text-xs font-bold">{layerLabel(layer)}</span><span className="block truncate font-mono text-[8px] text-muted">{layer.id}</span></span><span className="font-mono text-[7px] uppercase text-muted">{contractBound ? "locked" : "free"}</span></button>;
+          return <button key={layer.id} type="button" aria-pressed={active} onClick={() => onSelect(layer.id)} className={`flex w-full items-center gap-2 border px-2.5 py-2 text-left transition-colors ${active ? "border-signal bg-signal/5" : "border-hairline hover:border-bone"}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center font-mono text-[8px] uppercase ${active ? "bg-signal text-ink" : "bg-hairline text-muted"}`}>{canvas.layers.length - reverseIndex}</span><span className="min-w-0 flex-1"><span className="block truncate font-display text-xs font-bold">{layerLabel(layer)}</span><span className="block truncate font-mono text-[8px] text-muted">{layer.id}</span></span><span className="font-mono text-[7px] uppercase text-muted" title={contractBound ? "Required by the template contract" : "Custom layer that can be removed"}>{contractBound ? "contract" : "custom"}</span></button>;
         })}
       </div>
     </div>
@@ -234,6 +306,10 @@ function LayerProperties({ layer, onPatch }: { layer: CustomTemplateLayer; onPat
   if (layer.type === "logo") return <label className="text-[10px] text-muted">Logo treatment<select value={layer.treatment} onChange={(event) => onPatch({ treatment: event.target.value as "auto" | "primary" | "mark" | "wordmark" })} className={smallFieldClass}><option value="auto">Automatic</option><option value="primary">Primary</option><option value="mark">Mark</option><option value="wordmark">Wordmark</option></select></label>;
   if (layer.type === "shape") return <div className="grid grid-cols-2 gap-2"><label className="text-[10px] text-muted">Fill role<input value={layer.fillRole} onChange={(event) => onPatch({ fillRole: event.target.value })} className={smallFieldClass} /></label><label className="text-[10px] text-muted">Border role<input value={layer.borderRole ?? ""} onChange={(event) => onPatch({ borderRole: event.target.value || undefined })} className={smallFieldClass} /></label></div>;
   return <div className="grid grid-cols-2 gap-2"><label className="text-[10px] text-muted">Visualization<select value={layer.visualization} onChange={(event) => onPatch({ visualization: event.target.value as "bars" | "ranked" })} className={smallFieldClass}><option value="bars">Bars</option><option value="ranked">Ranked</option></select></label><label className="text-[10px] text-muted">Color role<input value={layer.colorRole} onChange={(event) => onPatch({ colorRole: event.target.value })} className={smallFieldClass} /></label></div>;
+}
+
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="flex cursor-pointer items-center justify-between border border-hairline px-3 py-2.5 text-xs"><span>{label}</span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="accent-[#ff4d00]" /></label>;
 }
 
 export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, owner }: TemplateWorkspaceProps) {
@@ -251,13 +327,20 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
   const [issues, setIssues] = useState<PreflightIssue[]>([]);
   const [versions, setVersions] = useState<CustomTemplateFamily[]>([]);
   const [busy, setBusy] = useState(false);
-  const [selectedLayerId, setSelectedLayerId] = useState<string>();
+  const [selectedLayerId, setSelectedLayerId] = useState<string | undefined>(() => defaultLayerId(initialFamilies[0]?.formats["li-image"]));
   const [autoEligible, setAutoEligible] = useState(false);
   const [renderBrief, setRenderBrief] = useState("Show how the new workflow keeps every decision visible");
   const [renderProof, setRenderProof] = useState<{ id: string; assets: Array<{ filename: string; format: string }> } | null>(null);
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState<CanvasZoom>("fit");
+  const [creating, setCreating] = useState(!initialFamilies.length);
+  const [focusMode, setFocusMode] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("layers");
+  const [showGrid, setShowGrid] = useState(false);
+  const [showSafeArea, setShowSafeArea] = useState(true);
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const selectedLayersByFormat = useRef<Partial<Record<FormatId, string>>>(selectedLayerId ? { "li-image": selectedLayerId } : {});
   const interactionActive = useRef(false);
   const canonicalJson = selected ? familyJson(selected) : "";
   const dirty = Boolean(selected && json !== canonicalJson);
@@ -311,13 +394,33 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
     if (!force && dirty && !window.confirm("Discard the unsaved template changes?")) return;
     setSelectedId(family.id);
     setJson(familyJson(family));
-    setSelectedLayerId(undefined);
+    const canvas = family.formats[format];
+    const nextLayerId = selectedLayersByFormat.current[format] ?? defaultLayerId(canvas);
+    setSelectedLayerId(nextLayerId);
+    if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
     setAutoEligible(family.autoEligible);
     setIssues([]);
     setStatus(null);
     setUndoStack([]);
     setRedoStack([]);
+    setCreating(false);
+    setInspectorTab("layers");
     interactionActive.current = false;
+  }
+
+  function selectLayer(id: string) {
+    selectedLayersByFormat.current[format] = id;
+    setSelectedLayerId(id);
+    setInspectorTab("layers");
+  }
+
+  function selectFormat(nextFormat: FormatId) {
+    let family: CustomTemplateFamily | undefined;
+    try { family = parsedFamily(); } catch { family = selected; }
+    const nextLayerId = selectedLayersByFormat.current[nextFormat] ?? defaultLayerId(family?.formats[nextFormat]);
+    setFormat(nextFormat);
+    setSelectedLayerId(nextLayerId);
+    if (nextLayerId) selectedLayersByFormat.current[nextFormat] = nextLayerId;
   }
 
   function beginCanvasInteraction() {
@@ -353,6 +456,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
 
   async function duplicate() {
     if (!newId || !newName) return;
+    if (dirty && !window.confirm("Create the new family and discard the unsaved template changes?")) return;
     setBusy(true); setStatus(null);
     try {
       const result = await api("/api/template-families/duplicate", { method: "POST", body: JSON.stringify({ source: { source: "system", id: source }, id: newId, name: newName, scope, ...(scope === "brand" ? { brand } : {}) }) });
@@ -361,6 +465,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       choose(result.family, true);
       setIssues(result.preflight?.issues ?? []);
       setNewId(""); setNewName(""); setStatus("Editable draft created");
+      setCreating(false);
     } catch (error) { setStatus((error as Error).message); } finally { setBusy(false); }
   }
 
@@ -384,6 +489,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       const result = await api(`/api/template-families/${encodeURIComponent(selectedId)}/preflight`, { method: "POST", body: JSON.stringify({ brand: selected?.brand ?? brand }) });
       setIssues(result.issues ?? []);
       setStatus(result.ready ? "Preflight passed" : "Preflight found required changes");
+      setInspectorTab("quality");
     } catch (error) { setStatus((error as Error).message); } finally { setBusy(false); }
   }
 
@@ -401,6 +507,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       choose(result.family, true);
       setIssues(result.preflight?.issues ?? []);
       setStatus(`${action === "publish" ? "Published" : "Archived"} v${result.family.version}`);
+      setInspectorTab("quality");
     } catch (error) { setStatus((error as Error).message); } finally { setBusy(false); }
   }
 
@@ -414,6 +521,11 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       setFamilies(next);
       setSelectedId(next[0]?.id ?? "");
       setJson(next[0] ? familyJson(next[0]) : "");
+      const nextLayerId = defaultLayerId(next[0]?.formats[format]);
+      setSelectedLayerId(nextLayerId);
+      if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
+      else delete selectedLayersByFormat.current[format];
+      setCreating(!next.length);
       setStatus("Draft family deleted");
     } catch (error) { setStatus((error as Error).message); } finally { setBusy(false); }
   }
@@ -462,7 +574,9 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
     try {
       const parsed = CustomTemplateFamilySchema.parse(JSON.parse(await file.text()));
       replaceJson(familyJson(parsed));
-      setSelectedLayerId(undefined);
+      const nextLayerId = defaultLayerId(parsed.formats[format]);
+      setSelectedLayerId(nextLayerId);
+      if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
       setIssues([]);
       setStatus("Imported locally; review and save as a new draft version");
     } catch { setStatus("That file does not match the strict Brandrail template schema"); }
@@ -479,7 +593,9 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       updatedAt: selected.updatedAt,
     };
     replaceJson(familyJson(restored));
-    setSelectedLayerId(undefined);
+    const nextLayerId = defaultLayerId(restored.formats[format]);
+    setSelectedLayerId(nextLayerId);
+    if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
     setStatus(`Loaded v${version.version} into the editor; save to create a new draft version`);
   }
 
@@ -504,6 +620,37 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
     });
   }
 
+  function alignSelectedLayer(alignment: Alignment) {
+    if (!selectedLayerId) return;
+    updateLayer(selectedLayerId, (layer) => {
+      const patch = alignment === "left" ? { x: 0 }
+        : alignment === "center-x" ? { x: (1 - layer.box.width) / 2 }
+        : alignment === "right" ? { x: 1 - layer.box.width }
+        : alignment === "top" ? { y: 0 }
+        : alignment === "center-y" ? { y: (1 - layer.box.height) / 2 }
+        : { y: 1 - layer.box.height };
+      layer.box = normalizedBox(layer.box, patch);
+    });
+  }
+
+  function duplicateSelectedLayer() {
+    if (!selectedLayerId) return;
+    editFamily((family) => {
+      const canvas = family.formats[format];
+      const layer = canvas?.layers.find((candidate) => candidate.id === selectedLayerId);
+      if (!canvas || !layer || layer.type !== "shape") throw new Error("Only custom shape layers can be duplicated safely");
+      const taken = new Set(canvas.layers.map((candidate) => candidate.id));
+      let sequence = 1;
+      while (taken.has(`shape-${sequence}`)) sequence += 1;
+      const clone = structuredClone(layer);
+      clone.id = `shape-${sequence}`;
+      clone.box = normalizedBox(clone.box, { x: clone.box.x + 0.02, y: clone.box.y + 0.02 });
+      canvas.layers.push(clone);
+      selectedLayersByFormat.current[format] = clone.id;
+      setSelectedLayerId(clone.id);
+    });
+  }
+
   function addLayer(type: "shape" | "logo") {
     editFamily((family) => {
       const canvas = family.formats[format];
@@ -517,6 +664,7 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
         ? { id, type: "logo", box: { x: 0.08, y: 0.88, width: 0.22, height: 0.05 }, treatment: "auto" }
         : { id, type: "shape", box: { x: 0.1, y: 0.1, width: 0.3, height: 0.2 }, fillRole: "panel" };
       canvas.layers.push(layer);
+      selectedLayersByFormat.current[format] = id;
       setSelectedLayerId(id);
     });
   }
@@ -529,7 +677,10 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       if (!canvas || !layer) return;
       if (layer.type === "text" || layer.type === "image" || layer.type === "data") throw new Error("Contract-bound layers cannot be removed; duplicate a different base template instead");
       canvas.layers = canvas.layers.filter((candidate) => candidate.id !== selectedLayerId);
-      setSelectedLayerId(undefined);
+      const nextLayerId = defaultLayerId(canvas);
+      if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
+      else delete selectedLayersByFormat.current[format];
+      setSelectedLayerId(nextLayerId);
     });
   }
 
@@ -539,6 +690,9 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
       const sourceCanvas = Object.values(family.formats)[0];
       if (!sourceCanvas) throw new Error("Import or duplicate a family with at least one canvas first");
       family.formats[format] = { ...structuredClone(sourceCanvas), artwork: undefined };
+      const nextLayerId = defaultLayerId(family.formats[format]);
+      if (nextLayerId) selectedLayersByFormat.current[format] = nextLayerId;
+      setSelectedLayerId(nextLayerId);
     });
     setStatus(`${FORMAT_LABELS[format]} canvas cloned without artwork; review its layout before publishing`);
   }
@@ -550,11 +704,16 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
     setFormat(issueFormat);
     const index = match[2] === undefined ? undefined : Number(match[2]);
     if (index !== undefined) {
-      try { setSelectedLayerId(parsedFamily().formats[issueFormat]?.layers[index]?.id); }
+      try {
+        const nextLayerId = parsedFamily().formats[issueFormat]?.layers[index]?.id;
+        setSelectedLayerId(nextLayerId);
+        if (nextLayerId) selectedLayersByFormat.current[issueFormat] = nextLayerId;
+      }
       catch { setSelectedLayerId(undefined); }
     } else {
       setSelectedLayerId(undefined);
     }
+    setInspectorTab("layers");
     setStatus(`Showing ${FORMAT_LABELS[issueFormat]}: ${issue.message}`);
   }
 
@@ -571,79 +730,79 @@ export function TemplateWorkspace({ initialFamilies, brands, systemTemplates, ow
   const activeDefinition = FORMATS[format];
   const activeAspect = activeDefinition.width / activeDefinition.height;
   const canvasBaseWidth = activeAspect < 0.7 ? 46 : activeAspect < 0.9 ? 68 : 100;
-  const canvasWidthPercent = canvasBaseWidth * zoom / 100;
+  const canvasWidthPercent = zoom === "fit" ? canvasBaseWidth : zoom;
 
   return (
-    <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-4"><WorkspaceLockup context="Visual templates" /><nav className="flex gap-5 font-mono text-[10px] uppercase"><a href="/dashboard">Workspace</a><a href="/">Create</a><a href="/docs">Docs</a></nav></header>
-      <section className="mt-8 grid gap-5 xl:grid-cols-[260px_minmax(500px,1fr)_390px]">
-        <aside className="panel h-fit p-4 xl:sticky xl:top-5">
-          <p className="eyebrow text-signal">Library</p><h1 className="mt-2 font-display text-2xl font-bold">Visual families</h1><p className="mt-2 text-sm text-muted">Built-ins stay locked. Duplicate one to create a safe, versioned visual system.</p>
-          <div className="mt-5 max-h-[62vh] space-y-2 overflow-auto pr-1">{families.map((family) => <button key={`${family.id}-${family.version}`} type="button" onClick={() => choose(family)} className={`w-full border p-3 text-left ${selectedId === family.id ? "border-signal bg-signal/5" : "border-hairline hover:border-bone"}`}><span className="block font-display text-sm font-bold">{family.name}</span><span className="mt-1 block font-mono text-[9px] text-muted">{family.scope}:{family.id}@{family.version}</span><span className={`mt-2 inline-block px-1.5 py-0.5 font-mono text-[8px] uppercase ${family.status === "published" ? "bg-green text-ink" : family.status === "archived" ? "bg-hairline text-muted" : "bg-signal text-ink"}`}>{family.status}</span></button>)}</div>
-          {!families.length && <p className="mt-5 border border-dashed border-hairline p-4 text-xs text-muted">No custom families yet. Create one from a system template.</p>}
-        </aside>
+    <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6">
+      <WorkspaceHeader context="Visual templates" active="templates" />
+      <section className={`mt-8 grid min-w-0 gap-5 ${focusMode ? "grid-cols-1" : "lg:grid-cols-[230px_minmax(0,1fr)]"}`}>
+        {!focusMode && <aside className="panel h-fit p-4 lg:sticky lg:top-5">
+          <div className="flex items-start justify-between gap-3"><div><p className="eyebrow text-signal">Library</p><h1 className="mt-2 font-display text-xl font-bold">Visual families</h1></div><span className="font-mono text-[9px] text-muted">{families.length}</span></div>
+          <p className="mt-2 text-xs leading-relaxed text-muted">Versioned visual systems owned by this workspace.</p>
+          <button type="button" onClick={() => setCreating(true)} className="btn mt-4 w-full !px-3 !py-2.5 !text-xs">＋ New family</button>
+          <div className="mt-4 max-h-[65vh] space-y-2 overflow-auto pr-1">{families.map((family) => <button key={`${family.id}-${family.version}`} type="button" onClick={() => choose(family)} className={`w-full border p-3 text-left transition-colors ${selectedId === family.id ? "border-signal bg-signal/5" : "border-hairline hover:border-bone"}`}><span className="block truncate font-display text-sm font-bold">{family.name}</span><span className="mt-1 block truncate font-mono text-[8px] text-muted">{family.scope}:{family.id}@{family.version}</span><span className={`mt-2 inline-block px-1.5 py-0.5 font-mono text-[7px] uppercase ${family.status === "published" ? "bg-green text-ink" : family.status === "archived" ? "bg-hairline text-muted" : "bg-signal text-ink"}`}>{family.status}</span></button>)}</div>
+          {!families.length && <p className="mt-4 border border-dashed border-hairline p-4 text-xs text-muted">Create the first family from a system template.</p>}
+        </aside>}
 
-        <section className="space-y-5">
-          <div className="panel p-5">
-            <p className="eyebrow text-signal">Create family</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <section className="min-w-0 space-y-5">
+          {(creating || !selected) && <div className="panel p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-signal">New family</p><h2 className="mt-2 font-display text-2xl font-bold">Start from a proven contract</h2><p className="mt-2 max-w-2xl text-sm text-muted">Choose a system layout, then make its visual composition yours.</p></div>{selected && <button type="button" className={compactButtonClass} onClick={() => setCreating(false)}>Close</button>}</div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="text-xs">Start from<select value={source} onChange={(event) => setSource(event.target.value as LayoutArchetype)} className={fieldClass}>{Object.entries(systemTemplates).map(([id, info]) => <option key={id} value={id}>{info.label}</option>)}</select></label>
-              <label className="text-xs">Scope<select value={scope} onChange={(event) => setScope(event.target.value as "workspace" | "brand")} className={fieldClass}><option value="workspace">Workspace</option><option value="brand" disabled={!brands.length}>Brand</option></select></label>
-              <div className="grid gap-3 border border-hairline bg-ink p-3 sm:col-span-2 sm:grid-cols-[190px_1fr] sm:items-center">
-                <div className="relative aspect-[40/21] overflow-hidden border border-hairline bg-bone"><Image src={`/proof/templates/${source}.png`} alt={`${sourceInfo.label} built-in template preview`} fill sizes="190px" className="object-cover" /></div>
-                <div><span className="font-mono text-[9px] uppercase tracking-[.1em] text-signal">{source}</span><h2 className="mt-1 font-display text-lg font-bold">{sourceInfo.label}</h2><p className="mt-1 text-xs leading-relaxed text-muted">{sourceInfo.description}</p><p className="mt-2 font-mono text-[8px] uppercase text-muted">Best for · {sourceInfo.bestFor}</p><p className="mt-2 text-[10px] text-bone">Editable · {Object.values(sourceInfo.slots).map((slot) => slot.label).join(" · ")}</p></div>
+              <label className="text-xs">Scope<select value={scope} onChange={(event) => setScope(event.target.value as "workspace" | "brand")} className={fieldClass}><option value="workspace">Workspace</option><option value="brand" disabled={!brands.length}>Brand</option></select>{!brands.length && <span className="mt-1 block text-[10px] text-muted">Compile a brand before creating a brand-only family.</span>}</label>
+              <div className="grid gap-4 border border-hairline bg-ink p-3 sm:col-span-2 md:grid-cols-[240px_1fr] md:items-center">
+                <div className="relative aspect-[40/21] overflow-hidden border border-hairline bg-bone"><Image src={`/proof/templates/${source}.png`} alt={`${sourceInfo.label} built-in template preview`} fill sizes="240px" className="object-cover" /></div>
+                <div><span className="font-mono text-[9px] uppercase tracking-[.1em] text-signal">{source}</span><h3 className="mt-1 font-display text-lg font-bold">{sourceInfo.label}</h3><p className="mt-1 text-xs leading-relaxed text-muted">{sourceInfo.description}</p><p className="mt-2 font-mono text-[8px] uppercase text-muted">Best for · {sourceInfo.bestFor}</p><p className="mt-2 text-[10px] text-bone">Editable · {Object.values(sourceInfo.slots).map((slot) => slot.label).join(" · ")}</p></div>
               </div>
               <label className="text-xs">Family ID<input value={newId} onChange={(event) => setNewId(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} className={fieldClass} placeholder="launch-card" /></label>
               <label className="text-xs">Display name<input value={newName} onChange={(event) => setNewName(event.target.value)} className={fieldClass} placeholder="Launch card" /></label>
               {scope === "brand" && <label className="text-xs sm:col-span-2">Brand<select value={brand} onChange={(event) => setBrand(event.target.value)} className={fieldClass}>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>}
             </div>
             <button type="button" disabled={!owner || busy || !newId || !newName || (scope === "brand" && !brand)} onClick={() => void duplicate()} className="btn mt-4">Create editable draft</button>
+            {status && <p role="status" aria-live="polite" className="mt-3 border border-hairline bg-black/10 px-3 py-2.5 text-xs"><span className="mr-2 text-signal">{busy ? "●" : "→"}</span>{busy ? "Working… " : ""}{status}</p>}
             {!owner && <p className="mt-2 text-xs text-muted">Reviewers can inspect and render existing families; only workspace owners can change them.</p>}
-          </div>
+          </div>}
 
-          {selected && <div className="panel overflow-hidden">
+          {selected && !creating && <div className="panel overflow-hidden">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline p-5">
               <div><div className="flex flex-wrap items-center gap-2"><p className="eyebrow text-signal">Visual editor</p><span className={`px-1.5 py-0.5 font-mono text-[8px] uppercase ${dirty ? "bg-signal text-ink" : "bg-green text-ink"}`}>{dirty ? "Unsaved" : "Saved"}</span></div><h2 className="mt-1 font-display text-2xl font-bold">{preview?.name ?? selected.name}</h2><p className="mt-1 font-mono text-[9px] text-muted">{selected.scope}:{selected.id}@{selected.version} · {selected.status}</p></div>
-              <div className="flex flex-wrap items-center gap-2" aria-label="Editor history and data actions"><div className="flex"><button type="button" disabled={!undoStack.length} onClick={undo} className={`${compactButtonClass} rounded-r-none`} title="Undo the last visual edit">← Undo</button><button type="button" disabled={!redoStack.length} onClick={redo} className={`${compactButtonClass} -ml-px rounded-l-none`} title="Redo the reverted edit">Redo →</button></div>{dirty && <button type="button" onClick={() => choose(selected, true)} className={compactButtonClass}>Reset</button>}<label className={`${compactButtonClass} cursor-pointer`}>Import<input className="sr-only" type="file" accept="application/json" onChange={(event) => void importJson(event.target.files?.[0])} /></label><button type="button" onClick={exportJson} className={compactButtonClass}>Export</button></div>
+              <div className="flex flex-wrap items-center gap-2" aria-label="Editor history and data actions"><div className="flex"><button type="button" disabled={!undoStack.length} onClick={undo} className={`${compactButtonClass} rounded-r-none`} title="Undo the last visual edit">← Undo</button><button type="button" disabled={!redoStack.length} onClick={redo} className={`${compactButtonClass} -ml-px rounded-l-none`} title="Redo the reverted edit">Redo →</button></div>{dirty && <button type="button" onClick={() => choose(selected, true)} className={compactButtonClass}>Reset</button>}<button type="button" className={compactButtonClass} onClick={() => setFocusMode((current) => !current)}>{focusMode ? "Exit focus" : "Focus mode"}</button><details className="relative"><summary className={`${compactButtonClass} cursor-pointer list-none`}>More ···</summary><div className="absolute right-0 z-50 mt-2 grid w-44 border border-hairline bg-panel p-2 shadow-2xl"><label className="cursor-pointer px-3 py-2 text-left text-xs hover:bg-white/[.04]">Import JSON<input className="sr-only" type="file" accept="application/json" onChange={(event) => void importJson(event.target.files?.[0])} /></label><button type="button" onClick={exportJson} className="px-3 py-2 text-left text-xs hover:bg-white/[.04]">Export JSON</button><button type="button" onClick={() => setCreating(true)} className="px-3 py-2 text-left text-xs hover:bg-white/[.04]">New family</button></div></details></div>
             </div>
+            {status && <p role="status" aria-live="polite" className="border-b border-hairline bg-black/10 px-5 py-2.5 text-xs"><span className="mr-2 text-signal">{busy ? "●" : "→"}</span>{busy ? "Working… " : ""}{status}</p>}
 
-            <div className="grid grid-cols-2 border-b border-hairline sm:grid-cols-5" role="group" aria-label="Template format readiness">{(Object.keys(FORMAT_LABELS) as FormatId[]).map((id) => { const exists = Boolean(preview?.formats[id]); const active = id === format; const definition = FORMATS[id]; return <button key={id} type="button" aria-pressed={active} onClick={() => { setFormat(id); setSelectedLayerId(undefined); }} className={`relative border-r border-hairline px-3 py-3 text-left transition-colors last:border-r-0 ${active ? "bg-signal/[.08] text-bone" : "text-muted hover:bg-white/[.025] hover:text-bone"}`}><span className={`absolute inset-x-0 bottom-0 h-0.5 ${active ? "bg-signal" : "bg-transparent"}`} /><span className="flex items-center gap-2 font-mono text-[8px] uppercase"><span className={exists ? "text-green" : "text-muted"}>{exists ? "●" : "○"}</span>{FORMAT_LABELS[id]}</span><span className="mt-1 block font-mono text-[8px] text-muted">{definition.width} × {definition.height}</span></button>; })}</div>
+            <div className="grid grid-cols-2 border-b border-hairline sm:grid-cols-5" role="group" aria-label="Template format readiness">{(Object.keys(FORMAT_LABELS) as FormatId[]).map((id) => { const exists = Boolean(preview?.formats[id]); const active = id === format; const definition = FORMATS[id]; return <button key={id} type="button" aria-pressed={active} onClick={() => selectFormat(id)} className={`relative border-r border-hairline px-3 py-3 text-left transition-colors last:border-r-0 ${active ? "bg-signal/[.08] text-bone" : "text-muted hover:bg-white/[.025] hover:text-bone"}`}><span className={`absolute inset-x-0 bottom-0 h-0.5 ${active ? "bg-signal" : "bg-transparent"}`} /><span className="flex items-center gap-2 font-mono text-[8px] uppercase"><span className={exists ? "text-green" : "text-muted"}>{exists ? "●" : "○"}</span>{FORMAT_LABELS[id]}</span><span className="mt-1 block font-mono text-[8px] text-muted">{definition.width} × {definition.height}</span></button>; })}</div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-black/10 px-5 py-3">
               <div><span className="font-display text-sm font-bold">{FORMAT_LABELS[format]}</span><span className="ml-2 font-mono text-[9px] text-muted">{previewCanvas?.layers.length ?? 0} layers · {completedFormats}/5 canvases</span></div>
-              <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => addLayer("shape")} disabled={!previewCanvas} className={compactButtonClass}>＋ Shape</button><button type="button" onClick={() => addLayer("logo")} disabled={!previewCanvas || previewCanvas.layers.some((layer) => layer.type === "logo")} className={compactButtonClass}>＋ Logo</button>{!previewCanvas && <button type="button" onClick={addFormatCanvas} className="btn !px-3 !py-2 !text-xs">Add canvas</button>}<label className="flex items-center gap-2 border-l border-hairline pl-3 font-mono text-[9px] uppercase text-muted">Zoom<select aria-label="Canvas zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="border border-hairline bg-ink px-2 py-2 text-[10px] text-bone"><option value={75}>75%</option><option value={100}>100%</option><option value={125}>125%</option></select></label></div>
+              <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => addLayer("shape")} disabled={!previewCanvas} className={compactButtonClass}>＋ Shape</button><button type="button" onClick={() => addLayer("logo")} disabled={!previewCanvas || previewCanvas.layers.some((layer) => layer.type === "logo")} className={compactButtonClass}>＋ Logo</button>{!previewCanvas && <button type="button" onClick={addFormatCanvas} className="btn !px-3 !py-2 !text-xs">Add canvas</button>}<label className="flex items-center gap-2 border-l border-hairline pl-3 font-mono text-[9px] uppercase text-muted">Zoom<select aria-label="Canvas zoom" value={String(zoom)} onChange={(event) => setZoom(event.target.value === "fit" ? "fit" : Number(event.target.value) as CanvasZoom)} className="border border-hairline bg-ink px-2 py-2 text-[10px] text-bone"><option value="fit">Fit</option><option value="75">75%</option><option value="100">100%</option><option value="125">125%</option></select></label></div>
             </div>
 
-            <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="grid xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 border-b border-hairline p-4 xl:border-b-0 xl:border-r sm:p-5">
-                <div className="min-h-[360px] overflow-auto border border-hairline bg-[#0d0d0f] p-4 sm:p-7"><div className="mx-auto transition-[width]" style={{ width: `${canvasWidthPercent}%` }}><CanvasPreview canvas={previewCanvas} format={format} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} onMove={(id, box) => updateLayer(id, (layer) => { layer.box = box; }, false)} onInteractionStart={beginCanvasInteraction} onInteractionEnd={endCanvasInteraction} /></div></div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[8px] uppercase text-muted"><span>Drag to move · corner to resize</span><span>Arrow keys 0.5% · Shift + arrow 2%</span></div>
+                <div className="min-h-[280px] overflow-auto border border-hairline bg-[#0d0d0f] p-4 sm:min-h-[360px] sm:p-7"><div className="mx-auto transition-[width]" style={{ width: `${canvasWidthPercent}%` }}><CanvasPreview canvas={previewCanvas} format={format} selectedLayerId={selectedLayerId} onSelect={selectLayer} onMove={(id, box) => updateLayer(id, (layer) => { layer.box = box; }, false)} onInteractionStart={beginCanvasInteraction} onInteractionEnd={endCanvasInteraction} showGrid={showGrid} showSafeArea={showSafeArea} snapEnabled={snapEnabled} /></div></div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[8px] uppercase text-muted"><span>Drag to move · corner to resize · Alt bypasses snap</span><span>Arrow keys 0.5% · Shift + arrow 2%</span></div>
               </div>
 
-              <aside className="min-w-0 bg-black/[.08] p-4 sm:p-5">
-                <div className="flex items-center justify-between"><p className="eyebrow">Inspector</p>{selectedLayer && <span className="border border-hairline px-1.5 py-0.5 font-mono text-[8px] uppercase text-muted">{selectedLayer.type}</span>}</div>
-                <div className="mt-4"><LayerStack canvas={previewCanvas} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} /></div>
-                <div className="my-5 border-t border-hairline" />
-                {selectedLayer ? <div className="space-y-4"><div><p className="font-display text-base font-bold">{layerLabel(selectedLayer)}</p><p className="mt-0.5 truncate font-mono text-[9px] text-muted">{selectedLayer.id}</p></div><GeometryEditor layer={selectedLayer} onChange={(box) => updateLayer(selectedLayer.id, (layer) => { layer.box = box; })} /><div className="border border-hairline p-3"><p className="mb-3 font-mono text-[8px] uppercase tracking-[.12em] text-muted">Properties</p><LayerProperties layer={selectedLayer} onPatch={(patch) => updateLayer(selectedLayer.id, (layer) => Object.assign(layer, patch))} /></div><div className="grid grid-cols-2 gap-2"><button type="button" disabled={selectedLayerIndex <= 0} className={compactButtonClass} onClick={() => reorderLayer(-1)}>↓ Send back</button><button type="button" disabled={!previewCanvas || selectedLayerIndex >= previewCanvas.layers.length - 1} className={compactButtonClass} onClick={() => reorderLayer(1)}>↑ Bring forward</button></div><button type="button" disabled={!selectedLayerCanBeRemoved} title={selectedLayerCanBeRemoved ? "Remove this free layer" : "Contract-bound layers cannot be removed"} className="w-full border border-signal/50 px-3 py-2 text-xs text-signal transition-colors hover:bg-signal hover:text-ink disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent" onClick={removeSelectedLayer}>{selectedLayerCanBeRemoved ? "Remove layer" : "Contract layer · required"}</button></div> : <div className="border border-dashed border-hairline p-4 text-xs leading-relaxed text-muted"><b className="mb-1 block font-display text-bone">Select a layer</b>Choose one from the stack or canvas to edit its position, size, and visual properties.</div>}
-                <div className="mt-5 border-t border-hairline pt-5"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-muted">Canvas settings</p><label className="mt-3 block text-[10px] text-muted">Background role<input value={previewCanvas?.backgroundRole ?? ""} disabled={!previewCanvas} onChange={(event) => editFamily((family) => { if (family.formats[format]) family.formats[format]!.backgroundRole = event.target.value; })} className={smallFieldClass} /></label><div className="mt-3 flex flex-wrap gap-2"><label className={`${compactButtonClass} cursor-pointer`}>Upload artwork<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => void upload(event.target.files?.[0])} /></label>{previewCanvas?.artwork && <button type="button" className={compactButtonClass} onClick={() => editFamily((family) => { if (family.formats[format]) delete family.formats[format]!.artwork; })}>Remove artwork</button>}</div><p className="mt-2 font-mono text-[8px] leading-relaxed text-muted">Raster ≤12 MB / 40 MP · static SVG ≤2 MB</p></div>
+              <aside className="min-w-0 bg-black/[.08]">
+                <div className="flex items-center justify-between px-4 pt-4 sm:px-5 sm:pt-5"><p className="eyebrow">Inspector</p>{selectedLayer && inspectorTab === "layers" && <span className="border border-hairline px-1.5 py-0.5 font-mono text-[8px] uppercase text-muted">{selectedLayer.type}</span>}</div>
+                <div className="mt-4 grid grid-cols-3 border-y border-hairline" role="tablist" aria-label="Editor inspector"><button type="button" role="tab" aria-selected={inspectorTab === "layers"} onClick={() => setInspectorTab("layers")} className={`px-2 py-2.5 font-mono text-[8px] uppercase ${inspectorTab === "layers" ? "bg-signal text-ink" : "text-muted hover:text-bone"}`}>Layers</button><button type="button" role="tab" aria-selected={inspectorTab === "canvas"} onClick={() => setInspectorTab("canvas")} className={`border-x border-hairline px-2 py-2.5 font-mono text-[8px] uppercase ${inspectorTab === "canvas" ? "bg-signal text-ink" : "text-muted hover:text-bone"}`}>Canvas</button><button type="button" role="tab" aria-selected={inspectorTab === "quality"} onClick={() => setInspectorTab("quality")} className={`px-2 py-2.5 font-mono text-[8px] uppercase ${inspectorTab === "quality" ? "bg-signal text-ink" : "text-muted hover:text-bone"}`}>Quality{issues.length ? ` · ${issues.length}` : ""}</button></div>
+
+                <div className="p-4 sm:p-5">
+                  {inspectorTab === "layers" && <div><LayerStack canvas={previewCanvas} selectedLayerId={selectedLayerId} onSelect={selectLayer} /><div className="my-5 border-t border-hairline" />{selectedLayer ? <div className="space-y-4"><div><p className="font-display text-base font-bold">{layerLabel(selectedLayer)}</p><p className="mt-0.5 truncate font-mono text-[9px] text-muted">{selectedLayer.id}</p></div><GeometryEditor layer={selectedLayer} onChange={(box) => updateLayer(selectedLayer.id, (layer) => { layer.box = box; })} /><div><p className="mb-2 font-mono text-[8px] uppercase tracking-[.12em] text-muted">Align to canvas</p><div className="grid grid-cols-3 gap-1">{ALIGNMENT_ACTIONS.map(([alignment, label]) => <button key={alignment} type="button" onClick={() => alignSelectedLayer(alignment)} className="border border-hairline px-2 py-1.5 font-mono text-[8px] uppercase text-muted hover:border-bone hover:text-bone">{label}</button>)}</div></div><div className="border border-hairline p-3"><p className="mb-3 font-mono text-[8px] uppercase tracking-[.12em] text-muted">Properties</p><LayerProperties layer={selectedLayer} onPatch={(patch) => updateLayer(selectedLayer.id, (layer) => Object.assign(layer, patch))} /></div><div className="grid grid-cols-2 gap-2"><button type="button" disabled={selectedLayerIndex <= 0} className={compactButtonClass} onClick={() => reorderLayer(-1)}>↓ Send back</button><button type="button" disabled={!previewCanvas || selectedLayerIndex >= previewCanvas.layers.length - 1} className={compactButtonClass} onClick={() => reorderLayer(1)}>↑ Bring forward</button></div>{selectedLayer.type === "shape" && <button type="button" className={`${compactButtonClass} w-full`} onClick={duplicateSelectedLayer}>Duplicate custom layer</button>}<button type="button" disabled={!selectedLayerCanBeRemoved} title={selectedLayerCanBeRemoved ? "Remove this custom layer" : "Contract-bound layers cannot be removed"} className="w-full border border-signal/50 px-3 py-2 text-xs text-signal transition-colors hover:bg-signal hover:text-ink disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent" onClick={removeSelectedLayer}>{selectedLayerCanBeRemoved ? "Remove custom layer" : "Contract layer · required"}</button></div> : <div className="border border-dashed border-hairline p-4 text-xs leading-relaxed text-muted"><b className="mb-1 block font-display text-bone">Select a layer</b>Choose one from the stack or canvas to edit its geometry and visual properties.</div>}</div>}
+
+                  {inspectorTab === "canvas" && <div><p className="font-display text-base font-bold">Canvas settings</p><p className="mt-1 text-xs leading-relaxed text-muted">Format-specific artwork and editor-only layout aids.</p><label className="mt-4 block text-[10px] text-muted">Background role<input value={previewCanvas?.backgroundRole ?? ""} disabled={!previewCanvas} onChange={(event) => editFamily((family) => { if (family.formats[format]) family.formats[format]!.backgroundRole = event.target.value; })} className={smallFieldClass} /></label><div className="mt-3 flex flex-wrap gap-2"><label className={`${compactButtonClass} cursor-pointer`}>Upload artwork<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => void upload(event.target.files?.[0])} /></label>{previewCanvas?.artwork && <button type="button" className={compactButtonClass} onClick={() => editFamily((family) => { if (family.formats[format]) delete family.formats[format]!.artwork; })}>Remove artwork</button>}</div><p className="mt-2 font-mono text-[8px] leading-relaxed text-muted">Raster ≤12 MB / 40 MP · static SVG ≤2 MB</p><div className="mt-5 border-t border-hairline pt-5"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-muted">View aids</p><div className="mt-3 space-y-2"><ToggleRow label="Grid overlay" checked={showGrid} onChange={setShowGrid} /><ToggleRow label="Safe area" checked={showSafeArea} onChange={setShowSafeArea} /><ToggleRow label="Snap alignment" checked={snapEnabled} onChange={setSnapEnabled} /></div><p className="mt-3 text-[10px] leading-relaxed text-muted">Snapping aligns layer edges and centers within 0.8%. Hold Alt while dragging for free movement.</p></div></div>}
+
+                  {inspectorTab === "quality" && <div><div className="flex items-center justify-between"><p className="font-display text-base font-bold">Quality gate</p>{issues.length > 0 && <span className="font-mono text-[8px] text-muted">{issueCounts.errors}E · {issueCounts.warnings}W</span>}</div><p className="mt-2 text-xs leading-relaxed text-muted">Checks contracts, color roles, contrast, geometry, frozen artwork, and suspicious overlap.</p>{issues.length > 0 ? <ul className="mt-4 max-h-72 space-y-2 overflow-auto">{issues.map((issue, index) => <li key={`${issue.path}-${issue.message}-${index}`}><button type="button" onClick={() => focusIssue(issue)} className={`w-full border p-2 text-left text-xs hover:bg-white/[.03] ${issue.severity === "error" ? "border-signal/60" : "border-yellow-500/50"}`}><b className={`font-mono text-[9px] uppercase ${issue.severity === "error" ? "text-signal" : "text-yellow-400"}`}>{issue.severity}</b><span className="mt-1 block break-words">{issue.path}: {issue.message}</span><span className="mt-2 block font-mono text-[8px] uppercase text-muted">Show affected canvas →</span></button></li>)}</ul> : <div className="mt-4 border border-dashed border-hairline p-4 text-xs text-muted">Run preflight after saving. A clean gate is required before publishing.</div>}<label className="mt-4 flex items-start gap-3 border border-hairline p-3 text-xs"><input type="checkbox" checked={autoEligible} onChange={(event) => setAutoEligible(event.target.checked)} className="mt-0.5 accent-[#ff4d00]" /><span><b className="block font-display">Allow automatic planning</b><span className="text-muted">Requires five canvases and a clean preflight.</span></span></label><details className="mt-4 border-t border-hairline pt-4"><summary className="cursor-pointer font-mono text-[9px] uppercase text-muted">Production proof</summary><label className="mt-3 block text-xs">Validate against brand<select value={brand} onChange={(event) => setBrand(event.target.value)} className={fieldClass}>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>{!brands.length && <p className="mt-2 text-xs text-signal">Compile a brand before preflight, publishing, or production rendering.</p>}<textarea value={renderBrief} onChange={(event) => setRenderBrief(event.target.value)} className="mt-3 min-h-20 w-full border border-hairline bg-ink p-2 text-xs" aria-label="Proof render brief" /><button type="button" disabled={busy || dirty || !brand || selected.status === "archived" || !previewCanvas} onClick={() => void renderFamily()} className="btn mt-2 w-full">Render this version</button>{renderProof?.assets.map((asset) => <img key={asset.filename} src={`/api/asset/${encodeURIComponent(renderProof.id)}/${encodeURIComponent(asset.filename)}`} alt={`${selected.name} production proof`} className="mt-3 w-full border border-hairline bg-bone" />)}</details></div>}
+                </div>
               </aside>
             </div>
 
             <details className="border-t border-hairline px-5 py-4"><summary className="cursor-pointer font-mono text-[10px] uppercase text-muted">Advanced JSON editor</summary><p className="mt-3 text-sm text-muted">The schema is strict: HTML, CSS, scripts, remote assets, and unknown fields are rejected.</p><textarea aria-label="Template family JSON" spellCheck={false} value={json} onChange={(event) => setJson(event.target.value)} className="mt-3 min-h-[380px] w-full border border-hairline bg-black/20 p-3 font-mono text-[11px] leading-5" /></details>
-            <label className="mx-5 mb-4 flex items-start gap-3 border border-hairline p-3 text-xs"><input type="checkbox" checked={autoEligible} onChange={(event) => setAutoEligible(event.target.checked)} className="mt-0.5 accent-[#ff4d00]" /><span><b className="block font-display">Allow automatic planning</b><span className="text-muted">Requires all five format canvases and a clean preflight. Leave off for deliberate, manually selected campaign templates.</span></span></label>
-            <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-hairline bg-panel/95 px-5 py-4 shadow-[0_-14px_30px_rgba(0,0,0,.22)] backdrop-blur"><div><b className="font-display text-sm">{dirty ? "Changes ready to save" : `Draft v${selected.version} is current`}</b><p className="font-mono text-[8px] uppercase text-muted">{dirty ? "Saving creates a new immutable version" : "Edit a layer or canvas to create the next version"}</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" disabled={!owner || busy || !dirty} onClick={() => void save()} className="btn !px-4 !py-2.5 !text-xs">Save new version</button><button type="button" disabled={busy || dirty} onClick={() => void preflight()} className={compactButtonClass} title={dirty ? "Save first" : undefined}>Run preflight</button><button type="button" disabled={!owner || busy || dirty || !brand} onClick={() => void lifecycle("publish")} className={compactButtonClass}>{selected.status === "published" ? "Publish settings" : "Publish"}</button><button type="button" disabled={!owner || busy || dirty || selected.status === "archived"} onClick={() => void lifecycle("archive")} className={compactButtonClass}>Archive</button>{canDelete && <button type="button" disabled={!owner || busy} onClick={() => void removeDraftFamily()} className={compactButtonClass}>Delete drafts</button>}</div></div>
+            <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-hairline bg-panel/95 px-5 py-4 shadow-[0_-14px_30px_rgba(0,0,0,.22)] backdrop-blur"><div><b className="font-display text-sm">{dirty ? "Changes ready to save" : `Draft v${selected.version} is current`}</b><p className="font-mono text-[8px] uppercase text-muted">{dirty ? "Saving creates a new immutable version" : "Edit a layer or canvas to create the next version"}</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" disabled={!owner || busy || !dirty} onClick={() => void save()} className="btn !px-4 !py-2.5 !text-xs">Save new version</button><button type="button" disabled={busy || dirty} onClick={() => void preflight()} className={compactButtonClass} title={dirty ? "Save first" : undefined}>Run preflight{issues.length ? ` · ${issues.length}` : ""}</button><button type="button" disabled={!owner || busy || dirty || !brand} onClick={() => void lifecycle("publish")} className={compactButtonClass}>{selected.status === "published" ? "Publish settings" : "Publish"}</button><button type="button" disabled={!owner || busy || dirty || selected.status === "archived"} onClick={() => void lifecycle("archive")} className={compactButtonClass}>Archive</button>{canDelete && <button type="button" disabled={!owner || busy} onClick={() => void removeDraftFamily()} className={compactButtonClass}>Delete drafts</button>}</div></div>
           </div>}
 
-          {selected && <div className="panel p-5"><div className="flex items-center justify-between"><div><p className="eyebrow text-signal">Immutable history</p><h3 className="mt-1 font-display text-lg font-bold">Version timeline</h3></div><span className="font-mono text-[9px] text-muted">{versions.length} version{versions.length === 1 ? "" : "s"}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{versions.map((version) => <div key={version.version} className="flex items-center justify-between border border-hairline p-3"><div><b className="font-mono text-xs">v{version.version}</b><span className="ml-2 font-mono text-[8px] uppercase text-muted">{version.status}</span><time className="mt-1 block font-mono text-[8px] text-muted">{new Date(version.updatedAt).toLocaleString()}</time></div><button type="button" disabled={version.version === selected.version} onClick={() => restoreVersion(version)} className="btn-ghost !px-3 !py-2">Restore</button></div>)}</div></div>}
+          {selected && !creating && <details className="panel p-5"><summary className="flex cursor-pointer list-none items-center justify-between"><div><p className="eyebrow text-signal">Immutable history</p><h3 className="mt-1 font-display text-lg font-bold">Version timeline</h3></div><span className="font-mono text-[9px] text-muted">{versions.length} version{versions.length === 1 ? "" : "s"} · expand</span></summary><div className="mt-4 grid gap-2 sm:grid-cols-2">{versions.map((version) => <div key={version.version} className="flex items-center justify-between border border-hairline p-3"><div><b className="font-mono text-xs">v{version.version}</b><span className="ml-2 font-mono text-[8px] uppercase text-muted">{version.status}</span><time className="mt-1 block font-mono text-[8px] text-muted">{new Date(version.updatedAt).toLocaleString()}</time></div><button type="button" disabled={version.version === selected.version} onClick={() => restoreVersion(version)} className="btn-ghost !px-3 !py-2">Restore</button></div>)}</div></details>}
         </section>
-
-        <aside className="panel h-fit p-5 xl:sticky xl:top-5">
-          <div className="flex items-center justify-between"><p className="eyebrow text-signal">Quality gate</p>{issues.length > 0 && <span className="font-mono text-[9px] text-muted">{issueCounts.errors} errors · {issueCounts.warnings} warnings</span>}</div>
-          <p className="mt-3 text-sm text-muted">Preflight checks strict contracts, brand color roles, contrast, minimum geometry, frozen artwork, and suspicious layer overlap.</p>
-          {status && <p role="status" aria-live="polite" className="mt-4 border border-hairline p-3 text-xs">{busy ? "Working… " : ""}{status}</p>}
-          {issues.length > 0 ? <ul className="mt-4 max-h-72 space-y-2 overflow-auto">{issues.map((issue, index) => <li key={`${issue.path}-${issue.message}-${index}`}><button type="button" onClick={() => focusIssue(issue)} className={`w-full border p-2 text-left text-xs hover:bg-white/[.03] ${issue.severity === "error" ? "border-signal/60" : "border-yellow-500/50"}`}><b className={`font-mono text-[9px] uppercase ${issue.severity === "error" ? "text-signal" : "text-yellow-400"}`}>{issue.severity}</b><span className="mt-1 block break-words">{issue.path}: {issue.message}</span><span className="mt-2 block font-mono text-[8px] uppercase text-muted">Show affected canvas →</span></button></li>)}</ul> : <div className="mt-4 border border-dashed border-hairline p-4 text-xs text-muted">Run preflight after saving. A clean gate is required before publishing.</div>}
-          {selected && <div className="mt-6 border-t border-hairline pt-5"><p className="eyebrow text-bone">Production proof</p><label className="mt-3 block text-xs">Validate against brand<select value={brand} onChange={(event) => setBrand(event.target.value)} className={fieldClass}>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>{!brands.length && <p className="mt-2 text-xs text-signal">Compile a brand before preflight, publishing, or production rendering.</p>}<textarea value={renderBrief} onChange={(event) => setRenderBrief(event.target.value)} className="mt-3 min-h-20 w-full border border-hairline bg-ink p-2 text-xs" aria-label="Proof render brief" /><button type="button" disabled={busy || dirty || !brand || selected.status === "archived" || !previewCanvas} onClick={() => void renderFamily()} className="btn mt-2 w-full">Render this version</button>{renderProof?.assets.map((asset) => <img key={asset.filename} src={`/api/asset/${encodeURIComponent(renderProof.id)}/${encodeURIComponent(asset.filename)}`} alt={`${selected.name} production proof`} className="mt-3 w-full border border-hairline bg-bone" />)}</div>}
-        </aside>
       </section>
     </main>
   );

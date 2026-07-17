@@ -48,7 +48,7 @@ Startup runs idempotent database migrations and fails closed when hosted storage
 GET https://api.brandrail.dev/health/ready
 ```
 
-A launchable response is HTTP `200` with `ready: true`, `checks.storage: true`, `checks.durableStorage: true`, `checks.billing: true`, `checks.generativeImages: true`, and `checks.productionSecrets: true`. `GET /openapi.json` is the public OpenAPI 3.1 contract. Application requests emit an `x-request-id`; production logs are structured JSON keyed by the same ID.
+A launchable response is HTTP `200` with `ready: true`, `checks.storage: true`, `checks.durableStorage: true`, `checks.billing: true`, `checks.generativeImages: true`, `checks.productionSecrets: true`, `checks.backgroundWorkers: true`, and `checks.publishingMediaBridge: true`. The media-bridge check becomes mandatory when Instagram or TikTok is configured. `GET /openapi.json` is the public OpenAPI 3.1 contract. Application requests emit an `x-request-id`; production logs are structured JSON keyed by the same ID.
 
 Register the Stripe webhook at `https://api.brandrail.dev/webhooks/stripe`. At minimum, subscribe to checkout-session and customer-subscription lifecycle events used by the configured account.
 
@@ -68,7 +68,7 @@ MAIL_FROM=Brandrail <hello@brandrail.dev>
 
 `ENGINE_URL` and `PUBLIC_URL` are explicit and validated in production. `PUBLIC_URL` must be canonical HTTPS because it anchors magic links, OAuth redirects, billing redirects, and MCP metadata. Add `MCP_ALLOWED_ORIGINS` only for browser-based MCP clients you trust. `MCP_AUTHORIZATION_SERVERS` is optional for static bearer keys and should list issuer URLs if OAuth authorization is added.
 
-The hosted MCP endpoint is `POST https://playground.brandrail.dev/api/mcp`. It is stateless Streamable HTTP, authenticates only scoped workspace keys, advertises 46 lifecycle tools, and exposes render assets as MCP resources.
+The hosted MCP endpoint is `POST https://playground.brandrail.dev/api/mcp`. It is stateless Streamable HTTP, authenticates only scoped workspace keys, advertises 44 lifecycle tools, and exposes render assets as MCP resources.
 
 ## 3. Smoke test
 
@@ -85,6 +85,8 @@ node packages/cli/dist/index.js mcp doctor \
 ```
 
 Then use a dedicated launch-test workspace to complete the real story: list brands, compile a disposable public URL, start and approve a durable run, render one asset, create a review batch, approve it in the UI, dry-run publishing, schedule to a test channel, confirm the calendar and audit entries, and cancel the test post. Never run the delivery part against a production audience.
+
+Run the provider matrix in [`OPERATIONS.md`](./OPERATIONS.md) before advertising any destination as live. A mocked adapter test proves request shape and failure handling; only a real test account proves app review, scopes, token refresh, public-media fetch, delivery, and cancellation behavior for the deployed credentials.
 
 ## 4. Package release
 
@@ -114,3 +116,4 @@ Do not announce general availability until all of these are true:
 - DNS, HTTPS, backups, Postgres point-in-time recovery, log retention, uptime alerts, error alerts, and spend alerts are configured.
 - npm ownership, 2FA, `NPM_TOKEN`, package version/tag parity, and provenance are confirmed.
 - Platform app reviews and credentials match every network advertised as directly publishable.
+- The accessibility keyboard/screen-reader smoke test and the first-user study in [`USABILITY.md`](./USABILITY.md) meet their release thresholds.

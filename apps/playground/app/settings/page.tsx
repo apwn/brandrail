@@ -1,7 +1,7 @@
 import { engine } from "@/lib/engine";
 import { getUserId } from "@/lib/session";
 import { SettingsPanel } from "./settings-panel";
-import { WorkspaceLockup } from "../components/workspace-lockup";
+import { WorkspaceHeader } from "../components/workspace-header";
 
 /** Account settings: identity, email (change = re-verify), danger zone. */
 export default async function Settings() {
@@ -31,10 +31,7 @@ export default async function Settings() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="flex items-center gap-3">
-        <WorkspaceLockup context="Settings" />
-        <a href="/dashboard" className="eyebrow text-muted hover:text-bone ml-auto">← WORKSPACE</a>
-      </header>
+      <WorkspaceHeader context="Settings" active="settings" plan={user.plan === "studio" || user.plan === "agency" ? user.plan : "free"} />
       {role === "reviewer" ? (
         <section className="panel p-5 mt-10">
           <p className="eyebrow text-bone">REVIEWER ACCOUNT</p>

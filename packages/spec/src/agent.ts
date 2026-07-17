@@ -5,10 +5,10 @@ export const MCP_LIFECYCLE_TOOLS = [
   "preflight_template_family", "publish_template_family", "archive_template_family", "diff_brand_spec",
   "plan_campaign", "list_content_programs", "preview_content_program", "create_content_program",
   "run_content_program", "pause_content_program", "delete_content_program", "start_campaign_run",
-  "list_agent_runs", "get_agent_run", "provide_agent_input", "retry_agent_run", "complete_agent_run",
+  "list_agent_runs", "get_agent_run", "retry_agent_run", "complete_agent_run",
   "cancel_agent_run", "render_assets", "list_renders", "get_render", "list_channels", "list_campaigns",
   "create_campaign", "update_campaign", "create_review_batch", "get_review_status", "add_review_comment",
-  "schedule_post", "reschedule_post", "cancel_post", "list_calendar", "get_analytics", "get_usage",
+  "schedule_post", "cancel_post", "list_calendar", "get_analytics", "get_usage",
   "get_audit_log",
 ] as const;
 

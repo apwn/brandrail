@@ -6,7 +6,7 @@ import { TemplateWorkspace } from "./workspace";
 
 export default async function TemplatesPage() {
   const uid = await getUserId();
-  if (!uid) redirect("/login");
+  if (!uid) redirect("/login?return=%2Ftemplates");
   const [familiesRes, specsRes, usageRes] = await Promise.all([
     engine("/v0/template-families", {}, uid),
     engine("/v0/specs", {}, uid),

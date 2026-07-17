@@ -28,11 +28,14 @@ export const metadata: Metadata = {
 
 const TOOL_GROUPS = [
   ["UNDERSTAND", "list_brands · compile_brand · get_brand · diff_brand_spec"],
-  ["PROGRAM", "list_content_programs · preview_content_program · create_content_program · run_content_program · pause_content_program · delete_content_program"],
-  ["RUN", "start_campaign_run · get_agent_run · complete_agent_run · retry_agent_run · cancel_agent_run"],
-  ["CREATE", "render_assets · list_templates · list_recipes · save_recipe · rename_recipe · delete_recipe · list_renders · get_render · create_campaign"],
+  ["SAVED LOOKS", "list_recipes · save_recipe · rename_recipe · delete_recipe"],
+  ["TEMPLATES", "list_templates · list_template_families · list_template_family_versions · duplicate_template_family · preflight_template_family · publish_template_family · archive_template_family"],
+  ["PLAN & PROGRAM", "plan_campaign · list_content_programs · preview_content_program · create_content_program · run_content_program · pause_content_program · delete_content_program"],
+  ["RUN", "start_campaign_run · list_agent_runs · get_agent_run · complete_agent_run · retry_agent_run · cancel_agent_run"],
+  ["CREATE", "render_assets · list_renders · get_render"],
+  ["CAMPAIGNS", "list_campaigns · create_campaign · update_campaign"],
   ["REVIEW", "create_review_batch · get_review_status · add_review_comment"],
-  ["OPERATE", "list_channels · schedule_post · reschedule_post · cancel_post · list_calendar"],
+  ["OPERATE", "list_channels · schedule_post · cancel_post · list_calendar"],
   ["LEARN", "get_analytics · get_usage · get_audit_log"],
 ] as const;
 
@@ -79,7 +82,7 @@ function AgentHero() {
             <a className="btn min-h-12" href="/login?agent=1">Connect your agent free →</a>
             <a className="btn-ghost min-h-12" href="#connect">View the 2-minute setup ↓</a>
           </div>
-          <p className="mt-4 font-mono text-[10px] text-muted sm:text-[11px]">1 free agent key · {MCP_TOOL_COUNT} lifecycle tools · 50 assets · no card</p>
+          <p className="mt-4 font-mono text-[10px] text-muted sm:text-[11px]">1 free minimal key · read, plan &amp; render by default · {MCP_TOOL_COUNT} tools across plans</p>
         </div>
         <AgentRunProof />
       </div>
@@ -91,8 +94,9 @@ function AgentRunProof() {
   const steps = [
     ["01", "BrandSpec loaded", "northstar@12", "done"],
     ["02", "Execution plan", "0 blockers", "done"],
-    ["03", "Assets rendered", "5 · 0 violations", "done"],
-    ["04", "Human review", "paused", "wait"],
+    ["03", "Plan approval", "hash locked", "done"],
+    ["04", "Assets rendered", "8 · 0 violations", "done"],
+    ["05", "Human review", "paused", "wait"],
   ] as const;
 
   return (
@@ -218,7 +222,7 @@ function SafetySection() {
         <div className="mt-9 grid gap-8 md:grid-cols-3">
           {[
             ["Brand-locked", "The agent cannot improvise fonts, colors, logos or composition outside the active BrandSpec."],
-            ["Human-controlled", "Review is a durable paused state. Publishing requires approval or explicit confirmation with the right scope."],
+            ["Human-controlled", "Plan approval happens in the workspace. Agent delivery requires the exact reviewed copy and files, planned time, and right scope; changes require a new approval."],
             ["Reconnect-safe", "Runs and outputs survive disconnects. Every PNG stays retrievable and every mutation remains auditable."],
           ].map(([title, body]) => <article key={title} className="border-t-2 border-[#A83200] pt-5"><h3 className="font-display text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-[#514D47]">{body}</p></article>)}
         </div>

@@ -14,16 +14,16 @@ The Brandrail MCP server. Gives compatible agents the full controlled content li
 | `plan_campaign(objective, …)` | dry-run before mutation | blockers + execution steps |
 | `start_campaign_run(…)` | create reconnect-safe campaign work | durable run ID + progress |
 | `list_agent_runs()` / `get_agent_run(id)` | resume after reconnects | status + next safe step |
-| `provide_agent_input` / `complete_agent_run` / `retry_agent_run` / `cancel_agent_run` | control durable work | explicit state transition |
+| `complete_agent_run` / `retry_agent_run` / `cancel_agent_run` | control durable work | explicit state transition; retry returns to plan approval |
 | `list_renders()` / `get_render(id)` | retrieve render history | manifests + asset references |
 | `list_channels()` | inspect connected destinations | scoped channel IDs |
-| `create_review_batch(items)` | render and pause for a human | stateful review batch |
-| `get_review_status(batchId)` | resume after approval | approved IDs + flagged notes |
+| `create_review_batch(items)` | attach exact run renders and pause for a human | stateful review batch; linked runs never regenerate |
+| `get_review_status(batchId, runId)` | resume after approval | approved copy, files and IDs + flagged notes |
 | `add_review_comment(batchId, …)` | attach feedback without approving | comment thread |
 | `list_campaigns()` | inspect campaign progress | live production metrics |
 | `create_campaign()` / `update_campaign()` | manage campaign containers | linked work + performance state |
 | `schedule_post(…)` | dry-run/schedule/publish safely | delivery state |
-| `reschedule_post()` / `cancel_post()` | control queued delivery | updated calendar state |
+| `cancel_post()` | cancel delivery created by this credential | updated run and calendar state |
 | `list_calendar()` | inspect content delivery | scheduled + published posts |
 | `get_analytics()` | close the feedback loop | reach + engagement insight |
 | `get_usage()` | inspect plan and allowances | entitlements + remaining usage |
@@ -33,7 +33,7 @@ The Brandrail MCP server. Gives compatible agents the full controlled content li
 
 Spec violations fail loudly with structured errors — the agent never receives a degraded render.
 
-Publishing is also fail-closed: an agent must supply an approved batch item or `confirm=true` after explicit user confirmation. Use `dryRun=true` first.
+Plan approval happens only in the Brandrail workspace and is bound to the exact plan hash. Publishing is also fail-closed: an agent must supply the approved batch item, exact reviewed channel copy and files, render lineage, channels and time. Use `dryRun=true` first. Reviewed agent deliveries are immutable; cancel and create a newly approved run when copy or timing changes.
 
 ## Hosted remote MCP
 
@@ -42,7 +42,7 @@ The hosted app exposes a Streamable HTTP endpoint at `https://playground.brandra
 ### OpenClaw
 
 ```sh
-export BRANDRAIL_API_KEY='brk_…'
+read -rsp 'Brandrail API key: ' BRANDRAIL_API_KEY; printf '\n'; export BRANDRAIL_API_KEY
 
 openclaw mcp set brandrail \
   '{"url":"https://playground.brandrail.dev/api/mcp","transport":"streamable-http","headers":{"Authorization":"Bearer ${BRANDRAIL_API_KEY}"},"connectTimeout":10,"timeout":120}'
@@ -50,7 +50,7 @@ openclaw mcp set brandrail \
 openclaw mcp doctor brandrail --probe
 ```
 
-OpenClaw uses the same hosted endpoint and scoped key as every other remote client; no adapter or gateway process is required. The environment-variable reference keeps the literal key out of the saved MCP configuration.
+OpenClaw uses the same hosted endpoint and scoped key as every other remote client; no adapter or gateway process is required. Hidden entry keeps the literal key out of shell history, and the environment-variable reference keeps it out of the saved MCP configuration.
 
 ### Brandrail CLI diagnostics
 
@@ -67,8 +67,8 @@ brandrail mcp doctor
 {
   "mcpServers": {
     "brandrail": {
-      "command": "npx",
-      "args": ["-y", "@brandrail/mcp"],
+      "command": "node",
+      "args": ["/absolute/path/to/brandrail/packages/mcp/dist/index.js"],
       "env": {
         "BRANDRAIL_API_URL": "https://api.brandrail.dev",
         "BRANDRAIL_API_KEY": "brk_…",
@@ -79,7 +79,7 @@ brandrail mcp doctor
 }
 ```
 
-Claude Code: `claude mcp add brandrail -e BRANDRAIL_API_URL=https://api.brandrail.dev -- npx -y @brandrail/mcp`
+Until the first npm release, build the repository and point Claude Code at the absolute `packages/mcp/dist/index.js` path.
 
 ## Transports
 

@@ -26,10 +26,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (action === "execute-render" || action === "create-review") {
     const loaded = await engineJson(`/v0/agent/runs/${encodeURIComponent(id)}`, {}, uid);
     if (loaded.status >= 400) return Response.json(loaded.data, { status: loaded.status });
-    const run = (loaded.data as { run?: { objective: string; brand?: string; renderIds?: string[] } }).run;
+    const run = (loaded.data as { run?: { objective: string; brand?: string; assetCount: number; renderIds?: string[] } }).run;
     if (!run?.brand) return Response.json({ error: "run has no active brand" }, { status: 409 });
     if (action === "execute-render") {
-      const result = await engineJson("/v0/render", { method: "POST", body: JSON.stringify({ brand: run.brand, brief: run.objective, runId: id }) }, uid);
+      const singles = ["li-image", "story", "x-graphic", "og-image"];
+      const maximum = Math.max(1, Math.min(8, run.assetCount));
+      const formats = maximum <= 4 ? singles.slice(0, maximum) : ["ig-carousel", ...singles.slice(0, maximum - 4)];
+      const result = await engineJson("/v0/render", { method: "POST", body: JSON.stringify({ brand: run.brand, brief: run.objective, formats, runId: id }) }, uid);
       return Response.json(result.data, { status: result.status });
     }
     const renderId = run.renderIds?.at(-1);

@@ -17,7 +17,7 @@ export function PublicFooter({ note }: { note?: ReactNode }) {
         <div>
           <h2 className="eyebrow text-bone">Product</h2>
           <div className="mt-4 space-y-2.5 text-sm text-muted">
-            <a className="block hover:text-bone" href="/#agent-workflow">How it works</a>
+            <a className="block hover:text-bone" href="/#how-it-works">How it works</a>
             <a className="block hover:text-bone" href="/#use-cases">Use cases</a>
             <a className="block hover:text-bone" href="/#pricing">Pricing</a>
             <a className="block hover:text-bone" href="/login">Workspace</a>
@@ -28,6 +28,7 @@ export function PublicFooter({ note }: { note?: ReactNode }) {
           <div className="mt-4 space-y-2.5 text-sm text-muted">
             <a className="block hover:text-bone" href="/agents">Agent platform</a>
             <a className="block hover:text-bone" href="/docs">Documentation</a>
+            <a className="block hover:text-bone" href="/help">Product help</a>
             <a className="block hover:text-bone" href="https://github.com/apwn/brandrail">GitHub</a>
             <a className="block text-signal hover:text-bone" href="/login?agent=1">Connect your agent →</a>
           </div>

@@ -14,9 +14,9 @@ const AUTHORITY_COPY: Record<DeliverySource, { label: string; title: string; bod
     tone: "border-hairline bg-ink/40 text-bone",
   },
   "agent-confirmed": {
-    label: "AGENT · CONFIRMED",
-    title: "Agent action with explicit authority",
-    body: "An API client scheduled this after an explicit confirmation step.",
+    label: "LEGACY AGENT AUTHORITY",
+    title: "Scheduled under the previous confirmation policy",
+    body: "New agent deliveries require an exact human review decision. This historical item predates that gate.",
     tone: "border-signal/50 bg-signal/10 text-signal",
   },
   autopilot: {

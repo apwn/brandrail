@@ -85,7 +85,8 @@ POST   /v0/publish                 dry-run or schedule approved work
 GET    /v0/scheduled               calendar + delivery state
 GET    /v0/analytics               performance feedback
 GET    /v0/me/usage                limits and remaining allowance
-GET    /v0/me/audit                agent + human mutation log`;
+GET    /v0/me/audit                agent + human mutation log
+GET    /v0/me/operations           delivery + recovery attention signals`;
 
 const SDK_EXAMPLE = `import { Brandrail } from "@brandrail/sdk";
 
@@ -220,11 +221,12 @@ function QuickstartSection() {
     <section>
       <DocHeading id="quickstart" eyebrow="START HERE">Quickstart</DocHeading>
       <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted">The fastest path for an agent is hosted MCP. If you are calling Brandrail from an application, the REST quickstart compiles a live website and renders the first asset set in two requests.</p>
-      <div className="mt-7 grid gap-px border border-hairline bg-hairline sm:grid-cols-3">
+      <div className="mt-7 grid gap-px border border-hairline bg-hairline sm:grid-cols-4">
         {[
           ["01", "Create a key", "Verify your email and mint one scoped connection."],
-          ["02", "Add Brandrail", "Paste the remote MCP config into your client."],
-          ["03", "Ask for an outcome", "“Compile acme.com and plan our launch.”"],
+          ["02", "Verify the client", "Run the live probe, then read usage and brands."],
+          ["03", "Ask for a plan", "“Compile https://acme.com and plan our launch.”"],
+          ["04", "Approve visibly", "Inspect the exact run plan in Brandrail before rendering."],
         ].map(([number, title, body]) => <div key={number} className="bg-ink p-4"><span className="font-mono text-[9px] text-signal">{number}</span><h3 className="mt-3 font-display text-sm font-bold">{title}</h3><p className="mt-1 text-xs leading-relaxed text-muted">{body}</p></div>)}
       </div>
       <McpSetupGuide endpoint="https://playground.brandrail.dev/api/mcp" />
@@ -239,8 +241,8 @@ function AuthSection() {
     <section>
       <DocHeading id="auth" eyebrow="IDENTITY + SCOPE">Auth &amp; keys</DocHeading>
       <p className="mt-4 text-[15px] leading-relaxed text-muted">Every verified workspace can mint one free, revocable key in <a href="/dashboard#agent" className="text-signal hover:text-bone">Workspace → Agent connection</a>. Send it as <code className="text-bone">Authorization: Bearer</code> or <code className="text-bone">x-api-key</code>. Each key is bound to one workspace, an expiry and explicit scopes.</p>
-      <div className="mt-5 grid gap-px border border-hairline bg-hairline sm:grid-cols-3">
-        {[['brands:read', 'Inspect BrandSpecs'], ['assets:render', 'Create gated assets'], ['publish:schedule', 'Schedule approved work']].map(([scope, meaning]) => <div key={scope} className="bg-panel p-4"><code className="font-mono text-[10px] text-green">{scope}</code><p className="mt-2 text-xs text-muted">{meaning}</p></div>)}
+      <div className="mt-5 grid gap-px border border-hairline bg-hairline sm:grid-cols-4">
+        {[['brands:read', 'Inspect BrandSpecs'], ['plans:write', 'Create dry plans'], ['assets:render', 'Create gated assets'], ['brands:write', 'Change BrandSpecs and template families'], ['publish:schedule', 'Schedule approved work'], ['publish:immediate', 'Publish approved work now; requires schedule scope too']].map(([scope, meaning]) => <div key={scope} className="bg-panel p-4"><code className="font-mono text-[10px] text-green">{scope}</code><p className="mt-2 text-xs text-muted">{meaning}</p></div>)}
       </div>
       <p className="mt-4 border-l-2 border-signal pl-4 text-sm leading-relaxed text-muted">Account, billing, credential and channel-connection controls always require a browser session. An agent key cannot take over the workspace owner’s identity.</p>
     </section>
@@ -354,7 +356,17 @@ function McpSection() {
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-green">REMOTE</p><h3 className="mt-2 font-display text-lg font-bold">Hosted Streamable HTTP</h3><p className="mt-2 text-sm leading-relaxed text-muted">No local process. Best for clients that support remote MCP and persistent credentials.</p></article>
         <article className="border border-hairline bg-panel p-5"><p className="eyebrow text-signal">LOCAL</p><h3 className="mt-2 font-display text-lg font-bold">Local stdio server</h3><p className="mt-2 text-sm leading-relaxed text-muted">Claude Desktop and Claude Code can run the source-built MCP package against cloud or self-hosted APIs.</p></article>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Agents can list, duplicate, preflight, publish, archive, and render versioned template families; apply a saved look; choose system templates; or change named text and image fields. Durable run IDs survive disconnects, and publishing is fail-closed unless the agent supplies an approved item or explicit confirmation.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Rendered PNGs return as MCP resource links with inline previews. Default credentials can list and preflight template families, apply a saved look, choose system templates, and change named render fields. Duplicating, publishing, or archiving a durable template family requires the separate <code className="text-bone">brands:write</code> permission. Durable run IDs survive disconnects. Exact plans are approved only in the workspace, and agent delivery requires the approved review item, render, channel-specific copy and files.</p>
+      <div className="mt-6 overflow-hidden border border-hairline">
+        {[
+          ["DEFAULT KEY", "Observe · dry-plan · render", "No BrandSpec changes, review mutations, channel access, or delivery"],
+          ["WORKFLOW OPT-IN", "Campaign and review scopes", "Create batches and advance durable work; humans still own decisions"],
+          ["DELIVERY OPT-IN", "Channel, calendar, and schedule scopes", "Only approved review items can be delivered"],
+          ["IMMEDIATE OPT-IN", "publish:immediate + delivery scopes", "Allows an approved item to publish now instead of entering the future calendar"],
+        ].map(([level, ability, boundary]) => <div key={level} className="grid gap-2 border-b border-hairline-soft bg-panel p-4 last:border-b-0 sm:grid-cols-[135px_1fr_1.35fr]"><span className="font-mono text-[9px] text-signal">{level}</span><strong className="text-sm text-bone">{ability}</strong><span className="text-xs leading-relaxed text-muted">{boundary}</span></div>)}
+      </div>
+      <div className="mt-6 border-l-2 border-green pl-4 text-sm leading-relaxed text-muted"><strong className="text-bone">First successful run:</strong> create a default key → complete the live probe → call <code className="text-bone">get_usage</code> and <code className="text-bone">list_brands</code> → start a durable run → approve its exact plan in the workspace → poll the run → render one reversible asset.</div>
+      <p className="mt-4 text-xs leading-relaxed text-muted">Approval stays bound to the run&apos;s brand, objective, maximum asset count, channels, delivery time, review batch, render lineage, reviewed copy and files. If one changes, Brandrail returns a precise mismatch error instead of weakening the gate. Approved agent deliveries cannot be edited after scheduling; cancel them and create a newly approved run.</p>
       <div className="mt-5 border-l-2 border-green pl-4 text-sm leading-relaxed text-muted"><span className="font-mono text-[10px] text-green">OPENCLAW READY</span><br />Save the remote server with <code className="text-bone">openclaw mcp set</code>, keep the key in <code className="text-bone">BRANDRAIL_API_KEY</code>, then run <code className="text-bone">openclaw mcp doctor brandrail --probe</code>. No Brandrail-specific adapter is required.</div>
     </section>
   );
@@ -396,12 +408,12 @@ function PublishingSection() {
   return (
     <section>
       <DocHeading id="publishing" eyebrow="CHANNEL READINESS">Publishing</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">Brandrail renders for every supported format. Direct delivery depends on the channel credentials available to your workspace, and the publish gate stays closed until the item is approved or explicitly confirmed.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">Brandrail renders for every supported format. Direct delivery depends on the channel credentials available to your workspace, and the agent publish gate stays closed until the exact item is approved.</p>
       <div className="mt-6 grid gap-px border border-hairline bg-hairline sm:grid-cols-2">
         <div className="bg-panel p-5"><p className="eyebrow text-green">READY WITHOUT APP REVIEW</p><h3 className="mt-2 font-display text-lg font-bold">Bluesky + Mastodon</h3><p className="mt-2 text-sm leading-relaxed text-muted">Connect account credentials, dry-run the delivery and schedule approved items from the same run.</p></div>
         <div className="bg-panel p-5"><p className="eyebrow text-signal">PLATFORM CREDENTIALS REQUIRED</p><h3 className="mt-2 font-display text-lg font-bold">LinkedIn, Meta, X + TikTok</h3><p className="mt-2 text-sm leading-relaxed text-muted">Use your registered platform app and scopes. Until connected, Brandrail still renders the correct export package for manual publishing.</p></div>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-muted">Agents can inspect connected channels, dry-run <code className="text-bone">/v0/publish</code>, schedule approved content and read delivery state without bypassing the human review boundary.</p>
+      <p className="mt-4 text-sm leading-relaxed text-muted">Agents can inspect connected channels, dry-run <code className="text-bone">/v0/publish</code>, schedule the exact reviewed copy and files, and read delivery state without bypassing the human review boundary. Channels with different approved copy use separate calls. Once scheduled, agent delivery is immutable; cancel and approve a new run to change its copy or time.</p>
     </section>
   );
 }
@@ -434,7 +446,7 @@ function ErrorsSection() {
   return (
     <section>
       <DocHeading id="errors" eyebrow="FAIL CLOSED">Errors &amp; safety</DocHeading>
-      <p className="mt-4 text-[15px] leading-relaxed text-muted">Errors are explicit and machine-readable. Agents should dry-run first, preserve the returned IDs, and resume durable state instead of repeating mutations.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">Errors are explicit and machine-readable. Tool failures include a stable code where recovery depends on it, plus fields such as <code className="text-bone">requiredScope</code>, <code className="text-bone">requiredPlan</code>, <code className="text-bone">nextAction</code>, and the request ID when available. Agents should dry-run first, preserve returned IDs, and resume durable state instead of repeating mutations. Operators can poll <code className="text-bone">/v0/me/operations</code> for failed, overdue, stuck, disconnected, expired, or exhausted workflow signals.</p>
       <div className="mt-5 overflow-hidden border border-hairline">
         {errors.map(([code, meaning]) => <div key={code} className="grid grid-cols-[58px_1fr] border-b border-hairline-soft last:border-b-0"><code className="border-r border-hairline bg-panel p-3 text-center font-mono text-xs text-signal">{code}</code><span className="p-3 text-sm text-muted">{meaning}</span></div>)}
       </div>
@@ -442,6 +454,8 @@ function ErrorsSection() {
         <li><span className="mr-2 text-green">✓</span>Use dry-runs before publishing or scheduling.</li>
         <li><span className="mr-2 text-green">✓</span>Reuse idempotency keys when retrying a delivery request.</li>
         <li><span className="mr-2 text-green">✓</span>Store run, render, batch and approval IDs as durable references.</li>
+        <li><span className="mr-2 text-green">✓</span>Deliver the exact reviewed copy and files; use separate calls for channel-specific variants.</li>
+        <li><span className="mr-2 text-green">✓</span>Cancel and re-approve instead of editing an approved agent delivery.</li>
       </ul>
     </section>
   );

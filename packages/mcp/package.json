@@ -1,7 +1,7 @@
 {
   "name": "@brandrail/mcp",
   "version": "0.1.0",
-  "description": "Brandrail MCP server — 46 tools for BrandSpecs, deterministic assets, durable runs, review, publishing, analytics, and audit.",
+  "description": "Brandrail MCP server — 44 tools for BrandSpecs, deterministic assets, durable runs, review, publishing, analytics, and audit.",
   "license": "MIT",
   "homepage": "https://github.com/apwn/brandrail#readme",
   "bugs": { "url": "https://github.com/apwn/brandrail/issues" },

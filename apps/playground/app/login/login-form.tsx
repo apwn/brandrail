@@ -21,7 +21,7 @@ export function LoginForm({ plan, agent, returnTo }: { plan?: "studio" | "agency
       const res = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, next: plan ? `/dashboard?checkout=${plan}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}` : agent ? "/dashboard?welcome=agent#agent" : "/dashboard" }),
+        body: JSON.stringify({ email, next: plan ? `/dashboard?checkout=${plan}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}` : agent ? "/dashboard?welcome=agent#agent" : returnTo ?? "/dashboard" }),
       });
       const body = (await res.json()) as { error?: string; devLink?: string };
       if (!res.ok) throw new Error(body.error ?? "Couldn't send the link");

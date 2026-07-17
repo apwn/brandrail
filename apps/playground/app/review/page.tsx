@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DeliveryDialog } from "./delivery-dialog";
+import { WorkspaceHeader } from "../components/workspace-header";
+import { JourneyRail } from "../components/journey-rail";
 
 /* ------------------------------------------------------------------ types */
 type Slide = Record<string, string>;
@@ -286,22 +288,25 @@ export default function ReviewPage() {
   }, [items]);
 
   /* ---------------------------------------------------------------- render */
-  if (access === "loading") return <AccessScreen title="Loading review workspace…" body="Checking your workspace access and latest plan." />;
-  if (access === "signedout") return <AccessScreen title="Sign in to review" body="Review queues live in a recoverable workspace, so we need to know which brand system to open." cta="Email me a sign-in link" href="/login" />;
-  if (access === "locked") return <AccessScreen title="Batch review starts with Studio" body="Free gives you the full compile, render and export loop. Studio adds planning, batch approvals, autopilot and publishing when the weekly workload earns it." cta="Compare plans" href="/#pricing" />;
+  if (access === "loading") return <AccessScreen title="Loading review workspace…" body="Checking your workspace access and latest plan." workspace />;
+  if (access === "signedout") return <AccessScreen title="Sign in to review" body="Review queues live in a recoverable workspace, so we need to know which brand system to open." cta="Email me a sign-in link" href="/login?return=%2Freview" />;
+  if (access === "locked") return <AccessScreen title="Batch review starts with Studio" body="Free gives you the full compile, render and export loop. Studio adds planning, batch approvals and publishing when the weekly workload earns it." cta="Start Studio" href="/dashboard?checkout=studio&return=%2Freview" workspace />;
   if (!batch) {
     if (role === "reviewer") {
       return (
-        <main className="min-h-screen bg-ink text-bone px-6 py-14 max-w-3xl mx-auto">
-          <a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a>
+        <main className="min-h-screen bg-ink text-bone px-6 py-12 max-w-5xl mx-auto">
+          <WorkspaceHeader context="Review" active="review" />
+          <JourneyRail active="review" completed={["brand", "plan"]} />
           <h1 className="text-3xl font-semibold mt-6">Reviewer access</h1>
           <p className="text-muted mt-2 max-w-xl">Open a review batch from the workspace. Creating batches, planning content and publishing remain with the workspace owner.</p>
         </main>
       );
     }
     return (
-      <main className="min-h-screen bg-ink text-bone px-6 py-14 max-w-3xl mx-auto">
-        <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
+      <main className="min-h-screen bg-ink text-bone px-6 py-12 max-w-5xl mx-auto">
+        <WorkspaceHeader context="Review" active="review" plan="studio" />
+        <JourneyRail active="review" completed={["brand", "plan"]} />
+        <section className="max-w-3xl">
         <h1 className="text-3xl font-semibold mt-6">Batch review</h1>
         <p className="text-muted mt-2 max-w-xl">
           Generate many brand-locked posts across your clients, then triage them by keyboard.
@@ -356,6 +361,7 @@ export default function ReviewPage() {
         <button className="btn mt-5" onClick={generate} disabled={generating}>
           {generating ? "Rendering the batch…" : `Generate ${brands.size || "—"} client × brief posts`}
         </button>
+        </section>
       </main>
     );
   }
@@ -369,7 +375,7 @@ export default function ReviewPage() {
       {/* header: progress + the R8 KPIs */}
       <header className="flex flex-col gap-4 border-b border-hairline px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-4">
-          <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>
+          <a href="/inbox" className="eyebrow hover:text-bone">← DECISION INBOX</a>
           <span className="text-bone font-semibold">{batch.title}</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 font-mono text-sm xl:justify-end">
@@ -501,8 +507,8 @@ export default function ReviewPage() {
   );
 }
 
-function AccessScreen({ title, body, cta, href }: { title: string; body: string; cta?: string; href?: string }) {
-  return <main className="min-h-screen bg-ink text-bone px-6 py-20 max-w-2xl mx-auto"><a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a><div className="rail w-14 mt-16" /><h1 className="font-display text-4xl font-bold mt-6">{title}</h1><p className="text-muted mt-4 max-w-xl leading-relaxed">{body}</p>{cta && href && <a className="btn mt-7" href={href}>{cta} →</a>}</main>;
+function AccessScreen({ title, body, cta, href, workspace = false }: { title: string; body: string; cta?: string; href?: string; workspace?: boolean }) {
+  return <main className="min-h-screen bg-ink text-bone px-6 py-12 max-w-5xl mx-auto">{workspace ? <WorkspaceHeader context="Review" active="review" plan="free" /> : <a href="/" className="eyebrow hover:text-bone">← BRANDRAIL</a>}<section className="max-w-2xl py-14"><div className="rail w-14" /><h1 className="font-display text-4xl font-bold mt-6">{title}</h1><p className="text-muted mt-4 max-w-xl leading-relaxed">{body}</p>{cta && href && <div className="mt-7 flex flex-wrap gap-3"><a className="btn" href={href}>{cta} →</a>{workspace && <a className="btn-ghost" href="/help#plans">Compare capabilities</a>}</div>}</section></main>;
 }
 
 /* ------------------------------------------------------------- components */

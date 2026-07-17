@@ -41,7 +41,7 @@ node packages/cli/dist/index.js render "Summer promotion" --brand acme --out ./a
 
 ```sh
 # Hosted MCP through OpenClaw
-export BRANDRAIL_API_KEY='brk_…'
+read -rsp 'Brandrail API key: ' BRANDRAIL_API_KEY; printf '\n'; export BRANDRAIL_API_KEY
 openclaw mcp set brandrail \
   '{"url":"https://playground.brandrail.dev/api/mcp","transport":"streamable-http","headers":{"Authorization":"Bearer ${BRANDRAIL_API_KEY}"},"connectTimeout":10,"timeout":120}'
 openclaw mcp doctor brandrail --probe

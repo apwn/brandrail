@@ -154,7 +154,7 @@ export interface AnalyticsSummary {
 export interface ExecutionPlan {
   dryRun: true; ready: boolean; objective: string; brand: string | null; blockers: string[];
   safeguards: { brandSpecEnforced: boolean; humanApproval: string; idempotentPublishing: boolean };
-  estimate: { finishedAssets: number; monthlyRemaining: number };
+  estimate: { /** Approved maximum, not a promise that every slot will be used. */ finishedAssets: number; monthlyRemaining: number };
   steps: Array<{ id: string; action: string; mutates: boolean; ready: boolean }>;
 }
 
@@ -168,9 +168,10 @@ export interface ReviewStatus {
 }
 
 export interface AgentRun {
-  id: string; objective: string; brand?: string; channels: string[]; assetCount: number; publishAt?: string;
+  id: string; objective: string; brand?: string; channels: string[]; /** Maximum assets this run may create. */ assetCount: number; publishAt?: string;
   status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled";
-  progress: number; currentStep: string; plan?: ExecutionPlan; input?: Record<string, unknown>;
+  progress: number; currentStep: string; plan?: ExecutionPlan; planHash?: string; planVersion?: number;
+  planApproval?: { actorId: string; approvedAt: string; planHash: string }; input?: Record<string, unknown>;
   renderIds?: string[]; batchId?: string; postIds?: string[]; error?: string;
   createdBy: string; createdAt: string; updatedAt: string;
 }
@@ -397,7 +398,7 @@ export class Brandrail {
     });
   }
 
-  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string; runId?: string; dryRun?: boolean; confirm?: boolean; approval?: { batchId: string; itemId: string } }): Promise<{ dryRun: true; ready: boolean; action: string; channels: string[]; renderId: string | null } | { scheduled: boolean; post: ScheduledPost; deduplicated?: boolean; dryRun?: false }> {
+  schedule(input: { text: string; channelIds: string[]; scheduledAt?: string; renderId?: string; imageFiles?: string[]; idempotencyKey?: string; runId?: string; dryRun?: boolean; approval?: { batchId: string; itemId: string } }): Promise<{ dryRun: true; ready: boolean; action: string; channels: string[]; renderId: string | null } | { scheduled: boolean; post: ScheduledPost; deduplicated?: boolean; dryRun?: false }> {
     return this.request("/v0/publish", { method: "POST", body: JSON.stringify(input) });
   }
 
@@ -405,7 +406,7 @@ export class Brandrail {
     return this.request("/v0/agent/plan", { method: "POST", body: JSON.stringify(input) });
   }
 
-  async startAgentRun(input: { objective: string; brand?: string; channels?: string[]; assetCount?: number; publishAt?: string; start?: boolean }): Promise<AgentRun> {
+  async startAgentRun(input: { objective: string; brand?: string; channels?: string[]; assetCount?: number; publishAt?: string }): Promise<AgentRun> {
     const { run } = await this.request<{ run: AgentRun }>("/v0/agent/runs", { method: "POST", body: JSON.stringify(input) });
     return run;
   }
@@ -418,11 +419,6 @@ export class Brandrail {
 
   async getAgentRun(id: string): Promise<AgentRun> {
     const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}`);
-    return run;
-  }
-
-  async provideAgentInput(id: string, input: Record<string, unknown>): Promise<AgentRun> {
-    const { run } = await this.request<{ run: AgentRun }>(`/v0/agent/runs/${encodeURIComponent(id)}/input`, { method: "POST", body: JSON.stringify({ input }) });
     return run;
   }
 
@@ -467,11 +463,6 @@ export class Brandrail {
   async listScheduled(): Promise<ScheduledPost[]> {
     const { posts } = await this.request<{ posts: ScheduledPost[] }>("/v0/scheduled");
     return posts;
-  }
-
-  async reschedulePost(id: string, input: { scheduledAt?: string; text?: string }): Promise<ScheduledPost> {
-    const { post } = await this.request<{ post: ScheduledPost }>(`/v0/scheduled/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
-    return post;
   }
 
   cancelPost(id: string): Promise<{ post: ScheduledPost }> {

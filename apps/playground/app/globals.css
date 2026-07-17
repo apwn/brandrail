@@ -19,12 +19,27 @@
   a,
   button,
   input,
+  select,
+  textarea,
   summary {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid #ff4d00;
+    outline-offset: 3px;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
   }
 }
 
 @layer components {
+  .skip-link {
+    @apply fixed left-4 top-4 z-[100] -translate-y-24 bg-bone px-4 py-3 text-sm font-semibold text-ink transition-transform focus:translate-y-0;
+  }
+
   /* the signature: ALL-CAPS letter-spaced mono eyebrow */
   .eyebrow {
     @apply font-mono text-[11px] uppercase tracking-[0.18em] text-muted;

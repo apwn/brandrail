@@ -12,7 +12,8 @@ import { CheckoutIntent } from "./checkout-intent";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ShareBatchButton } from "./share-batch-button";
 import { WebhooksCard } from "./webhooks-card";
-import { WorkspaceLockup } from "../components/workspace-lockup";
+import { WorkspaceHeader } from "../components/workspace-header";
+import { JourneyRail } from "../components/journey-rail";
 import { redirect } from "next/navigation";
 
 type Usage = {
@@ -25,11 +26,15 @@ type Usage = {
   counts: { brands: number; batches: number; rendersThisMonth: number; generativeThisMonth: number };
 };
 
-async function load<T>(path: string, uid: string, fallback: T): Promise<T> {
+async function load<T>(path: string, uid: string, fallback: T, unavailable: string[], expectedDenied = false): Promise<T> {
   try {
     const res = await engine(path, {}, uid);
-    return res.ok ? ((await res.json()) as T) : fallback;
+    if (res.ok) return (await res.json()) as T;
+    if (expectedDenied && res.status === 403) return fallback;
+    unavailable.push(path);
+    return fallback;
   } catch {
+    unavailable.push(path);
     return fallback;
   }
 }
@@ -40,21 +45,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const uid = await getUserId();
 
   if (!uid) {
-    redirect("/login");
+    redirect("/login?return=%2Fdashboard");
   }
 
+  const unavailable: string[] = [];
   const [usage, specs, batches, channels, renders, workspaces, scheduled, keys, audit, runs, programs] = await Promise.all([
-    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }),
-    load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }),
-    load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }),
-    load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }),
-    load<{ renders: Array<{ id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string; width: number; height: number }> } }> }>("/v0/renders?limit=12", uid, { renders: [] }),
-    load<{ workspaces: Array<{ id: string; label: string; role: "owner" | "reviewer"; active: boolean }> }>("/v0/me/workspaces", uid, { workspaces: [] }),
-    load<{ posts: Array<{ status: string }> }>("/v0/scheduled", uid, { posts: [] }),
-    load<{ keys: Array<{ id: string }> }>("/v0/me/keys", uid, { keys: [] }),
-    load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }),
-    load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }),
-    load<{ programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; timeZone?: string; plannedPosts?: Array<unknown> }> }>("/v0/content-programs", uid, { programs: [] }),
+    load<Usage>("/v0/me/usage", uid, { user: { id: uid, email: null, plan: "free" }, role: "owner", workspaceId: uid, entitlements: { brands: 1, apiKeys: 1, features: ["agentAccess", "apiKeys"] }, limit: 50, genLimit: 5, counts: { brands: 0, batches: 0, rendersThisMonth: 0, generativeThisMonth: 0 } }, unavailable),
+    load<{ specs: Array<{ name: string; version: number; active?: boolean }> }>("/v0/specs", uid, { specs: [] }, unavailable),
+    load<{ batches: Array<{ id: string; title: string; createdAt: string; counts: { total: number; approved: number; flagged: number; pending: number } }> }>("/v0/batches", uid, { batches: [] }, unavailable, true),
+    load<{ channels: Array<{ id: string }> }>("/v0/channels", uid, { channels: [] }, unavailable, true),
+    load<{ renders: Array<{ id: string; createdAt: string; manifest: { brand: string; brief: string; assets: Array<{ filename: string; format: string; width: number; height: number }> } }> }>("/v0/renders?limit=12", uid, { renders: [] }, unavailable),
+    load<{ workspaces: Array<{ id: string; label: string; role: "owner" | "reviewer"; active: boolean }> }>("/v0/me/workspaces", uid, { workspaces: [] }, unavailable),
+    load<{ posts: Array<{ status: string }> }>("/v0/scheduled", uid, { posts: [] }, unavailable, true),
+    load<{ keys: Array<{ id: string; lastUsedAt?: string | null; expiresAt?: string | null }> }>("/v0/me/keys", uid, { keys: [] }, unavailable),
+    load<{ events: Array<{ actor: string; path: string; status: number }> }>("/v0/me/audit?limit=25", uid, { events: [] }, unavailable),
+    load<{ runs: Array<{ id: string; objective: string; brand?: string; status: "planning" | "working" | "input_required" | "completed" | "failed" | "cancelled"; progress: number; currentStep: string; updatedAt: string }> }>("/v0/agent/runs?limit=6", uid, { runs: [] }, unavailable),
+    load<{ programs: Array<{ brand: string; name: string; status: "active" | "paused" | "scheduled" | "complete"; perWeek: number; nextRunAt: string | null; timeZone?: string; plannedPosts?: Array<unknown> }> }>("/v0/content-programs", uid, { programs: [] }, unavailable, true),
   ]);
 
   const used = usage.counts.rendersThisMonth;
@@ -65,24 +71,26 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const has = (feature: string) => usage.entitlements.features.includes(feature);
   const firstBrand = specs.specs.find((item) => item.active !== false)?.name;
   const createHref = firstBrand ? `/?brand=${encodeURIComponent(firstBrand)}` : "/";
+  const agentIntent = welcome === "agent";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <header className="flex items-center justify-between">
-        <WorkspaceLockup context="Workspace" />
-        <nav className="flex items-center gap-5 eyebrow">
-          {workspaces.workspaces.length > 1 && <WorkspaceSwitcher workspaces={workspaces.workspaces} />}
-          {owner && <a href="#agent" className="text-signal hover:text-bone">AGENT</a>}
-          <a href="/" className="hover:text-bone">COMPILE</a>
-          <a href="/review" className="hover:text-bone">REVIEW</a>
-          {owner && <a href="/templates" className="hover:text-bone">TEMPLATES</a>}
-          {owner && has("publishing") && <a href="/calendar" className="hover:text-bone">CALENDAR</a>}
-          {owner && <a href="/program" className="text-signal hover:text-bone">PROGRAM</a>}
-          {has("planner") && <a href="/campaigns" className="hover:text-bone">CAMPAIGNS</a>}
-          {owner && has("planner") && <a href="/analytics" className="hover:text-bone">SIGNAL</a>}
-          <a href="/activity" className="hover:text-bone">ACTIVITY</a>
-        </nav>
-      </header>
+      <WorkspaceHeader context="Workspace" active="home" plan={usage.user.plan} />
+      <JourneyRail completed={[
+        ...(specs.specs.length ? ["brand" as const] : []),
+        ...(programs.programs.length ? ["plan" as const] : []),
+        ...(batches.batches.some((batch) => batch.counts.approved > 0) ? ["review" as const] : []),
+        ...(scheduled.posts.some((post) => post.status !== "cancelled") ? ["schedule" as const] : []),
+      ]} />
+
+      {workspaces.workspaces.length > 1 && <div className="mt-4 flex justify-end"><WorkspaceSwitcher workspaces={workspaces.workspaces} /></div>}
+
+      {unavailable.length > 0 && (
+        <div className="mt-6 border border-signal/60 bg-panel px-4 py-3" role="alert">
+          <p className="text-sm text-bone"><span className="font-mono text-signal">WORKSPACE PARTIALLY UNAVAILABLE</span> · Some information could not be loaded. Nothing has been deleted.</p>
+          <p className="mt-1 text-xs text-muted">Refresh to try again. Empty areas below may be unavailable rather than genuinely empty.</p>
+        </div>
+      )}
 
       {welcome && (
         <div className="panel border-green/50 mt-8 px-4 py-3 text-sm">
@@ -108,8 +116,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         hasBrand={specs.specs.length > 0}
         hasRender={renders.renders.length > 0}
         firstBrand={firstBrand}
-        hasAgent={keys.keys.length > 0}
-        hasAgentRun={audit.events.some((event) => event.actor === "agent" && event.status < 400 && ["/v0/agent/plan", "/v0/render", "/v0/compile"].includes(event.path))}
+        hasAgent={keys.keys.some((key) => Boolean(key.lastUsedAt) && (!key.expiresAt || Date.parse(key.expiresAt) > Date.now()))}
+        hasAgentRun={runs.runs.length > 0 || audit.events.some((event) => event.actor === "agent" && event.status < 400 && (event.path.startsWith("/v0/agent/runs") || ["/v0/agent/plan", "/v0/render", "/v0/compile"].includes(event.path)))}
         hasChannel={channels.channels.length > 0}
         hasApproved={batches.batches.some((b) => b.counts.approved > 0)}
         hasScheduled={scheduled.posts.some((post) => post.status !== "cancelled")}
@@ -117,9 +125,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         canReview={has("batchReview")}
         canProgram={has("autopilot")}
         hasProgram={programs.programs.length > 0}
+        intent={agentIntent ? "agent" : "studio"}
       />}
 
-      {owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} />}
+      {agentIntent && owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} plan={usage.user.plan} />}
       {owner && has("agentAccess") && runs.runs.length > 0 && <section id="agent-runs" className="mt-4 border border-hairline bg-panel p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4"><div><p className="eyebrow text-signal">DURABLE AGENT RUNS</p><h2 className="font-display text-xl font-bold mt-2">Work that survives the chat.</h2></div><a href="/runs" className="font-mono text-[10px] text-signal hover:text-bone">VIEW ALL →</a></div>
         <div className="mt-4 divide-y divide-hairline">
@@ -159,13 +168,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </section>
 
       {/* brands */}
-      <section className="mt-10">
+      <section id="brands" className="mt-10 scroll-mt-24">
         <div className="flex items-center justify-between mb-3">
           <p className="eyebrow text-bone">ACTIVE BRANDS ({specs.specs.filter((s) => s.active !== false).length} / {usage.entitlements.brands})</p>
           {owner && specs.specs.filter((s) => s.active !== false).length < usage.entitlements.brands && <a href="/" className="btn-ghost !py-1.5 !px-3 text-xs">+ Compile a brand</a>}
         </div>
         {specs.specs.length === 0 ? (
-          <p className="text-muted text-sm">No brands yet — <a className="text-signal" href="/">compile your first →</a></p>
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-hairline bg-panel p-4"><p className="text-muted text-sm">No brands yet. Start with your own site, or explore a complete example first.</p><div className="flex flex-wrap gap-2"><a className="btn-ghost !px-3 !py-2 text-xs" href="/sample">Explore sample</a><a className="btn !px-3 !py-2 text-xs" href="/">Compile my brand →</a></div></div>
         ) : (
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2">
             {specs.specs.map((s) => (
@@ -180,6 +189,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </div>
         )}
       </section>
+
+      {!agentIntent && owner && has("agentAccess") && <ApiKeysCard verified={Boolean(usage.user.emailVerified)} keyLimit={usage.entitlements.apiKeys} plan={usage.user.plan} />}
 
       {owner && <ProgramRail
         plan={usage.user.plan}

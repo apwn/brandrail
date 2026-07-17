@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { trackConversion } from "@/lib/conversion";
 
 export function RunComposer({ brands, openByDefault }: { brands: string[]; openByDefault: boolean }) {
   const router = useRouter();
@@ -28,8 +29,10 @@ export function RunComposer({ brands, openByDefault }: { brands: string[]; openB
       const response = await fetch("/api/agent/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ objective: objective.trim(), brand }) });
       const data = await response.json().catch(() => ({})) as { run?: { id: string }; error?: string };
       if (!response.ok || !data.run?.id) throw new Error(data.error ?? "The run could not be created.");
+      trackConversion("agent_run_created", { hasBrand: Boolean(brand) });
       router.push(`/runs/${encodeURIComponent(data.run.id)}`);
     } catch (cause) {
+      trackConversion("agent_run_action_failed", { action: "create" });
       setError(cause instanceof Error ? cause.message : "The run could not be created.");
     } finally {
       setBusy(false);

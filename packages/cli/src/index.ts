@@ -13,7 +13,7 @@ const EXIT_VIOLATION = 2;
 const EXIT_LOW_CONFIDENCE = 3;
 const DEFAULT_MCP_URL = "https://playground.brandrail.dev/api/mcp";
 const MCP_PROTOCOL_VERSION = "2025-11-25";
-const MCP_REQUIRED_TOOLS = ["list_brands", "get_brand", "start_campaign_run", "render_assets", "create_review_batch", "get_review_status", "schedule_post", "get_audit_log"];
+const MCP_REQUIRED_TOOLS = ["get_usage"];
 
 function safeAssetPath(directory: string, filename: string): string {
   if (path.basename(filename) !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(filename)) throw new Error("server returned an unsafe asset filename");
@@ -132,8 +132,12 @@ function mcpCredential(): string | undefined {
 }
 
 function mcpSetup(clientName: string, endpoint: string): string {
-  const key = mcpCredential() ?? "brk_…";
   const continuation = "\\";
+  const secretPrompt = [
+    "read -rsp 'Brandrail API key: ' BRANDRAIL_API_KEY",
+    "printf '\\n'",
+    "export BRANDRAIL_API_KEY",
+  ];
   if (clientName === "openclaw") {
     const config = JSON.stringify({
       url: endpoint,
@@ -143,7 +147,7 @@ function mcpSetup(clientName: string, endpoint: string): string {
       timeout: 120,
     });
     return [
-      `export BRANDRAIL_API_KEY='${key}'`,
+      ...secretPrompt,
       "",
       `openclaw mcp set brandrail ${continuation}`,
       `  '${config}'`,
@@ -153,16 +157,20 @@ function mcpSetup(clientName: string, endpoint: string): string {
   }
   if (clientName === "claude") {
     return [
+      ...secretPrompt,
+      "",
       `claude mcp add --transport http brandrail '${endpoint}' ${continuation}`,
-      `  --header 'Authorization: Bearer ${key}'`,
+      `  --header 'Authorization: Bearer \${BRANDRAIL_API_KEY}'`,
       "",
       "claude mcp get brandrail",
     ].join("\n");
   }
   if (clientName === "http") {
     return [
+      ...secretPrompt,
+      "",
       `curl -X POST '${endpoint}' ${continuation}`,
-      `  -H 'Authorization: Bearer ${key}' ${continuation}`,
+      `  -H "Authorization: Bearer \${BRANDRAIL_API_KEY}" ${continuation}`,
       `  -H 'Content-Type: application/json' ${continuation}`,
       `  -H 'Accept: application/json, text/event-stream' ${continuation}`,
       `  --data '{"jsonrpc":"2.0","id":"probe","method":"initialize","params":{"protocolVersion":"${MCP_PROTOCOL_VERSION}","capabilities":{},"clientInfo":{"name":"brandrail-probe","version":"1.0.0"}}}'`,
@@ -224,6 +232,7 @@ mcp.command("doctor")
       const names = new Set((listed.tools ?? []).map((tool) => tool.name));
       const missing = MCP_REQUIRED_TOOLS.filter((name) => !names.has(name));
       if (missing.length) throw new Error(`missing required tools: ${missing.join(", ")}`);
+      await mcpRpc(endpoint, key, "cli-usage", "tools/call", { name: "get_usage", arguments: {} }, initialized.protocolVersion);
       let resourceCount: number | null = null;
       try {
         const resources = await mcpRpc<{ resources?: unknown[] }>(endpoint, key, "cli-resources", "resources/list", undefined, initialized.protocolVersion);
@@ -244,7 +253,7 @@ mcp.command("doctor")
         console.log("status     ready");
         console.log(`server     ${result.server}${result.version ? ` ${result.version}` : ""}`);
         console.log(`protocol   ${result.protocol}`);
-        console.log(`tools      ${result.tools} · core lifecycle present`);
+        console.log(`tools      ${result.tools} · scoped surface ready`);
         console.log(`resources  ${result.resources === null ? "scoped off" : `${result.resources} inspectable assets`}`);
         console.log(`endpoint   ${result.endpoint}`);
       }
@@ -578,16 +587,15 @@ program.command("schedule")
   .option("--idempotency-key <key>", "deduplicate retries")
   .option("--run <runId>", "durable agent run to advance")
   .option("--dry-run", "validate and print the execution without publishing")
-  .option("--confirm", "confirm an agent publish without a review reference")
   .option("--approval <ref>", "approved batch:item reference")
-  .action(async (text: string, opts: { channels: string; at?: string; render?: string; images?: string; idempotencyKey?: string; run?: string; dryRun?: boolean; confirm?: boolean; approval?: string }) => {
+  .action(async (text: string, opts: { channels: string; at?: string; render?: string; images?: string; idempotencyKey?: string; run?: string; dryRun?: boolean; approval?: string }) => {
     try {
       const channelIds = opts.channels.split(",").map((value) => value.trim()).filter(Boolean);
       if (!channelIds.length) fail("at least one channel ID is required");
       if (opts.at && !Number.isFinite(Date.parse(opts.at))) fail("--at must be a valid ISO date");
       const approvalParts = opts.approval?.split(":");
       if (opts.approval && approvalParts?.length !== 2) fail("--approval must be batchId:itemId");
-      const result = await client().schedule({ text, channelIds, ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.render ? { renderId: opts.render } : {}), ...(opts.images ? { imageFiles: opts.images.split(",").map((value) => value.trim()).filter(Boolean) } : {}), ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}), ...(opts.run ? { runId: opts.run } : {}), ...(opts.dryRun ? { dryRun: true } : {}), ...(opts.confirm ? { confirm: true } : {}), ...(approvalParts ? { approval: { batchId: approvalParts[0]!, itemId: approvalParts[1]! } } : {}) });
+      const result = await client().schedule({ text, channelIds, ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.render ? { renderId: opts.render } : {}), ...(opts.images ? { imageFiles: opts.images.split(",").map((value) => value.trim()).filter(Boolean) } : {}), ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}), ...(opts.run ? { runId: opts.run } : {}), ...(opts.dryRun ? { dryRun: true } : {}), ...(approvalParts ? { approval: { batchId: approvalParts[0]!, itemId: approvalParts[1]! } } : {}) });
       if (isJson()) console.log(JSON.stringify({ ok: true, ...result }));
       else if (result.dryRun) console.log(`dry-run  ${result.ready ? "ready" : "blocked"}`);
       else console.log(`${result.post.status}  ${result.post.id}  ${result.post.scheduledAt}${result.deduplicated ? "  (deduplicated)" : ""}`);
@@ -652,14 +660,14 @@ agent.command("plan")
   .argument("<objective>", "campaign objective")
   .option("--brand <name>", "BrandSpec name")
   .option("--channels <ids>", "comma-separated channel IDs")
-  .option("--assets <count>", "estimated finished assets", "5")
+  .option("--assets <count>", "maximum finished assets", "8")
   .option("--publish-at <iso>", "optional target publish time")
   .action(async (objective: string, opts: { brand?: string; channels?: string; assets: string; publishAt?: string }) => {
     try {
       const plan = await client().executionPlan({ objective, ...(opts.brand ? { brand: opts.brand } : {}), ...(opts.channels ? { channels: opts.channels.split(",").map((value) => value.trim()).filter(Boolean) } : {}), assetCount: Number(opts.assets), ...(opts.publishAt ? { publishAt: opts.publishAt } : {}) });
       if (isJson()) console.log(JSON.stringify({ ok: true, plan }));
       else {
-        console.log(`${plan.ready ? "ready" : "blocked"}  ${plan.brand ?? "no brand"}  ${plan.estimate.finishedAssets} assets`);
+        console.log(`${plan.ready ? "ready" : "blocked"}  ${plan.brand ?? "no brand"}  up to ${plan.estimate.finishedAssets} assets`);
         for (const blocker of plan.blockers) console.log(`blocker  ${blocker}`);
         for (const step of plan.steps) console.log(`${step.mutates ? "write" : "read "}  ${step.ready ? "✓" : "×"} ${step.action}`);
       }
@@ -671,16 +679,15 @@ agent.command("start")
   .argument("<objective>", "campaign objective")
   .option("--brand <name>", "BrandSpec name")
   .option("--channels <ids>", "comma-separated channel IDs")
-  .option("--assets <count>", "estimated finished assets", "5")
+  .option("--assets <count>", "maximum finished assets", "8")
   .option("--publish-at <iso>", "optional target publish time")
-  .option("--yes", "mark the run ready for execution instead of pausing for plan confirmation")
-  .action(async (objective: string, opts: { brand?: string; channels?: string; assets: string; publishAt?: string; yes?: boolean }) => {
+  .action(async (objective: string, opts: { brand?: string; channels?: string; assets: string; publishAt?: string }) => {
     try {
-      const run = await client().startAgentRun({ objective, ...(opts.brand ? { brand: opts.brand } : {}), ...(opts.channels ? { channels: opts.channels.split(",").map((value) => value.trim()).filter(Boolean) } : {}), assetCount: Number(opts.assets), ...(opts.publishAt ? { publishAt: opts.publishAt } : {}), start: Boolean(opts.yes) });
+      const run = await client().startAgentRun({ objective, ...(opts.brand ? { brand: opts.brand } : {}), ...(opts.channels ? { channels: opts.channels.split(",").map((value) => value.trim()).filter(Boolean) } : {}), assetCount: Number(opts.assets), ...(opts.publishAt ? { publishAt: opts.publishAt } : {}) });
       if (isJson()) console.log(JSON.stringify({ ok: true, run }));
       else {
         console.log(`${run.id}  ${run.status}  ${run.currentStep}  ${run.progress}%`);
-        if (run.status === "input_required") console.log(`next  brandrail agent input ${run.id} --data '{"approved":true}'`);
+        if (run.status === "input_required") console.log(`next  open the Brandrail run page and approve plan ${run.planHash?.slice(0, 10) ?? "in the workspace"}`);
         else if (run.currentStep === "render" && run.brand) console.log(`next  brandrail render <brief> --brand ${run.brand} --run ${run.id}`);
       }
     } catch (e) { handleError(e); }
@@ -706,18 +713,14 @@ agent.command("status").description("show one durable run").argument("<runId>").
       if (run.batchId) console.log(`review   ${run.batchId}`);
       if (run.postIds?.length) console.log(`posts    ${run.postIds.join(", ")}`);
       if (run.error) console.log(`error    ${run.error}`);
-      if (run.currentStep === "confirm_plan") console.log(`next     brandrail agent input ${run.id} --data '{"approved":true}'`);
+      if (run.currentStep === "confirm_plan") console.log(`next     approve the exact dry plan in the Brandrail workspace, then run status again`);
       else if (run.currentStep === "render" && run.brand) console.log(`next     brandrail render <brief> --brand ${run.brand} --run ${run.id}`);
       else if (run.currentStep === "review_or_confirm" && run.brand && run.renderIds?.[0]) console.log(`next     brandrail review create <brief> --brand ${run.brand} --render ${run.renderIds[0]} --run ${run.id}\n         or brandrail agent complete ${run.id} for an asset-only job`);
       else if (["human_review", "resolve_review_flags"].includes(run.currentStep) && run.batchId) console.log(`next     brandrail review status ${run.batchId} --run ${run.id}`);
-      else if (run.currentStep === "publish") console.log(`next     brandrail schedule <caption> --channels <ids> --run ${run.id} --confirm`);
+      else if (run.currentStep === "publish") console.log(`next     brandrail schedule <caption> --channels <ids> --run ${run.id} --approval <batch:item>`);
       else if (run.currentStep === "scheduled") console.log("next     wait for delivery, then run this status command again");
     }
   } catch (e) { handleError(e); }
-});
-
-agent.command("input").description("approve a run waiting at plan confirmation").argument("<runId>").requiredOption("--data <json>", "JSON object").action(async (runId: string, opts: { data: string }) => {
-  try { const value = JSON.parse(opts.data) as unknown; if (!value || Array.isArray(value) || typeof value !== "object") fail("--data must be a JSON object"); const run = await client().provideAgentInput(runId, value as Record<string, unknown>); if (isJson()) console.log(JSON.stringify({ ok: true, run })); else console.log(`${run.id}  ${run.status}  ${run.currentStep}`); } catch (e) { handleError(e); }
 });
 
 agent.command("retry").description("retry a failed or cancelled run").argument("<runId>").action(async (runId: string) => {
@@ -782,10 +785,6 @@ program.command("calendar").description("list scheduled and published posts").op
     else if (!posts.length) console.log("No matching calendar posts.");
     else for (const post of posts) console.log(`${post.scheduledAt}  ${post.status.padEnd(10)}  ${post.id}  ${post.text.slice(0, 72)}`);
   } catch (e) { handleError(e); }
-});
-
-program.command("reschedule").description("edit a post that is still scheduled").argument("<postId>").option("--at <iso>").option("--text <text>").action(async (postId: string, opts: { at?: string; text?: string }) => {
-  try { const post = await client().reschedulePost(postId, { ...(opts.at ? { scheduledAt: new Date(opts.at).toISOString() } : {}), ...(opts.text ? { text: opts.text } : {}) }); if (isJson()) console.log(JSON.stringify({ ok: true, post })); else console.log(`${post.id}  ${post.status}  ${post.scheduledAt}`); } catch (e) { handleError(e); }
 });
 
 program.command("cancel-post").description("cancel a post that has not started publishing").argument("<postId>").action(async (postId: string) => {

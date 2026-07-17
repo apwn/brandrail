@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WorkspaceHeader } from "../components/workspace-header";
 
 export type Campaign = { id: string; name: string; objective: string; status: "draft" | "active" | "complete"; startAt?: string; endAt?: string; brandIds: string[]; batchIds: string[]; postIds: string[]; createdAt: string; updatedAt: string; progress: { batches: number; assets: number; approved: number; posts: number; scheduled: number; published: number; impressions: number; engagements: number } };
 export type BatchOption = { id: string; title: string; createdAt: string; counts: { total: number; approved: number; pending: number; flagged: number } };
@@ -46,7 +47,8 @@ export function CampaignsWorkspace({ initialCampaigns, brands, batches, posts, o
   }
 
   return <main className="mx-auto max-w-6xl px-6 py-10 sm:py-12">
-    <header className="flex flex-wrap items-end justify-between gap-5"><div><a href="/dashboard" className="eyebrow hover:text-bone">← WORKSPACE</a><div className="rail w-12 mt-5" /><h1 className="font-display text-4xl font-bold mt-4">Campaigns</h1><p className="text-muted mt-2 max-w-2xl">Keep the objective, production rail, approvals and outcomes connected.</p></div><div className="flex gap-2"><a href="/analytics" className="btn-ghost !py-2">Performance</a>{owner && <button className="btn !py-2" onClick={() => select("new")}>+ New campaign</button>}</div></header>
+    <WorkspaceHeader context="Campaigns" active="campaigns" plan="studio" />
+    <section className="mt-8 flex flex-wrap items-end justify-between gap-5"><div><div className="rail w-12" /><h1 className="font-display text-4xl font-bold mt-4">Campaigns</h1><p className="text-muted mt-2 max-w-2xl">Keep the objective, production rail, approvals and outcomes connected.</p></div><div className="flex gap-2"><a href="/analytics" className="btn-ghost !py-2">Analytics</a>{owner && <button className="btn !py-2" onClick={() => select("new")}>+ New campaign</button>}</div></section>
     <div className="grid lg:grid-cols-[300px_1fr] gap-4 mt-10">
       <aside className="panel p-2 h-fit"><p className="eyebrow text-bone px-3 pt-3 pb-2">INITIATIVES ({campaigns.length})</p>{campaigns.length ? campaigns.map((campaign) => <button key={campaign.id} onClick={() => select(campaign.id)} className={`w-full text-left p-3 border mt-1 transition-colors ${selectedId === campaign.id ? "border-signal bg-signal/5" : "border-transparent hover:border-hairline"}`}><div className="flex justify-between gap-2"><p className="text-sm text-bone truncate">{campaign.name}</p><span className={`font-mono text-[9px] uppercase ${campaign.status === "active" ? "text-green" : "text-muted"}`}>{campaign.status}</span></div><p className="font-mono text-[9px] text-muted mt-2">{campaign.progress.approved}/{campaign.progress.assets} APPROVED · {campaign.progress.published} LIVE</p></button>) : <p className="text-sm text-muted p-3">Create the first campaign to connect the workflow.</p>}</aside>
 

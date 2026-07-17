@@ -250,6 +250,11 @@ export function DeliveryDialog({
                 </div>
                 <span className="font-display text-3xl font-bold text-bone">{postCount}</span>
               </div>
+              <dl className="mt-4 grid gap-3 border-t border-hairline pt-4 font-mono text-[9px] text-muted sm:grid-cols-3">
+                <div><dt>NEW ASSET USAGE</dt><dd className="mt-1 text-bone">0 · existing approved renders</dd></div>
+                <div><dt>EXTERNAL ACTION</dt><dd className="mt-1 text-bone">{postCount} scheduled deliveries</dd></div>
+                <div><dt>REVERSIBILITY</dt><dd className="mt-1 text-bone">cancellable until publishing starts</dd></div>
+              </dl>
             </div>
 
             {error && <p className="mt-3 font-mono text-xs text-signal" role="alert">ERR {error}</p>}

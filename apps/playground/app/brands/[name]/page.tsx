@@ -5,9 +5,9 @@ import { getUserId } from "@/lib/session";
 import { BrandWorkspace } from "./workspace";
 
 export default async function BrandPage({ params }: { params: Promise<{ name: string }> }) {
-  const uid = await getUserId();
-  if (!uid) redirect("/login");
   const { name } = await params;
+  const uid = await getUserId();
+  if (!uid) redirect(`/login?return=${encodeURIComponent(`/brands/${encodeURIComponent(name)}`)}`);
   const [specRes, usageRes, renderRes, genRes] = await Promise.all([
     engine(`/v0/specs/${encodeURIComponent(name)}`, {}, uid),
     engine("/v0/me/usage", {}, uid),
